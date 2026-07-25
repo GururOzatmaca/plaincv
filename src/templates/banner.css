@@ -1,0 +1,35 @@
+/* Banner: contacts sit opposite the name and every section heading is a filled block,
+   so the page is built out of horizontal bands. Heavy sans, accent used as fill rather
+   than as a line - the opposite gesture to Rail, which uses it only on text.
+   GUARDRAIL: template CSS must NEVER set position / display / overflow / max-height
+   on .cv-section/.cv-secH/.cv-entry/.cv-li/.cv-etop; those drive the drag hit-zones
+   and the collapse-to-zero add/reorder affordances. Structure belongs to paper.css.
+   Enforced by `npm run guardrail` (scripts/check-guardrail.mjs), which also requires
+   every selector here to be scoped to this file's own data-template id. */
+[data-template='banner'] .cv-h1 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+[data-template='banner'] .cv-title {
+  color: var(--paper-accent);
+  font-weight: 600;
+}
+[data-template='banner'] .cv-rule {
+  border-bottom: 2pt solid var(--paper-accent);
+}
+[data-template='banner'] .cv-secH {
+  color: var(--paper-accent);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+[data-template='banner'] .cv-li::marker {
+  content: '▸  ';
+  color: var(--paper-accent);
+}
+[data-template='banner'] .cv-chip {
+  border-radius: 2pt;
+  background: var(--accent-weak);
+  color: var(--paper-accent);
+  font-weight: 600;
+}

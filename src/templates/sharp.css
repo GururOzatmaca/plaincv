@@ -1,0 +1,38 @@
+/* Sharp: colour-forward. Accent name, wide-tracked ALL-CAPS headings marked by a
+   solid accent bar on the left instead of an underline, square accent-filled skill
+   chips, square bullet markers. The only template that uses colour as structure.
+   GUARDRAIL: template CSS must NEVER set position / display / overflow / max-height
+   on .cv-section/.cv-secH/.cv-entry/.cv-li/.cv-etop; those drive the drag hit-zones
+   and the collapse-to-zero add/reorder affordances. Structure belongs to paper.css.
+   Enforced by `npm run guardrail` (scripts/check-guardrail.mjs), which also requires
+   every selector here to be scoped to this file's own data-template id. */
+[data-template='sharp'] .cv-h1 {
+  color: var(--paper-accent);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+[data-template='sharp'] .cv-title {
+  color: #2a2f34;
+  font-weight: 600;
+}
+[data-template='sharp'] .cv-rule {
+  border-bottom: 2.5pt solid var(--paper-accent);
+}
+/* The accent bar is not here: it is theme.headingLayout='left-rail' (see the
+   registry), which also suppresses the underline so the two never stack. */
+[data-template='sharp'] .cv-secH {
+  color: var(--paper-accent);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+[data-template='sharp'] .cv-li::marker {
+  content: '▪  ';
+  color: var(--paper-accent);
+}
+[data-template='sharp'] .cv-chip {
+  border-radius: 3pt;
+  background: var(--accent-weak);
+  color: var(--paper-accent);
+  font-weight: 600;
+}

@@ -1,0 +1,278 @@
+.imp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 32, 0.45);
+  backdrop-filter: blur(2px);
+}
+.imp-card {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 20px;
+  background: var(--surface);
+  padding: 26px 26px 20px;
+  box-shadow: 0 20px 60px rgba(15, 23, 32, 0.3);
+}
+.imp-x {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--faint);
+  cursor: pointer;
+}
+.imp-x:hover {
+  color: var(--ink);
+}
+.imp-title {
+  font-size: 19px;
+  font-weight: 700;
+}
+.imp-sub {
+  margin-top: 3px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.imp-steps {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.imp-step-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.imp-num {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.imp-inline {
+  margin-left: auto;
+  padding: 8px 16px;
+}
+.imp-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--faint);
+}
+.imp-btn {
+  appearance: none;
+  border: none;
+  border-radius: 11px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.12s var(--squish);
+}
+.imp-btn.primary {
+  background: var(--accent);
+  color: #fff;
+}
+.imp-btn.primary:hover {
+  filter: brightness(1.06);
+}
+.imp-btn.primary:active {
+  transform: scale(0.96);
+}
+.imp-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+.imp-textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  padding: 11px 13px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: var(--surface-2);
+}
+.imp-textarea:focus {
+  outline: 2px solid var(--accent-weak);
+  border-color: var(--accent);
+}
+.imp-errors {
+  margin: 10px 0 0;
+  padding: 10px 12px 10px 26px;
+  border-radius: 10px;
+  background: #fdecea;
+  color: #b42318;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+/* success splash: no card, just the tick on a blurred backdrop */
+.imp-splash {
+  flex-direction: column;
+  gap: 22px;
+  background: rgba(15, 23, 32, 0.5);
+  backdrop-filter: blur(7px);
+}
+.imp-ok-h {
+  font-size: 21px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.01em;
+  opacity: 0;
+  animation: imp-fade 0.5s ease 0.75s forwards;
+}
+.imp-tick {
+  width: 132px;
+  height: 132px;
+  filter: drop-shadow(0 6px 18px rgba(18, 183, 106, 0.45));
+  transform-origin: center;
+  animation: imp-pop 0.4s ease 0.7s;
+}
+.imp-tick-c {
+  stroke: #12b76a;
+  stroke-width: 3;
+  stroke-dasharray: 151;
+  stroke-dashoffset: 151;
+  animation: imp-draw 0.7s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+.imp-tick-p {
+  stroke: #fff;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: imp-draw 0.4s cubic-bezier(0.65, 0, 0.35, 1) 0.6s forwards;
+}
+@keyframes imp-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes imp-fade {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes imp-pop {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .imp-tick,
+  .imp-tick-c,
+  .imp-tick-p,
+  .imp-ok-h {
+    animation: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+.imp-foot {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.imp-foot-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 3px 0;
+}
+.imp-foot-label {
+  min-width: 68px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+}
+.imp-link {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.imp-link:hover {
+  color: var(--ink);
+}
+
+/* Confirmation for anything that overwrites the document. Covers the card rather
+   than replacing it, so the user keeps the context they were acting on. */
+/* fixed, not absolute: .imp-card scrolls, and an absolute sheet would scroll with
+   it instead of staying over the dialog. */
+.imp-confirm {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 32, 0.5);
+  backdrop-filter: blur(3px);
+}
+.imp-confirm-card {
+  width: 100%;
+  max-width: 340px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 20px;
+  box-shadow: 0 14px 40px rgba(15, 23, 32, 0.18);
+}
+.imp-confirm-h {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.imp-confirm-b {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.imp-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.imp-confirm-actions .imp-btn {
+  padding: 8px 14px;
+  font-size: 13px;
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.imp-confirm-actions .imp-btn.danger {
+  background: #b42318;
+  color: #fff;
+}
+.imp-confirm-actions .imp-btn.danger:hover {
+  filter: brightness(1.08);
+}

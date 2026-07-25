@@ -1,0 +1,39 @@
+/* Rail: the dates become a left column and the accent lives on them, so the page
+   reads as a timeline rather than as a list. Serif body, quiet grey rules; the only
+   coloured text is the date rail itself, which is what the layout is about.
+   GUARDRAIL: template CSS must NEVER set position / display / overflow / max-height
+   on .cv-section/.cv-secH/.cv-entry/.cv-li/.cv-etop; those drive the drag hit-zones
+   and the collapse-to-zero add/reorder affordances. Structure belongs to paper.css.
+   Enforced by `npm run guardrail` (scripts/check-guardrail.mjs), which also requires
+   every selector here to be scoped to this file's own data-template id. */
+[data-template='rail'] .cv-h1 {
+  letter-spacing: -0.01em;
+}
+[data-template='rail'] .cv-title {
+  color: var(--paper-muted);
+  font-weight: 400;
+}
+[data-template='rail'] .cv-rule {
+  border-bottom: 0.75pt solid var(--paper-accent);
+}
+[data-template='rail'] .cv-secH {
+  color: var(--paper-accent);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-bottom: 0.5pt solid #dfe3e7;
+}
+/* the identity of this template: the rail is the only coloured thing on the page */
+[data-template='rail'] .cv-date {
+  color: var(--paper-accent);
+  font-weight: 600;
+}
+[data-template='rail'] .cv-li::marker {
+  color: #9aa4ad;
+}
+[data-template='rail'] .cv-chip {
+  background: transparent;
+  border: 0.5pt solid #c8ced4;
+  border-radius: 2pt;
+  color: #2a2f34;
+}

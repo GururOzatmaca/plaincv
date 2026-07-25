@@ -1,0 +1,47 @@
+/* Minimal: quiet. No rules, no colour, headings demoted to small wide-tracked muted
+   labels, en-dash bullets, borderless skills. Distinctness must survive the Design
+   panel's "Divider lines" toggle, so it comes from typography here, not only from
+   dividers being off by default in the registry.
+   GUARDRAIL: template CSS must NEVER set position / display / overflow / max-height
+   on .cv-section/.cv-secH/.cv-entry/.cv-li/.cv-etop; those drive the drag hit-zones
+   and the collapse-to-zero add/reorder affordances. Structure belongs to paper.css.
+   Enforced by `npm run guardrail` (scripts/check-guardrail.mjs), which also requires
+   every selector here to be scoped to this file's own data-template id. */
+[data-template='minimal'] .cv-h1 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+[data-template='minimal'] .cv-title {
+  color: var(--paper-muted);
+  font-weight: 400;
+}
+[data-template='minimal'] .cv-rule {
+  border-bottom: 0.5pt solid #dfe3e7;
+}
+[data-template='minimal'] .cv-secH {
+  color: var(--paper-muted);
+  font-size: calc(var(--paper-size) * 0.78);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+[data-template='minimal'] .cv-li::marker {
+  content: '–  ';
+  color: var(--paper-muted);
+}
+[data-template='minimal'] .cv-chip {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding-left: 0;
+  padding-right: 0;
+  color: var(--paper-muted);
+}
+/* borderless chips need their own separator or they run together */
+[data-template='minimal'] .cv-chip:not(.cv-chip-add) + .cv-chip:not(.cv-chip-add)::before {
+  content: '·';
+  margin: 0 7pt 0 2pt;
+  color: #b6bec6;
+}

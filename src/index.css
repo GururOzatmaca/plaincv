@@ -1,0 +1,689 @@
+@import 'tailwindcss';
+@import './print/print.css';
+
+/* App + document design tokens (single source; drives editor paper and print) */
+:root {
+  --bg: #e6e8ea;
+  --surface: #ffffff;
+  --surface-2: #f5f7f9;
+  --ink: #141a1f;
+  --muted: #5c6771;
+  /* was #98a2ac (~2.6:1 on white, fails AA for functional text) */
+  --faint: #6b7682;
+  --line: #e6e9ee;
+  --line-2: #d7dde2;
+  --accent: #0891b2;
+  --accent-2: #06b6d4;
+  --accent-weak: #d8f3f9;
+  --bounce: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --squish: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* live document tokens (theme-controlled) */
+  --paper-font: 'LibSerif', Georgia, serif;
+  --paper-size: 10.5pt;
+  --paper-lh: 1.4;
+  --paper-hscale: 1.7;
+  --paper-margin: 46pt;
+  --paper-accent: #0891b2;
+  --paper-muted: #565c63;
+}
+
+/* range sliders: accent-filled left side + grey right, accent thumb.
+   Filled portion driven by --pct (set per slider) using var(--accent) explicitly,
+   so light accents never trigger the browser dark-track quirk. */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 16px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--accent) var(--pct, 0%), var(--line-2) var(--pct, 0%));
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  margin-top: -5px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+input[type='range']::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line-2);
+}
+input[type='range']::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+/* Baseline keyboard focus. Several components set `outline: none` with nothing in
+   its place, which left keyboard users with no idea where they were. This is a
+   pseudo-class selector so it outranks a bare class rule that clears the outline. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Center the paper, but fall back to start when it's wider than the stage (zoomed
+   in) so the left edge stays reachable by scroll. Plain center clips the overflow
+   start. `stage-just-safe` = row main-axis; `stage-align-safe` = column cross-axis. */
+.stage-just-safe {
+  justify-content: safe center;
+}
+.stage-align-safe {
+  align-items: safe center;
+}
+
+/* Bounded editor shell. `safe` keeps the left edge reachable by scroll when the
+   paper is zoomed wider than the stage; plain center would clip the overflow start. */
+.editor-shell {
+  display: flex;
+  align-items: flex-start;
+  justify-content: safe center;
+  margin-inline: auto;
+  width: 100%;
+}
+/* Single column: grow to the zoomed page instead of overflowing, so the shell's own
+   side padding stays inside the scrollable area on both edges. */
+.editor-shell-narrow {
+  flex-direction: column;
+  align-items: safe center;
+  width: max-content;
+  min-width: 100%;
+}
+
+/* Everything below the page edge, marked as dropped from the PDF (screen only).
+   z-index 0 keeps it behind .print-paper, whose background stops at the page edge,
+   so the spilled text reads on top of the tint instead of being covered by it. */
+.cv-cut {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  border-top: 2px dashed #d92d20;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(180, 35, 24, 0.05) 0 10px,
+    rgba(180, 35, 24, 0.1) 10px 20px
+  );
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  pointer-events: none;
+}
+.cv-cut-label {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #b42318;
+  opacity: 0.75;
+}
+
+/* overflow warning pill, pinned to the page edge (screen only; never printed) */
+.cv-overflow-badge {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 6px 5px 14px;
+  border-radius: 999px;
+  background: #b42318;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(180, 35, 24, 0.35);
+  max-width: 96%;
+}
+.cv-fit-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 4px 12px;
+  background: #fff;
+  color: #b42318;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s var(--squish), filter 0.15s;
+}
+.cv-fit-btn:hover {
+  filter: brightness(0.95);
+}
+.cv-fit-btn:active {
+  transform: scale(0.94);
+}
+
+/* ---- App header ----
+   A real application toolbar: fixed height, one hairline separating it from the
+   editor, three explicit zones (identity+history / zoom / status+actions). */
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  min-height: 48px;
+  margin-bottom: 10px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.hdr-side {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.hdr-side-end {
+  justify-content: flex-end;
+  gap: 8px;
+}
+.hdr-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hdr-zoom {
+  flex: 0 0 auto;
+  order: 0;
+}
+.hdr-wordmark {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.hdr-rule {
+  width: 1px;
+  height: 20px;
+  margin: 0 2px;
+  background: var(--line-2);
+}
+.hdr-status,
+.hdr-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 1180px) {
+  .hdr-wordmark {
+    display: none;
+  }
+}
+
+/* Tablet and small laptop: two rows.
+   1  logo + undo/redo .................... Saved  ?
+   2  zoom .......... View options  Fill with AI  Download PDF
+   Grid, not flex-wrap: wrapping cannot be told WHERE to break, so the zoom cluster
+   ended up squeezed between the two groups. `display: contents` dissolves the
+   desktop right-hand wrapper so its two groups can be placed independently. */
+@media (max-width: 1024px) {
+  .app-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 10px 12px;
+    /* min-height alone centred a single row; with two rows it left none, so the top
+       row sat against the top edge and the bottom row against the hairline. */
+    padding: 9px 20px;
+  }
+  .hdr-side-end {
+    display: contents;
+  }
+  .hdr-side:not(.hdr-side-end) {
+    grid-area: 1 / 1;
+  }
+  .hdr-status {
+    grid-area: 1 / 2;
+    justify-self: end;
+  }
+  .hdr-zoom {
+    grid-area: 2 / 1;
+    justify-self: start;
+  }
+  .hdr-actions {
+    grid-area: 2 / 2;
+    justify-self: end;
+  }
+}
+
+/* Phone: three rows. 620, not 780: a 768px tablet has room for the two-row layout
+   above, and the user reads that one as the better fit.
+   1  logo + undo/redo ....... Saved  ?
+   2  [ View options ][ Fill with AI ][ Download PDF ]   <- equal thirds, full width
+   3  ............ zoom ............ */
+@media (max-width: 620px) {
+  .app-header {
+    gap: 8px 10px;
+    padding: 8px 12px;
+  }
+  .hdr-actions {
+    grid-area: 2 / 1 / 3 / 3;
+    /* stretch, not the `end` inherited from the tablet block above: `end` sizes the
+       row to its content and pins it right, which is what made the buttons small and
+       bunched into the right half. */
+    justify-self: stretch;
+    display: grid;
+    /* minmax(0,·), not 1fr: a bare 1fr floors at the track's content width, so the
+       three buttons came out 98/112/120 instead of equal thirds. */
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .hdr-zoom {
+    grid-area: 3 / 1 / 4 / 3;
+    justify-self: center;
+  }
+  /* two classes: the per-button rules below carry one each and would otherwise win
+     on source order */
+  .app-header .hdr-actions > * {
+    padding: 8px 2px;
+    font-size: 12px;
+    text-align: center;
+  }
+}
+
+/* --- action hierarchy: primary > secondary > tertiary > icon --- */
+.hdr-dl {
+  border: none;
+  border-radius: 9px;
+  padding: 8px 15px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+.hdr-ai {
+  border: 1px solid var(--line-2);
+  border-radius: 9px;
+  padding: 8px 13px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.hdr-ghost {
+  border: none;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 550;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.hdr-ghost:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.hdr-ghost.on {
+  background: var(--accent-weak);
+  color: var(--accent);
+}
+/* ---- Document switcher ----
+   Sits beside the wordmark because it names what you are looking at; putting it
+   with the actions would have read as another verb. */
+.doc-switch {
+  position: relative;
+  min-width: 0;
+}
+.doc-trigger {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 220px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 9px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.doc-trigger:hover,
+.doc-trigger[aria-expanded='true'] {
+  background: var(--surface-2);
+  border-color: var(--line-2);
+}
+.doc-trigger-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doc-count {
+  flex: 0 0 auto;
+  border-radius: 20px;
+  padding: 1px 6px;
+  background: var(--accent-weak);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+}
+.doc-caret {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 10px;
+}
+.doc-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 40;
+  width: 288px;
+  border: 1px solid var(--line-2);
+  border-radius: 11px;
+  background: var(--surface);
+  box-shadow: 0 10px 30px rgba(15, 23, 32, 0.14);
+  overflow: hidden;
+}
+.doc-list {
+  max-height: 300px;
+  margin: 0;
+  padding: 5px;
+  overflow-y: auto;
+  list-style: none;
+}
+.doc-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* keeps the delete off the menu's right edge, where it read as clipped */
+  padding-right: 7px;
+  border-radius: 8px;
+}
+.doc-item.sel {
+  background: var(--accent-weak);
+}
+.doc-pick {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 9px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.doc-item:not(.sel) .doc-pick:hover {
+  background: var(--surface-2);
+}
+.doc-name,
+.doc-sub {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doc-name {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.doc-sub {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.doc-rename {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 4px 6px;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.doc-confirm {
+  display: flex;
+  gap: 3px;
+  padding-right: 5px;
+}
+.doc-x {
+  flex: 0 0 auto;
+  border: none;
+  border-radius: 7px;
+  padding: 5px 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.doc-x:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.doc-x.danger {
+  background: #fbdada;
+  color: #b42318;
+}
+.doc-tools {
+  display: flex;
+  gap: 4px;
+  border-top: 1px solid var(--line);
+  padding: 6px;
+}
+.doc-tool {
+  flex: 1 1 0;
+  border: none;
+  border-radius: 7px;
+  padding: 7px 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.doc-tool:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.hdr-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.hdr-icon:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.hdr-ai:hover {
+  background: var(--surface-2);
+}
+.hdr-dl:hover {
+  filter: brightness(1.06);
+}
+.hdr-ai:active,
+.hdr-dl:active {
+  transform: scale(0.97);
+}
+
+/* undo / redo */
+.hdr-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.hdr-btn:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.hdr-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* --- zoom: neutral chrome, accent reserved for selection and the export CTA --- */
+.zm-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.zm-btn:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+.zm-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.zm-val {
+  min-width: 62px;
+  padding: 5px 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.zm-val:hover {
+  background: var(--surface-2);
+}
+
+.hdr-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #5c6771;
+  white-space: nowrap;
+}
+.hdr-save.busy {
+  color: var(--accent);
+}
+.hdr-save-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: hdrpulse 1s ease-in-out infinite;
+}
+@keyframes hdrpulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hdr-btn, .hdr-icon, .hdr-ghost, .hdr-ai, .hdr-dl, .zm-btn, .zm-val { transition: none; }
+  .hdr-save-dot { animation: none; }
+}
+
+/* storage-recovery bar (screen only) */
+.rec-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 28px 12px;
+  padding: 10px 14px;
+  border: 1px solid #f0c6c2;
+  border-radius: 12px;
+  background: #fef3f2;
+  color: #7a271a;
+  font-size: 13px;
+}
+.rec-msg {
+  flex: 1;
+  min-width: 220px;
+  font-weight: 600;
+}
+.rec-btn {
+  border: 1px solid #e3b5b0;
+  border-radius: 8px;
+  padding: 5px 10px;
+  background: #fff;
+  color: #7a271a;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rec-btn:hover {
+  background: #fff5f4;
+}
+.rec-btn.primary {
+  background: #b42318;
+  border-color: #b42318;
+  color: #fff;
+}
+

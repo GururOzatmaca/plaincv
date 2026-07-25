@@ -1,0 +1,929 @@
+/* CV paper internals: STRUCTURE ONLY (sizes, spacing, flow). Everything decorative
+   - colour, rules, casing, tracking, bullet markers, chip fills - belongs to the
+   template stylesheets in src/templates/, so no template is a diff against another.
+   Driven by the --paper-* tokens set on .print-paper from the document theme. */
+.cv-h1 {
+  font-size: calc(var(--paper-size) * var(--paper-hscale) * 1.15);
+  font-weight: 700;
+  margin: 0 0 2pt;
+  line-height: inherit; /* it is an <h1>; do not inherit the UA heading metrics */
+}
+.cv-title {
+  font-size: calc(var(--paper-size) * 1.12);
+  font-weight: 700;
+  margin-bottom: 5pt;
+}
+.cv-contact {
+  font-size: calc(var(--paper-size) * 0.9);
+  color: var(--paper-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2pt 10pt;
+}
+.cv-rule {
+  position: relative;
+  margin: 10pt 0;
+}
+/* X to remove all divider lines (screen only); revealed on hover of the header rule
+   or in show-ctl. Bring dividers back from the Design panel toggle. */
+.cv-rule-x {
+  position: absolute;
+  right: -9px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: #f3c7c7;
+  color: #b42318;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.cv-rule:hover .cv-rule-x,
+.show-ctl .cv-rule-x {
+  opacity: 1;
+}
+.cv-rule-x:hover {
+  background: #e5484d;
+  color: #fff;
+}
+.cv-rule-x .cv-x {
+  width: 9px;
+  height: 9px;
+}
+/* dividers off: hide the header rule and every section-header underline */
+.print-paper[data-dividers='false'] .cv-rule {
+  display: none;
+}
+.print-paper[data-dividers='false'] .cv-secH {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.cv-secH {
+  font-size: calc(var(--paper-size) * var(--paper-hscale) * 0.6);
+  margin: 12pt 0 6pt;
+  padding-bottom: 2pt;
+}
+/* inline editing affordance (screen only; never printed) */
+.cv-edit {
+  outline: none;
+  border-radius: 3px;
+  cursor: text;
+  transition: box-shadow 0.12s, background 0.12s;
+}
+.cv-edit:hover {
+  box-shadow: 0 0 0 2px var(--accent-weak);
+}
+.cv-edit:focus {
+  box-shadow: 0 0 0 2px var(--paper-accent);
+  background: #fff;
+}
+.cv-edit:empty::before {
+  content: attr(data-ph);
+  color: var(--paper-muted);
+  opacity: 0.55;
+}
+@media print {
+  .cv-edit:hover,
+  .cv-edit:focus {
+    box-shadow: none;
+    background: transparent;
+  }
+  .cv-edit:empty::before {
+    content: '';
+  }
+}
+
+/* rich line: wraps like normal text, edited in place */
+.cv-rich {
+  display: inline;
+}
+
+/* floating bold/italic toolbar over a text selection (screen only) */
+.mark-toolbar {
+  position: fixed;
+  z-index: 60;
+  transform: translate(-50%, calc(-100% - 8px));
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 8px;
+  background: #1b2330;
+  box-shadow: 0 6px 18px rgba(15, 23, 32, 0.35);
+}
+.mark-toolbar button {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  line-height: 1;
+}
+.mark-toolbar button:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.cv-section {
+  position: relative;
+}
+.cv-secH {
+  position: relative;
+}
+.cv-entry {
+  position: relative;
+  margin-bottom: 8pt;
+}
+.cv-li {
+  position: relative;
+}
+/* while dragging: source row dims; the target row shows an accent insertion line on
+   the side the item will land (above = before, below = after). Screen-only chrome. */
+.cv-dragging {
+  opacity: 0.35;
+}
+.cv-drop-before::after,
+.cv-drop-after::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 4;
+}
+.cv-drop-before::after {
+  top: -1px;
+}
+.cv-drop-after::after {
+  bottom: -1px;
+}
+
+/* Hit-zones: a transparent ~44px box (≈20px around the control). The control shows
+   only while the pointer is inside its OWN hit-zone (proximity), never on whole-row
+   hover, so a bullet's handle doesn't also light up the parent entry's. */
+.cv-hz {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 40px;
+  pointer-events: auto;
+}
+.cv-hz-l {
+  left: -46px;
+  top: -11px;
+}
+.cv-hz-r {
+  right: -50px;
+  top: -13px;
+}
+/* the section's hide toggle sits outboard of its delete, so the two never overlap */
+.cv-hz-eye {
+  right: -80px;
+  top: -13px;
+}
+.cv-secH:hover > .cv-hz-eye > *,
+.cv-hz-eye:hover > * {
+  opacity: 1;
+}
+.cv-hz > * {
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.cv-hz:hover > * {
+  opacity: 1;
+}
+/* Findability: hovering a bullet reveals its OWN delete; hovering an entry's top
+   line (role/org, or a custom heading) reveals that entry's delete. Drag handles
+   stay proximity-only so they don't clutter every hover.
+   The delete floats above/right of the row, so the pointer briefly crosses a gap
+   between the text and the button. A hide-delay keeps it lit across that gap (it
+   appears instantly; the reveal rules reset the delay to 0). */
+.cv-li > .cv-hz-r > *,
+.cv-entry > .cv-hz-r > *,
+.cv-skillrow > .cv-hz-r > * {
+  transition: opacity 0.1s 0.3s;
+}
+/* a skill row has no "top line" to key on the way an entry does - the row IS the
+   content - so plain row-hover is the reveal trigger. */
+.cv-li:hover > .cv-hz-r > *,
+.cv-li > .cv-hz-r:hover > *,
+.cv-entry:has(> .cv-etop:hover) > .cv-hz-r > *,
+.cv-entry:has(> .cv-role:hover) > .cv-hz-r > *,
+.cv-entry:has(> .cv-co:hover) > .cv-hz-r > *,
+.cv-entry > .cv-hz-r:hover > *,
+.cv-skillrow:hover > .cv-hz-r > *,
+.cv-skillrow > .cv-hz-r:hover > * {
+  opacity: 1;
+  transition-delay: 0s;
+}
+/* "show controls" toggle: reveal every affordance at once */
+.show-ctl .cv-hz > *,
+.show-ctl .cv-chip-x {
+  opacity: 1;
+}
+.show-ctl .cv-contact-add,
+.show-ctl .cv-chip-add {
+  display: grid;
+}
+/* bullet controls both on the LEFT: drag outermost, delete just inside; aligned to
+   the bullet's first line. (hz-l = drag, hz-r = delete; delete repositioned left.) */
+.cv-li > .cv-hz-l {
+  left: -23px;
+  width: 18px;
+  top: -11px;
+}
+.cv-li > .cv-hz-r {
+  right: -22px;
+  width: 18px;
+  top: -12px;
+}
+
+/* Controls are fully coloured the moment they're revealed (no hover needed).
+   Delete's feedback is the row turning red, not the button. */
+.cv-drag,
+.cv-del {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  line-height: 1;
+}
+.cv-drag {
+  background: var(--accent-weak);
+  color: var(--accent);
+  cursor: grab;
+}
+.cv-drag:active {
+  cursor: grabbing;
+}
+/* delete = thin "×" chip (square on entries, round on bullets via the rule below) */
+.cv-del {
+  background: #f3c7c7;
+  color: #b42318;
+  cursor: pointer;
+}
+/* SVG icons center by geometry (no font baseline). One size everywhere. */
+.cv-x {
+  display: block;
+  width: 11px;
+  height: 11px;
+}
+.cv-li .cv-x,
+.cv-chip-x .cv-x {
+  width: 9px;
+  height: 9px;
+}
+.cv-drag svg {
+  width: 8px;
+  height: 12px;
+  display: block;
+}
+.cv-li .cv-drag svg {
+  width: 6px;
+  height: 9px;
+}
+/* control glyphs (the "+" text buttons) shouldn't inherit the paper font */
+.cv-plus,
+.cv-contact-add,
+.cv-chip-add {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+.cv-del:hover {
+  background: #e5484d;
+  color: #fff;
+}
+/* bullet-level controls: round + a bit smaller, so they read as bullet actions */
+.cv-li .cv-drag,
+.cv-li .cv-del,
+.cv-li-add .cv-plus {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 10px;
+}
+/* Size hierarchy: SECTION controls are the biggest (20px, squarest) since a section
+   is the largest unit; an ITEM/entry is 18px; a bullet is 16px round. */
+.cv-secH .cv-drag,
+.cv-secH .cv-del {
+  width: 20px;
+  height: 20px;
+  border-radius: 2px;
+}
+.cv-entry > .cv-hz-l > .cv-drag,
+.cv-entry > .cv-hz-r > .cv-del,
+.cv-skillrow > .cv-hz-r > .cv-del {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+}
+/* hovering a delete tints ONLY the row it removes. Direct-child :has() so a
+   bullet's delete does not also match (and tint) its parent entry. */
+.cv-entry:has(> .cv-hz-r > .cv-del:hover),
+.cv-li:has(> .cv-hz-r > .cv-del:hover),
+.cv-skillrow:has(> .cv-hz-r > .cv-del:hover),
+.cv-section:has(> .cv-secH > .cv-hz-r > .cv-del:hover) {
+  background: #fbdada;
+  box-shadow: 0 0 0 2px #fbdada;
+  border-radius: 3px;
+}
+
+/* ghost "add bullet" row: a subtle text+icon link aligned to the bullet TEXT (not
+   the marker column, not the far right, not centered). Collapsed to zero height so
+   it leaves NO gap in normal view; expands only on entry-hover or in show-ctl. */
+.cv-addbul {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  /* horizontal padding is CONSTANT so revealing never shifts the text sideways;
+     only max-height/opacity change, and they SNAP (0s) after a hide-delay so there
+     is no laggy grow/shrink animation - just a delayed show/hide. */
+  margin: 0 0 0 13pt;
+  padding: 0 5px 0 3px;
+  border: none;
+  background: transparent;
+  color: var(--paper-muted);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: calc(var(--paper-size) * 0.82);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0s, max-height 0s;
+}
+.cv-addbul .cv-x {
+  width: 10px;
+  height: 10px;
+}
+/* reveal while hovering the whole experience (the button lives inside it, so you can
+   always travel onto it to click); suppressed only while hovering a drag handle. */
+.cv-entry:hover:not(:has(.cv-hz-l:hover)) .cv-addbul,
+.cv-addbul:hover,
+.show-ctl .cv-addbul {
+  max-height: 60px;
+  opacity: 1;
+  margin-top: 2pt;
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+.cv-addbul:hover {
+  color: var(--accent);
+  background: var(--accent-weak);
+}
+
+.cv-plus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* item "+": square accent chip at the section's bottom-LEFT. Collapsed to zero
+   height so it reserves NO gap (matched the printed output), expanding only when the
+   section is hovered or edit-controls are on. */
+.cv-secadd-wrap {
+  display: block;
+  max-height: 0;
+  overflow: hidden;
+  margin-left: -24pt;
+  /* size snaps instantly, no animation and no hide-delay. */
+  transition: max-height 0s;
+}
+.cv-hz-secadd {
+  position: relative;
+  width: 60px;
+  height: 26px;
+}
+.cv-hz-secadd > * {
+  transition: opacity 0s;
+}
+/* reveal while hovering the section (the "+" lives inside it, so it's reachable);
+   suppressed while hovering any drag handle. */
+.cv-section:hover:not(:has(.cv-hz-l:hover)) .cv-secadd-wrap,
+.cv-secadd-wrap:hover,
+.show-ctl .cv-secadd-wrap {
+  max-height: 60px;
+  margin-top: 2pt;
+}
+.cv-section:hover:not(:has(.cv-hz-l:hover)) .cv-secadd-wrap .cv-hz-secadd > *,
+.cv-secadd-wrap:hover .cv-hz-secadd > * {
+  opacity: 1;
+}
+
+/* add section: a "+ Section" ghost row at the document end. Same mechanic as the
+   "+ Add bullet" row - collapsed to zero height so it reserves NO space, expanding
+   only when a section is hovered (or its own chip is), or in show-ctl. Click opens
+   a type-picker popover. */
+/* Paper is a column so the add-section chip can flex-grow into the empty page area
+   below the last section, making that whole area its hover zone. Content keeps its
+   natural height (no grow/shrink); only .cv-addsec expands. */
+.print-paper {
+  display: flex;
+  flex-direction: column;
+}
+.print-paper > *:not(.cv-addsec) {
+  flex: 0 0 auto;
+}
+.cv-addsec {
+  position: relative;
+  flex: 1 1 auto; /* fill leftover height so the bottom whitespace reveals the chip */
+  min-height: 7px; /* bridge under the last section when the page is already full */
+  padding-top: 7px;
+}
+.cv-addsec-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  /* constant horizontal padding + snapped size, same as add-bullet, so it never
+     slides sideways or eases in laggily. */
+  margin: 0;
+  padding: 0 5px 0 3px;
+  border: none;
+  background: transparent;
+  color: var(--paper-muted);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: calc(var(--paper-size) * 0.95);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0s, max-height 0s, background 0.12s;
+}
+.cv-addsec-btn .cv-x {
+  width: 12px;
+  height: 12px;
+}
+/* Reveal when hovering the last section, or anywhere in the empty page area below it
+   (that area IS .cv-addsec, which flex-grows to fill the leftover page height). */
+.print-paper:has(.cv-section:last-of-type:hover) .cv-addsec-btn,
+.cv-addsec:hover .cv-addsec-btn,
+.cv-addsec-open .cv-addsec-btn,
+.show-ctl .cv-addsec-btn {
+  max-height: 40px;
+  opacity: 1;
+  margin-top: 4pt;
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+.cv-addsec-btn:hover {
+  color: var(--accent);
+  background: var(--accent-weak);
+}
+/* opens UPWARD (the "+" sits at the document end; downward would be clipped by the
+   paper's one-page overflow) and scrolls if it can't fit. */
+.cv-addsec-menu {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  margin-bottom: 4px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 152px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--line, #e2e5e9);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 32, 0.16);
+  padding: 4px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+.cv-addsec-opt {
+  text-align: left;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #171b1e;
+}
+.cv-addsec-opt:hover {
+  background: var(--accent-weak);
+  color: var(--accent);
+}
+
+/* delete on skills/contacts: round, small, filled (like the bullet delete) */
+.cv-chip-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  margin-left: 4px;
+  border: none;
+  border-radius: 50%;
+  background: #f3c7c7;
+  color: #b42318;
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+/* skills delete floats at the chip's corner (absolute, no reserved space) so the
+   skill text stays centered and hovering never reflows the row. Contacts keep the
+   inline X above. */
+.cv-chip > .cv-chip-x {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  margin-left: 0;
+  z-index: 2;
+}
+.cv-chip:hover .cv-chip-x,
+.cv-contact-item:hover .cv-chip-x,
+.show-ctl .cv-chip-x {
+  opacity: 1;
+}
+.cv-chip-x:hover {
+  background: #e5484d;
+  color: #fff;
+}
+.cv-contact-item {
+  display: inline-flex;
+  align-items: center;
+}
+.cv-contact-add,
+.cv-chip-add {
+  display: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 5px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+/* skills "+" is the EXACT same button as the contact "+" (filled accent, 15px). */
+.cv-contact-add,
+.cv-chip-add {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+}
+.cv-contact-add {
+  margin-left: -8pt;
+}
+.cv-contact-add .cv-x,
+.cv-chip-add .cv-x {
+  width: 9px;
+  height: 9px;
+}
+.cv-contact:hover .cv-contact-add,
+.cv-chips:hover .cv-chip-add {
+  display: grid;
+}
+.cv-note {
+  margin-top: 2pt;
+  color: var(--paper-muted);
+}
+.cv-etop {
+  display: flex;
+  justify-content: space-between;
+  gap: 10pt;
+}
+.cv-role {
+  font-weight: 700;
+}
+.cv-co {
+  font-style: italic;
+  color: var(--paper-muted);
+}
+.cv-date {
+  color: var(--paper-muted);
+  font-size: calc(var(--paper-size) * 0.9);
+  white-space: nowrap;
+}
+.cv-ul {
+  margin: 4pt 0 0;
+  padding-left: 13pt;
+}
+.cv-li {
+  margin-bottom: 2.5pt;
+  list-style: disc;
+}
+/* marker colour/glyph is a template decision (see src/templates/) */
+
+/* Hovering a section outlines it, so the page reads as an editor rather than a
+   preview sitting next to a settings form. `outline` is used deliberately: it does
+   not affect layout, so it cannot disturb the drag hit-zones or the pt-based
+   geometry that has to match the PDF exactly. Screen only. */
+@media screen {
+  .cv-section {
+    border-radius: 4pt;
+    outline: 1.5px solid transparent;
+    outline-offset: 5px;
+    transition: outline-color 0.15s ease, background 0.15s ease;
+  }
+  .cv-section:hover {
+    outline-color: var(--accent-weak);
+  }
+  .cv-section:focus-within {
+    outline-color: var(--paper-accent);
+  }
+}
+
+/* Hidden section: still editable on screen (dimmed, with a strike on the heading)
+   so it can be brought back; gone from the PDF. */
+.cv-hidden {
+  opacity: 0.38;
+}
+.cv-hidden .cv-secH {
+  text-decoration: line-through;
+}
+@media print {
+  .cv-hidden {
+    display: none !important;
+  }
+}
+.cv-eye {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: pointer;
+}
+.cv-eye:hover {
+  background: var(--accent-weak);
+  color: var(--accent);
+}
+/* One skill group per row. With a label it reads "Languages   Go · Python"; with an
+   empty label the column collapses to nothing and the row is a plain list, which is
+   what every pre-grouping document migrates to. Works with all three data-skills
+   modes because only the label column is added here. */
+.cv-skillrow {
+  position: relative; /* containing block for the row's delete hit-zone */
+  display: flex;
+  align-items: baseline;
+  gap: 8pt;
+  margin-bottom: 3pt;
+}
+.cv-skillrow:last-of-type {
+  margin-bottom: 0;
+}
+.cv-skilllabel {
+  flex: 0 0 auto;
+  max-width: 34%;
+  font-weight: 700;
+  color: var(--paper-muted);
+}
+/* an unnamed group must take no space at all, or every flat list gains a phantom
+   indent; the placeholder is still reachable on hover/show-ctl (rules below) */
+.cv-skilllabel-empty {
+  max-width: 0;
+  overflow: hidden;
+}
+.cv-section:hover .cv-skilllabel-empty,
+.show-ctl .cv-skilllabel-empty,
+.cv-skilllabel-empty:focus {
+  max-width: 34%;
+  overflow: visible;
+}
+
+.cv-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4pt 5pt;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Badge: soft filled pill (a hairline outline read cheap). Neutral fill stays legible
+   under any accent and prints clean; delete-X floats at the corner (rules below). */
+.cv-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  border: none;
+  border-radius: 20pt;
+  background: #eef1f4;
+  /* asymmetric top/bottom nudges the text down ~2px so it reads vertically centered
+     (line-height:1 on the contentEditable otherwise sits slightly high). */
+  padding: 3.5pt 9pt 1.5pt;
+  font-size: calc(var(--paper-size) * 0.88);
+  color: #2a2f34;
+}
+
+/* skills "+" is the EXACT contact "+" (filled accent, 15px, radius 4). Defined AFTER
+   .cv-chip so it wins the pill's border/radius/padding/background, since the button
+   carries both .cv-chip and .cv-chip-add. */
+.cv-chip-add {
+  display: grid; /* always visible + stable, so it never appears/resizes on nearby hover */
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+}
+.cv-chip-add .cv-x {
+  width: 9px;
+  height: 9px;
+}
+
+/* Skills display modes (theme.skillStyle -> data-skills on .print-paper). Badge is
+   the base .cv-chip pill. Plain = inline text with middot separators; Bullets = a
+   vertical disc list. All keep the same editable DOM (add/delete unaffected); the
+   "+" add button (.cv-chip-add) is excluded from the restyle. */
+/* Plain: inline text, middot separated. Small top + left offset so it does not hug
+   the header or the left edge. */
+.print-paper[data-skills='plain'] .cv-chips {
+  gap: 0;
+  margin-top: 2pt;
+  padding-left: 2pt;
+  line-height: 1.5;
+}
+.print-paper[data-skills='plain'] .cv-chip:not(.cv-chip-add) {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+}
+.print-paper[data-skills='plain'] .cv-chip:not(.cv-chip-add) + .cv-chip:not(.cv-chip-add)::before {
+  content: '·';
+  margin: 0 6pt;
+  color: var(--paper-muted);
+}
+/* gap:0 in plain glues the "+" to the last skill; give it breathing room */
+.print-paper[data-skills='plain'] .cv-chip-add {
+  margin-left: 8pt;
+}
+/* Bullets: a fixed 3-column grid (grid, not CSS columns, so it is always 3 and does
+   not collapse to one with few items). Items fill left-to-right, so the "+" naturally
+   lands in the next empty cell - exactly where the next skill will go. */
+/* The 3-column grid is only right for one unnamed group (the classic flat list).
+   A named group is already a row with a label beside it, so a grid inside it just
+   scatters four skills across a third of the page; those stay inline. */
+.print-paper[data-skills='bullets'] .cv-skillrow:has(.cv-skilllabel-empty) .cv-chips {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2.5pt 18pt;
+  margin-top: 3pt;
+  align-items: center;
+}
+.print-paper[data-skills='bullets'] .cv-chips {
+  gap: 2.5pt 14pt;
+}
+.print-paper[data-skills='bullets'] .cv-chip:not(.cv-chip-add) {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  overflow-wrap: anywhere;
+}
+.print-paper[data-skills='bullets'] .cv-chip:not(.cv-chip-add)::before {
+  content: '•';
+  margin-right: 6pt;
+  color: var(--paper-accent);
+}
+
+/* ===========================================================================
+   LAYOUT AXES (theme.headerLayout / entryLayout / headingLayout -> data-* on
+   .print-paper). These live here, not in src/templates/, because they set
+   display/position and a template stylesheet may not (see check-guardrail.mjs).
+   A template is a named preset over these axes plus colour; that is what keeps
+   two templates from being ~35 CSS declarations apart.
+
+   Every axis's first value reproduces the pre-axis layout exactly, so the
+   default block below is intentionally empty - the base rules already are it.
+   =========================================================================== */
+
+/* --- headerLayout ------------------------------------------------------- */
+/* left (default): .cv-head is a plain block; base .cv-h1/.cv-title/.cv-contact apply. */
+
+/* centred: name, title and contacts all on the page's centre line. */
+.print-paper[data-header='centered'] .cv-h1,
+.print-paper[data-header='centered'] .cv-title {
+  text-align: center;
+}
+.print-paper[data-header='centered'] .cv-contact {
+  justify-content: center;
+}
+
+/* split: name over title on the left, contacts as a right-aligned block. Grid areas,
+   not flex: the three header elements are siblings, so flex would put the title
+   beside the name instead of under it. The contact column is capped so a long list
+   wraps within itself rather than squeezing the name. */
+.print-paper[data-header='split'] .cv-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 45%);
+  grid-template-areas:
+    'name contact'
+    'title contact';
+  align-items: baseline;
+  column-gap: 16pt;
+}
+.print-paper[data-header='split'] .cv-h1 {
+  grid-area: name;
+}
+.print-paper[data-header='split'] .cv-title {
+  grid-area: title;
+  margin-bottom: 0;
+}
+.print-paper[data-header='split'] .cv-contact {
+  grid-area: contact;
+  justify-content: flex-end;
+  text-align: right;
+}
+
+/* --- entryLayout -------------------------------------------------------- */
+/* date-right (default): .cv-etop is flex + space-between; base rules apply. */
+
+/* stacked: the date drops under the role/org line. Quieter, and it buys horizontal
+   room for long role + organisation pairs that otherwise collide with the date. */
+.print-paper[data-entry='date-stacked'] .cv-etop {
+  display: block;
+}
+.print-paper[data-entry='date-stacked'] .cv-date {
+  margin-top: 1pt;
+}
+
+/* rail: the date becomes a fixed-width left column and the entry body indents to
+   clear it. row-reverse (not a grid on .cv-entry) is deliberate - .cv-etop keeps a
+   real box, so `.cv-entry:has(> .cv-etop:hover)` still reveals the entry's delete. */
+.print-paper[data-entry='date-rail'] {
+  --entry-rail: 68pt;
+}
+.print-paper[data-entry='date-rail'] .cv-etop {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  gap: 0;
+}
+/* The base .cv-date is nowrap, which is right when it floats at the page edge but
+   here would spill a long range ("Sep 2023 - Present") straight into the role text.
+   In the rail the column width is the alignment, so the date wraps inside it. */
+.print-paper[data-entry='date-rail'] .cv-date {
+  flex: 0 0 var(--entry-rail);
+  padding-right: 8pt;
+  white-space: normal;
+}
+.print-paper[data-entry='date-rail'] .cv-ul,
+.print-paper[data-entry='date-rail'] .cv-note {
+  margin-left: var(--entry-rail);
+}
+.print-paper[data-entry='date-rail'] .cv-addbul {
+  padding-left: calc(var(--entry-rail) + 13pt);
+}
+
+/* --- headingLayout ------------------------------------------------------ */
+/* rule (default): the section heading's underline, drawn by the template. */
+
+/* left-rail: a solid accent bar replaces the underline. The underline is suppressed
+   here rather than in each template, so the two never stack. */
+.print-paper[data-heading='left-rail'] .cv-secH {
+  border-bottom: none;
+  border-left: 4pt solid var(--paper-accent);
+  padding: 0 0 0 7pt;
+}
+
+/* boxed: the heading becomes a filled block. Same reason for killing the underline. */
+.print-paper[data-heading='boxed'] .cv-secH {
+  border-bottom: none;
+  background: var(--accent-weak);
+  padding: 3pt 6pt;
+}
+/* the drag/eye/delete hit-zones hang off .cv-secH's left and right edges; boxed and
+   left-rail change that box, so pull the left handle back clear of the new padding */
+.print-paper[data-heading='left-rail'] .cv-secH > .cv-hz-l,
+.print-paper[data-heading='boxed'] .cv-secH > .cv-hz-l {
+  left: -53px;
+}

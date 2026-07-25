@@ -1,0 +1,95 @@
+/* First-run pointers. The veil is deliberately light and click-through-to-dismiss:
+   this explains the page, it does not gate it. */
+.coach-root {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+}
+.coach-veil {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 32, 0.34);
+  pointer-events: auto;
+}
+/* Ring rather than a cut-out mask: the target stays fully lit through the veil via
+   its own box-shadow spread, which works over any background the page happens to
+   have and needs no second stacking context. */
+.coach-ring {
+  position: absolute;
+  border-radius: 9px;
+  box-shadow: 0 0 0 3px var(--accent), 0 0 0 9999px rgba(15, 23, 32, 0.34);
+  pointer-events: none;
+  animation: coach-pulse 1.6s ease-out infinite;
+}
+@keyframes coach-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px var(--accent), 0 0 0 9999px rgba(15, 23, 32, 0.34);
+  }
+  50% {
+    box-shadow: 0 0 0 6px var(--accent-weak), 0 0 0 9999px rgba(15, 23, 32, 0.34);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .coach-ring {
+    animation: none;
+  }
+}
+.coach-card {
+  position: absolute;
+  border-radius: 12px;
+  padding: 14px 16px 12px;
+  background: var(--surface);
+  box-shadow: 0 14px 40px rgba(15, 23, 32, 0.24);
+  pointer-events: auto;
+}
+.coach-step {
+  margin: 0 0 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.coach-title {
+  margin: 0 0 5px;
+  color: var(--ink);
+  font-size: 14.5px;
+  font-weight: 700;
+}
+.coach-body {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.coach-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.coach-skip,
+.coach-next {
+  border: none;
+  border-radius: 8px;
+  padding: 7px 13px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.coach-skip {
+  background: transparent;
+  color: var(--muted);
+}
+.coach-skip:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.coach-next {
+  background: var(--accent);
+  color: #fff;
+}
+.coach-next:hover {
+  filter: brightness(1.06);
+}

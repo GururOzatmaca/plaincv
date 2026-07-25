@@ -1,0 +1,172 @@
+.sc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 32, 0.45);
+  backdrop-filter: blur(2px);
+}
+/* The card itself does NOT scroll. A scrollbar on the rounded box has to render
+   inside the corner radius, so it either clips or squares off the right edge no
+   matter how it is styled. Instead the card is a fixed header / scrolling body /
+   fixed footer column: the scrollbar is a straight strip between two solid rows and
+   never reaches a corner, so the radius and the scroll can both be real.
+   Pinning the header and footer also keeps Close reachable in a long help sheet. */
+.sc-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 640px;
+  max-height: 88vh;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 20px 60px rgba(15, 23, 32, 0.3);
+}
+.sc-head,
+.sc-foot {
+  flex: 0 0 auto;
+  padding: 20px 24px;
+}
+.sc-foot {
+  border-top: 1px solid var(--line);
+}
+.sc-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 24px 4px;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2) transparent;
+}
+.sc-body::-webkit-scrollbar {
+  width: 10px;
+}
+.sc-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sc-body::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 10px;
+  background: var(--line-2);
+  background-clip: content-box;
+}
+.sc-body::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+  background-clip: content-box;
+}
+.sc-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+.sc-sub {
+  margin: 18px 0 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+/* Collapsed by default: the answers are long, and an eight-question wall above the
+   shortcut list would bury the list this dialog was originally for. */
+.sc-howto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sc-q > summary {
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  list-style: none;
+}
+.sc-q > summary::-webkit-details-marker {
+  display: none;
+}
+.sc-q > summary::before {
+  content: '▸';
+  display: inline-block;
+  width: 14px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.sc-q[open] > summary::before {
+  content: '▾';
+}
+.sc-q > summary:hover {
+  background: var(--surface-2);
+}
+.sc-q > p {
+  margin: 0 0 8px;
+  padding: 0 10px 0 24px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.sc-list {
+  margin: 0;
+}
+.sc-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 5px 0;
+  border-top: 1px solid var(--line);
+}
+.sc-row:first-child {
+  border-top: none;
+}
+.sc-row dt {
+  display: flex;
+  flex: 0 0 132px;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.sc-row dd {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.sc-row kbd {
+  border: 1px solid var(--line-2);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  padding: 1px 6px;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.sc-sound {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.sc-close {
+  margin-top: 12px;
+  width: 100%;
+  border: none;
+  border-radius: 11px;
+  padding: 9px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sc-close:hover {
+  background: var(--line);
+}

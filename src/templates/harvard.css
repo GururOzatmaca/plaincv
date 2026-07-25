@@ -1,0 +1,38 @@
+/* Harvard: academic. Centred name and contacts, ALL-CAPS monochrome headings on a
+   full-width ink rule, no colour anywhere on the page. Reads as a formal document
+   rather than a designed one, which is the point.
+   GUARDRAIL: template CSS must NEVER set position / display / overflow / max-height
+   on .cv-section/.cv-secH/.cv-entry/.cv-li/.cv-etop; those drive the drag hit-zones
+   and the collapse-to-zero add/reorder affordances. Structure belongs to paper.css.
+   Enforced by `npm run guardrail` (scripts/check-guardrail.mjs), which also requires
+   every selector here to be scoped to this file's own data-template id. */
+/* Centring is not here: it is theme.headerLayout='centered' (see the registry), so
+   any template can borrow it and the user can turn it off without leaving Harvard. */
+[data-template='harvard'] .cv-h1 {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+[data-template='harvard'] .cv-title {
+  font-weight: 400;
+  font-style: italic;
+  color: var(--paper-muted);
+}
+[data-template='harvard'] .cv-rule {
+  border-bottom: 0.75pt solid #2a2f34;
+}
+[data-template='harvard'] .cv-secH {
+  color: #1a1e21;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  border-bottom: 0.75pt solid #2a2f34;
+}
+[data-template='harvard'] .cv-li::marker {
+  color: #55606a;
+}
+[data-template='harvard'] .cv-chip {
+  background: transparent;
+  border: 0.5pt solid #8b959e;
+  border-radius: 2pt;
+  color: #2a2f34;
+}
