@@ -42,7 +42,7 @@
   cursor: pointer;
   padding: 0;
   opacity: 0;
-  transition: opacity 0.12s;
+  transition: opacity var(--dur-1) var(--ease-out);
 }
 .cv-rule:hover .cv-rule-x,
 .show-ctl .cv-rule-x {
@@ -74,7 +74,7 @@
   outline: none;
   border-radius: 3px;
   cursor: text;
-  transition: box-shadow 0.12s, background 0.12s;
+  transition: box-shadow var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
 }
 .cv-edit:hover {
   box-shadow: 0 0 0 2px var(--accent-weak);
@@ -144,29 +144,6 @@
 .cv-li {
   position: relative;
 }
-/* while dragging: source row dims; the target row shows an accent insertion line on
-   the side the item will land (above = before, below = after). Screen-only chrome. */
-.cv-dragging {
-  opacity: 0.35;
-}
-.cv-drop-before::after,
-.cv-drop-after::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--accent);
-  border-radius: 2px;
-  pointer-events: none;
-  z-index: 4;
-}
-.cv-drop-before::after {
-  top: -1px;
-}
-.cv-drop-after::after {
-  bottom: -1px;
-}
 
 /* Hit-zones: a transparent ~44px box (≈20px around the control). The control shows
    only while the pointer is inside its OWN hit-zone (proximity), never on whole-row
@@ -188,10 +165,24 @@
   right: -50px;
   top: -13px;
 }
-/* the section's hide toggle sits outboard of its delete, so the two never overlap */
+/* The section's hide toggle sits outboard of its delete, so the two never overlap.
+   -74px keeps 6px of clear air between the two visible 20px buttons. The 44px
+   hit-zone still runs ~31px past the paper edge (it was ~37px), which is fine: the
+   zone is transparent and the stage reserves side padding for exactly this. */
 .cv-hz-eye {
-  right: -80px;
+  right: -74px;
   top: -13px;
+  /* The eye and delete zones are both 44px and only 26px apart, so they overlap by
+     ~18px and whichever renders later swallowed the other's clicks. Rather than fight
+     with z-index (raising the whole eye ZONE blanketed the delete instead), the eye's
+     zone stops intercepting entirely and only its button does. The delete keeps its
+     full-width zone for proximity reveal; the eye is revealed by section-header hover
+     anyway, so it loses nothing. */
+  pointer-events: none;
+}
+.cv-hz-eye > .cv-eye {
+  pointer-events: auto;
+  z-index: 4;
 }
 .cv-secH:hover > .cv-hz-eye > *,
 .cv-hz-eye:hover > * {
@@ -199,7 +190,7 @@
 }
 .cv-hz > * {
   opacity: 0;
-  transition: opacity 0.1s;
+  transition: opacity var(--dur-1) var(--ease-out);
 }
 .cv-hz:hover > * {
   opacity: 1;
@@ -213,7 +204,7 @@
 .cv-li > .cv-hz-r > *,
 .cv-entry > .cv-hz-r > *,
 .cv-skillrow > .cv-hz-r > * {
-  transition: opacity 0.1s 0.3s;
+  transition: opacity var(--dur-1) var(--ease-out) 0.3s;
 }
 /* a skill row has no "top line" to key on the way an entry does - the row IS the
    content - so plain row-hover is the reveal trigger. */
@@ -245,9 +236,46 @@
   top: -11px;
 }
 .cv-li > .cv-hz-r {
-  right: -22px;
+  right: -24px;
   width: 18px;
   top: -12px;
+}
+
+/* The visible chip is 20px, which at fit zoom (~0.69) is under 14 SCREEN px, and the
+   hover feedback keys on the chip itself; the transparent zone around it revealed the
+   control but was not clickable. So the target lit up and then clicks next to it
+   missed. This grows the CLICK area to 26px without changing anything you can see.
+   26 and not the full 44px zone: on a section header the eye sits 6px from the
+   delete, and a full-zone target would make the two overlap and steal each other's
+   clicks. Bullets are excluded - their zones sit tight against the text, and a wider
+   target there would swallow clicks meant for the bullet itself. */
+.cv-secH > .cv-hz > .cv-del,
+.cv-secH > .cv-hz > .cv-eye,
+.cv-secH > .cv-hz > .cv-drag,
+.cv-entry > .cv-hz > .cv-del,
+.cv-entry > .cv-hz > .cv-drag,
+.cv-skillrow > .cv-hz > .cv-del {
+  position: relative;
+}
+.cv-secH > .cv-hz > .cv-del::after,
+.cv-secH > .cv-hz > .cv-eye::after,
+.cv-secH > .cv-hz > .cv-drag::after,
+.cv-entry > .cv-hz > .cv-del::after,
+.cv-entry > .cv-hz > .cv-drag::after,
+.cv-skillrow > .cv-hz > .cv-del::after {
+  content: '';
+  position: absolute;
+  inset: -4px; /* 20px chip -> 28px target, in every direction */
+}
+/* On a section header the eye and the delete are only 6px apart, so growing both
+   symmetrically made the delete swallow the eye's left half (its reachable area fell
+   to under 3px). Each grows AWAY from the other instead: 3px toward its neighbour,
+   which is exactly half the gap, so the two meet and neither steals. */
+.cv-secH > .cv-hz-r > .cv-del::after {
+  inset: -4px -3px -4px -6px;
+}
+.cv-secH > .cv-hz-eye > .cv-eye::after {
+  inset: -4px -6px -4px -3px;
 }
 
 /* Controls are fully coloured the moment they're revealed (no hover needed).
@@ -266,7 +294,7 @@
 }
 .cv-drag {
   background: var(--accent-weak);
-  color: var(--accent);
+  color: var(--accent-ink);
   cursor: grab;
 }
 .cv-drag:active {
@@ -383,7 +411,7 @@
   padding-bottom: 1px;
 }
 .cv-addbul:hover {
-  color: var(--accent);
+  color: var(--accent-ink);
   background: var(--accent-weak);
 }
 
@@ -396,7 +424,7 @@
   padding: 0;
   border: none;
   border-radius: 5px;
-  background: var(--accent);
+  background: var(--accent-strong);
   color: #fff;
   font-size: 14px;
   line-height: 1;
@@ -473,7 +501,7 @@
   font-size: calc(var(--paper-size) * 0.95);
   border-radius: 4px;
   cursor: pointer;
-  transition: opacity 0s, max-height 0s, background 0.12s;
+  transition: opacity 0s, max-height 0s, background var(--dur-1) var(--ease-out);
 }
 .cv-addsec-btn .cv-x {
   width: 12px;
@@ -492,42 +520,61 @@
   padding-bottom: 1px;
 }
 .cv-addsec-btn:hover {
-  color: var(--accent);
+  color: var(--accent-ink);
   background: var(--accent-weak);
 }
-/* opens UPWARD (the "+" sits at the document end; downward would be clipped by the
-   paper's one-page overflow) and scrolls if it can't fit. */
+/* Portalled to <body> and positioned from the button's viewport rect (see
+   placeMenu). It must NOT be absolute inside .cv-addsec: that puts it inside
+   .print-paper's scale(zoom) transform, which shrank the text with the page, and
+   inside .print-stage's overflow, which clipped whichever end pointed off-stage.
+   Fixed + portal means real screen pixels at every zoom; JS supplies left/top/
+   max-height, so the list scrolls only when the viewport genuinely runs out. */
 .cv-addsec-menu {
-  position: absolute;
-  left: 0;
-  bottom: 100%;
-  margin-bottom: 4px;
-  z-index: 20;
+  position: fixed;
+  z-index: 60;
   display: flex;
   flex-direction: column;
-  min-width: 152px;
-  max-height: 280px;
   overflow-y: auto;
-  background: #fff;
+  overscroll-behavior: contain;
+  background: var(--surface, #fff);
   border: 1px solid var(--line, #e2e5e9);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(15, 23, 32, 0.16);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(15, 23, 32, 0.18);
   padding: 4px;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  animation: addsec-menu var(--dur-1) var(--ease-out);
+}
+@keyframes addsec-menu {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+/* flipped above the button: enter from the same side it grows out of */
+.cv-addsec-menu[data-flip='true'] {
+  animation-name: addsec-menu-up;
+}
+@keyframes addsec-menu-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
 }
 .cv-addsec-opt {
+  flex: 0 0 auto;
   text-align: left;
-  padding: 6px 10px;
+  padding: 7px 10px;
   border: none;
   background: transparent;
-  border-radius: 5px;
+  border-radius: 6px;
   font-size: 13px;
   cursor: pointer;
-  color: #171b1e;
+  color: var(--ink, #171b1e);
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .cv-addsec-opt:hover {
   background: var(--accent-weak);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 /* delete on skills/contacts: round, small, filled (like the bullet delete) */
@@ -547,7 +594,7 @@
   line-height: 1;
   padding: 0;
   opacity: 0;
-  transition: opacity 0.12s;
+  transition: opacity var(--dur-1) var(--ease-out);
 }
 /* skills delete floats at the chip's corner (absolute, no reserved space) so the
    skill text stays centered and hovering never reflows the row. Contacts keep the
@@ -580,7 +627,7 @@
   height: 18px;
   border: none;
   border-radius: 5px;
-  background: var(--accent);
+  background: var(--accent-strong);
   color: #fff;
   font-size: 14px;
   line-height: 1;
@@ -645,7 +692,7 @@
     border-radius: 4pt;
     outline: 1.5px solid transparent;
     outline-offset: 5px;
-    transition: outline-color 0.15s ease, background 0.15s ease;
+    transition: outline-color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
   }
   .cv-section:hover {
     outline-color: var(--accent-weak);
@@ -682,7 +729,7 @@
 }
 .cv-eye:hover {
   background: var(--accent-weak);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 /* One skill group per row. With a label it reads "Languages   Go · Python"; with an
    empty label the column collapses to nothing and the row is a plain list, which is
@@ -752,7 +799,7 @@
   padding: 0;
   border: none;
   border-radius: 4px;
-  background: var(--accent);
+  background: var(--accent-strong);
   color: #fff;
 }
 .cv-chip-add .cv-x {
@@ -926,4 +973,33 @@
 .print-paper[data-heading='left-rail'] .cv-secH > .cv-hz-l,
 .print-paper[data-heading='boxed'] .cv-secH > .cv-hz-l {
   left: -53px;
+}
+
+/* ---- While dragging ----
+   Every control is anchored to a row, and during a reorder the rows move. Anything
+   still visible slides across the gaps between them, which reads as the page coming
+   apart. Handles are hidden too: keeping them lit meant every OTHER row's handle
+   stayed on screen and slid about, which was the trail itself. */
+body.cv-dragging .cv-hz > *,
+body.cv-dragging .cv-chip-x,
+body.cv-dragging .cv-rule-x,
+body.cv-dragging .cv-contact-add,
+body.cv-dragging .cv-chip-add,
+body.cv-dragging .cv-addbul,
+body.cv-dragging .cv-secadd-wrap,
+body.cv-dragging .cv-addsec {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+/* The three add affordances do not reveal by opacity; they grow from max-height 0,
+   and dragging still moves the pointer across rows, so their hover rules kept firing.
+   Hiding them left the SPACE they had opened, i.e. a gap that follows the cursor down
+   the page. Every property their reveal sets has to be put back, not just opacity. */
+body.cv-dragging .cv-addbul,
+body.cv-dragging .cv-secadd-wrap,
+body.cv-dragging .cv-addsec-btn {
+  max-height: 0 !important;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
 }

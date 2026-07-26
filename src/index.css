@@ -12,10 +12,29 @@
   --faint: #6b7682;
   --line: #e6e9ee;
   --line-2: #d7dde2;
+  /* Accent family. Every value below the first is DERIVED and is overwritten by
+     writeAccentVars() on mount and on every theme change; the literals here are the
+     default cyan's real derived values, so the first paint matches what JS produces.
+     (--accent-2 used to be #06b6d4 here and #68b0c8 at runtime, i.e. a saturated cyan
+     that turned pale the moment the theme effect ran.) */
   --accent: #0891b2;
-  --accent-2: #06b6d4;
-  --accent-weak: #d8f3f9;
-  --bounce: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --accent-2: #68b0c8; /* pale variant; the logo gradient */
+  --accent-weak: #e0eef4; /* tinted surface */
+  --accent-ink: #056880; /* accent TEXT on --accent-weak, >=4.5:1 */
+  --accent-strong: #056880; /* solid fill carrying WHITE text, >=4.5:1 */
+
+  /* Motion scale. Before this there were 11 distinct durations and 7 easing curves
+     picked per component, which is what made the app feel unfinished rather than slow.
+     Three durations by role, two curves, and nothing the user AIMS at overshoots:
+     an overshooting control is a control you have to wait to settle before clicking. */
+  --dur-1: 90ms; /* hover, focus, colour: must feel instant */
+  --dur-2: 160ms; /* reveals, panels, dialogs: perceptible but not waited on */
+  --dur-3: 260ms; /* zoom and layout: large travel, needs to be followable */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1); /* default; decelerates into place */
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1); /* only when something both leaves and arrives */
+  /* Overshoot, reserved for the ONE celebratory moment (the import success tick).
+     Deliberately not used on any control, which is why --bounce was deleted: it had
+     zero consumers and existed only to tempt. */
   --squish: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* live document tokens (theme-controlled) */
@@ -186,7 +205,7 @@ body {
   font-size: 11.5px;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.15s var(--squish), filter 0.15s;
+  transition: transform var(--dur-1) var(--ease-out), filter var(--dur-1) var(--ease-out);
 }
 .cv-fit-btn:hover {
   filter: brightness(0.95);
@@ -330,13 +349,13 @@ body {
   border: none;
   border-radius: 9px;
   padding: 8px 15px;
-  background: var(--accent);
+  background: var(--accent-strong);
   color: #fff;
   font-size: 13px;
   font-weight: 650;
   white-space: nowrap;
   cursor: pointer;
-  transition: filter 0.15s ease, transform 0.15s ease;
+  transition: filter var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out);
 }
 .hdr-ai {
   border: 1px solid var(--line-2);
@@ -348,7 +367,7 @@ body {
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.15s ease;
+  transition: background var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out);
 }
 .hdr-ghost {
   border: none;
@@ -360,7 +379,7 @@ body {
   font-weight: 550;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .hdr-ghost:hover {
   background: var(--surface-2);
@@ -368,7 +387,7 @@ body {
 }
 .hdr-ghost.on {
   background: var(--accent-weak);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 /* ---- Document switcher ----
    Sits beside the wordmark because it names what you are looking at; putting it
@@ -390,7 +409,7 @@ body {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
 .doc-trigger:hover,
 .doc-trigger[aria-expanded='true'] {
@@ -407,7 +426,7 @@ body {
   border-radius: 20px;
   padding: 1px 6px;
   background: var(--accent-weak);
-  color: var(--accent);
+  color: var(--accent-ink);
   font-size: 11px;
   font-weight: 700;
 }
@@ -543,7 +562,7 @@ body {
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .hdr-icon:hover {
   background: var(--surface-2);
@@ -571,7 +590,7 @@ body {
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .hdr-btn:hover:not(:disabled) {
   background: var(--surface-2);
@@ -593,7 +612,7 @@ body {
   background: var(--surface);
   color: var(--ink);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
 .zm-btn:hover:not(:disabled) {
   background: var(--surface-2);
@@ -613,7 +632,7 @@ body {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background var(--dur-1) var(--ease-out);
 }
 .zm-val:hover {
   background: var(--surface-2);
@@ -637,17 +656,13 @@ body {
   height: 7px;
   border-radius: 50%;
   background: currentColor;
-  animation: hdrpulse 1s ease-in-out infinite;
+  animation: hdrpulse 1s var(--ease-in-out) infinite;
 }
 @keyframes hdrpulse {
   0%, 100% { opacity: 0.35; }
   50% { opacity: 1; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .hdr-btn, .hdr-icon, .hdr-ghost, .hdr-ai, .hdr-dl, .zm-btn, .zm-val { transition: none; }
-  .hdr-save-dot { animation: none; }
-}
 
 /* storage-recovery bar (screen only) */
 .rec-bar {
@@ -687,3 +702,69 @@ body {
   color: #fff;
 }
 
+
+/* ---- Reduced motion, globally ----
+   This replaces five per-file allowlists that each enumerated specific selectors, so
+   anything added later opted out of reduced motion silently. (The cvparticles burst
+   had already escaped that way: the old rule named .name, but the animation runs on
+   its ::before/::after.)
+
+   0.01ms rather than `none` is deliberate: the animation still runs and still fires
+   its completion, so a `forwards` fill lands on its END state. `animation: none` would
+   leave the import tick permanently undrawn instead of instantly drawn.
+
+   !important is required, not decorative: the zoom transition is an inline style on
+   .print-paper, and nothing without !important can override that. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---- Scrolling ----
+   scroll-behavior affects PROGRAMMATIC and anchor scrolling only; it does nothing to
+   the wheel or trackpad, and that is deliberate. Intercepting the wheel to "smooth"
+   it fights the OS's own inertia, breaks find-in-page and keyboard scrolling, and is
+   the single most complained-about pattern on the web. Native scrolling stays native.
+
+   One scrollbar treatment for every scroller in the app: the seven containers used to
+   be a mix of styled, unstyled, and whole-rounded-card-scrolls. A default scrollbar
+   also paints a square-cornered track against a rounded edge, which visually cancels
+   the radius (this is what the Help dialog was rebuilt to avoid). */
+html {
+  scroll-behavior: smooth;
+}
+.app-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2) transparent;
+}
+.app-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.app-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.app-scroll::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 10px;
+  background: var(--line-2);
+  background-clip: content-box;
+}
+.app-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+  background-clip: content-box;
+}
+/* Overlays must not hand their scroll to the page behind them once they hit the end. */
+.doc-list,
+.fp-menu,
+.cv-addsec-menu,
+.imp-card,
+.err-wrap {
+  overscroll-behavior: contain;
+}

@@ -132,11 +132,16 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
         <button className="imp-x" onClick={close} aria-label="Close">
           ×
         </button>
-        <h2 className="imp-title" id="imp-title">
-          Build with your AI
-        </h2>
-        <p className="imp-sub">Let ChatGPT (or any AI) fill your CV, then paste it back.</p>
+        {/* head / body / foot, matching the Help dialog: only the middle scrolls, so
+            the scrollbar never renders against the card's rounded corners. */}
+        <div className="imp-head">
+          <h2 className="imp-title" id="imp-title">
+            Build with your AI
+          </h2>
+          <p className="imp-sub">Let ChatGPT (or any AI) fill your CV, then paste it back.</p>
+        </div>
 
+        <div className="imp-body app-scroll">
         <ol className="imp-steps">
           <li>
             <div className="imp-step-h">
@@ -181,6 +186,7 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
           </li>
         </ol>
 
+        </div>
         <div className="imp-foot">
           <div className="imp-foot-row">
             <span className="imp-foot-label">Back up</span>

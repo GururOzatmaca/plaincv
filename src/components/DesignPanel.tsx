@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useResumeStore } from '@/store/resumeStore';
 import type { Theme } from '@/schema/resume';
-import { clampAccent } from '@/lib/color';
+import { clampAccent, writeAccentVars } from '@/lib/color';
 import { nextLook, describeLook, VALID_LOOKS } from '@/lib/shuffle';
 import { TEMPLATES, TEMPLATE_IDS, resolveTemplate } from '@/templates/registry';
 import { FontPicker } from './FontPicker';
@@ -185,12 +185,7 @@ export function DesignPanel({ narrow = false }: { narrow?: boolean }) {
     if (colorRaf.current == null) {
       colorRaf.current = requestAnimationFrame(() => {
         colorRaf.current = null;
-        const cc = clampAccent(pendingColor.current);
-        const r = root();
-        r.setProperty('--paper-accent', cc);
-        r.setProperty('--accent', cc);
-        r.setProperty('--accent-2', `color-mix(in oklab, ${cc} 72%, white)`);
-        r.setProperty('--accent-weak', `color-mix(in oklab, ${cc} 15%, white)`);
+        writeAccentVars(root(), clampAccent(pendingColor.current));
       });
     }
     // Guarded: the picker commits on pointerup AND on blur, and an unchanged write
@@ -217,7 +212,7 @@ export function DesignPanel({ narrow = false }: { narrow?: boolean }) {
 
       {open && (
         <>
-      <div className="panel-scroll flex-1 overflow-y-auto">
+      <div className="panel-scroll app-scroll flex-1 overflow-y-auto">
         {/* Template */}
         <section className="pnl-sec">
           <h3 className="pnl-h">Template</h3>

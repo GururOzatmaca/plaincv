@@ -4,13 +4,13 @@
    on .cv-section/.cv-secH/.cv-entry/.cv-li/.cv-etop; those drive the drag hit-zones
    and the collapse-to-zero add/reorder affordances. */
 [data-template='classic'] .cv-title {
-  color: var(--paper-accent);
+  color: var(--accent-ink);
 }
 [data-template='classic'] .cv-rule {
   border-bottom: 1pt solid var(--paper-accent);
 }
 [data-template='classic'] .cv-secH {
-  color: var(--paper-accent);
+  color: var(--accent-ink);
   font-weight: 700;
   border-bottom: 1pt solid var(--paper-accent);
 }

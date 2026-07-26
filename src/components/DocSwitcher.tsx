@@ -82,7 +82,7 @@ export function DocSwitcher() {
 
       {open && (
         <div className="doc-menu" role="menu">
-          <ul className="doc-list">
+          <ul className="doc-list app-scroll">
             {docs.map((d) => (
               <li key={d.id} className={`doc-item${d.id === activeId ? ' sel' : ''}`}>
                 {renaming && d.id === activeId ? (

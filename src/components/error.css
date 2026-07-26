@@ -69,7 +69,7 @@
   color: #141a1f;
   text-decoration: none;
   cursor: pointer;
-  transition: filter 0.15s, transform 0.12s;
+  transition: filter var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out);
 }
 .err-btn:hover {
   filter: brightness(0.97);

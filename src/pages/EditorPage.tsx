@@ -11,8 +11,14 @@ import { Shortcuts } from '@/components/Shortcuts';
 import { usePrintFilename } from '@/lib/usePrintFilename';
 import { useResumeStore } from '@/store/resumeStore';
 import { fontStack, ensureFont } from '@/lib/fonts/registry';
+import { writeAccentVars } from '@/lib/color';
 
 const MIN_ZOOM = 0.5;
+// Discrete zoom step, shared by the buttons and Ctrl +/-.
+const ZOOM_STEP = 0.1;
+// Wheel sensitivity. Multiplicative: one 100px mouse notch is ~11% (exp(0.12)), and a
+// trackpad pinch's small deltas land proportionally rather than snapping a whole step.
+const WHEEL_ZOOM_K = 0.0012;
 // Cap the displayed zoom (= fitScale * zoom, where 100% is true A4 size) at 167%.
 const MAX_EFFECTIVE = 1.67;
 // Below this viewport width the panel stacks under the paper (see narrow mode).
@@ -99,10 +105,7 @@ export function EditorPage() {
     r.setProperty('--paper-lh', String(theme.lineHeight));
     r.setProperty('--paper-hscale', String(theme.headingScale));
     r.setProperty('--paper-margin', `${theme.marginPt}pt`);
-    r.setProperty('--paper-accent', theme.accent);
-    r.setProperty('--accent', theme.accent);
-    r.setProperty('--accent-2', `color-mix(in oklab, ${theme.accent} 72%, white)`);
-    r.setProperty('--accent-weak', `color-mix(in oklab, ${theme.accent} 15%, white)`);
+    writeAccentVars(r, theme.accent);
   }, [theme]);
 
   useLayoutEffect(() => {
@@ -135,25 +138,51 @@ export function EditorPage() {
   const fitPx = A4_H * fitScale;
   const maxZoom = fitScale > 0 ? MAX_EFFECTIVE / fitScale : MAX_EFFECTIVE;
 
+  // One clamp, one step size. These used to be duplicated across the wheel handler,
+  // the key handler and the two buttons, with each copy omitting a different bound.
+  const clampZoom = (z: number) => Math.min(maxZoom, Math.max(MIN_ZOOM, +z.toFixed(3)));
+  const stepZoom = (d: number) => setZoom((z) => clampZoom(z + d));
+  const resetZoom = () => setZoom(1);
+
   // Ctrl/Cmd + wheel and Ctrl/Cmd +/-/0 drive the app zoom instead of the
   // browser's page zoom.
   useLayoutEffect(() => {
     const el = stageRef.current;
     if (!el) return;
-    const clampZoom = (z: number) => Math.min(maxZoom, Math.max(MIN_ZOOM, +z.toFixed(2)));
+    const clamp = (z: number) => Math.min(maxZoom, Math.max(MIN_ZOOM, +z.toFixed(3)));
+
+    // Wheel zoom is continuous. It used to be `Math.sign(deltaY) * 0.1`, which threw
+    // away the magnitude entirely: a trackpad pinch fires dozens of small events and
+    // every one of them jumped a fixed 10%, so the page climbed in a staircase. Now
+    // the delta is used, deltas are accumulated and applied once per frame, and the
+    // step is multiplicative because zoom is a ratio (a 10% step should mean the same
+    // thing at 50% as at 150%).
+    let pending = 0;
+    let raf = 0;
+    const flush = () => {
+      raf = 0;
+      const d = pending;
+      pending = 0;
+      if (!d) return;
+      setZoom((z) => clamp(z * Math.exp(-d * WHEEL_ZOOM_K)));
+    };
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      setZoom((z) => clampZoom(z - Math.sign(e.deltaY) * 0.1));
+      // deltaMode 0 = pixels, 1 = lines, 2 = pages. Normalising means a mouse notch
+      // and a trackpad pinch move by comparable amounts instead of wildly different ones.
+      const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
+      pending += e.deltaY * unit;
+      if (!raf) raf = requestAnimationFrame(flush);
     };
     const onKey = (e: KeyboardEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       if (e.key === '=' || e.key === '+') {
         e.preventDefault();
-        setZoom((z) => clampZoom(z + 0.1));
+        setZoom((z) => clamp(z + ZOOM_STEP));
       } else if (e.key === '-') {
         e.preventDefault();
-        setZoom((z) => clampZoom(z - 0.1));
+        setZoom((z) => clamp(z - ZOOM_STEP));
       } else if (e.key === '0') {
         e.preventDefault();
         setZoom(1);
@@ -162,6 +191,7 @@ export function EditorPage() {
     el.addEventListener('wheel', onWheel, { passive: false });
     window.addEventListener('keydown', onKey);
     return () => {
+      if (raf) cancelAnimationFrame(raf);
       el.removeEventListener('wheel', onWheel);
       window.removeEventListener('keydown', onKey);
     };
@@ -215,18 +245,18 @@ export function EditorPage() {
         {/* Zoom is a utility, not a product action: neutral chrome so the accent stays
             reserved for selection, the document, and the export CTA. */}
         <div className="hdr-group hdr-zoom">
-          <button className="zm-btn" type="button" aria-label="Zoom out" disabled={zoom <= MIN_ZOOM} onClick={() => setZoom((z) => Math.max(MIN_ZOOM, +(z - 0.1).toFixed(2)))}>
+          <button className="zm-btn" type="button" aria-label="Zoom out" disabled={zoom <= MIN_ZOOM} onClick={() => stepZoom(-ZOOM_STEP)}>
             <MinusIcon />
           </button>
           <button
             className="zm-val"
             type="button"
             title={zoom === 1 ? 'Fit page' : 'Back to fit page'}
-            onClick={() => setZoom(1)}
+            onClick={resetZoom}
           >
             {zoom === 1 ? 'Fit page' : `${pct}%`}
           </button>
-          <button className="zm-btn" type="button" aria-label="Zoom in" disabled={atMax} onClick={() => setZoom((z) => Math.min(maxZoom, +(z + 0.1).toFixed(2)))}>
+          <button className="zm-btn" type="button" aria-label="Zoom in" disabled={atMax} onClick={() => stepZoom(ZOOM_STEP)}>
             <PlusIcon />
           </button>
         </div>
@@ -282,7 +312,7 @@ export function EditorPage() {
 
       <main
         ref={stageRef}
-        className="print-stage min-h-0 flex-1 overflow-auto"
+        className="print-stage app-scroll min-h-0 flex-1 overflow-auto"
         style={{ paddingTop: STAGE_PAD_TOP, paddingBottom: STAGE_PAD_BOTTOM }}
       >
         {/* Bounded, centred shell: on a wide monitor the paper and the panel stay one
@@ -296,7 +326,12 @@ export function EditorPage() {
           style={{
             // No cap in single-column mode: the viewport is already below the cap, and
             // capping would re-create the overflow the padding fix exists to avoid.
-            maxWidth: narrow ? undefined : WORKSPACE_MAX + STAGE_PAD_X * 2,
+            // No max-width when docked. It used to be capped at WORKSPACE_MAX, which
+            // left ~300px unusable on each side of a wide stage: zooming then overflowed
+            // that cap and pushed the page right, over the design panel, while the dead
+            // margin sat empty on the left. WORKSPACE_MAX still caps the FIT scale
+            // above, which is what it was actually for.
+            maxWidth: undefined,
             gap: PANEL_GAP,
             paddingInline: STAGE_PAD_X,
           }}

@@ -7,7 +7,7 @@
    Enforced by `npm run guardrail` (scripts/check-guardrail.mjs), which also requires
    every selector here to be scoped to this file's own data-template id. */
 [data-template='sharp'] .cv-h1 {
-  color: var(--paper-accent);
+  color: var(--accent-ink);
   font-weight: 800;
   letter-spacing: -0.01em;
 }
@@ -21,7 +21,7 @@
 /* The accent bar is not here: it is theme.headingLayout='left-rail' (see the
    registry), which also suppresses the underline so the two never stack. */
 [data-template='sharp'] .cv-secH {
-  color: var(--paper-accent);
+  color: var(--accent-ink);
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -33,6 +33,6 @@
 [data-template='sharp'] .cv-chip {
   border-radius: 3pt;
   background: var(--accent-weak);
-  color: var(--paper-accent);
+  color: var(--accent-ink);
   font-weight: 600;
 }

@@ -20,7 +20,12 @@
   border-radius: 9px;
   box-shadow: 0 0 0 3px var(--accent), 0 0 0 9999px rgba(15, 23, 32, 0.34);
   pointer-events: none;
-  animation: coach-pulse 1.6s ease-out infinite;
+  animation: coach-pulse 1.6s var(--ease-in-out) infinite;
+  /* The ring and card are placed by inline top/left, so without this they teleport
+     between steps and you lose track of where the highlight went. Travelling makes
+     the sequence read as one tour rather than five unrelated flashes. */
+  transition: top var(--dur-3) var(--ease-in-out), left var(--dur-3) var(--ease-in-out),
+    width var(--dur-3) var(--ease-in-out), height var(--dur-3) var(--ease-in-out);
 }
 @keyframes coach-pulse {
   0%,
@@ -31,11 +36,6 @@
     box-shadow: 0 0 0 6px var(--accent-weak), 0 0 0 9999px rgba(15, 23, 32, 0.34);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .coach-ring {
-    animation: none;
-  }
-}
 .coach-card {
   position: absolute;
   border-radius: 12px;
@@ -43,6 +43,7 @@
   background: var(--surface);
   box-shadow: 0 14px 40px rgba(15, 23, 32, 0.24);
   pointer-events: auto;
+  transition: top var(--dur-3) var(--ease-in-out), left var(--dur-3) var(--ease-in-out);
 }
 .coach-step {
   margin: 0 0 5px;
@@ -87,7 +88,7 @@
   color: var(--ink);
 }
 .coach-next {
-  background: var(--accent);
+  background: var(--accent-strong);
   color: #fff;
 }
 .coach-next:hover {

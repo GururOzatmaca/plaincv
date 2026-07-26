@@ -11,14 +11,14 @@
   letter-spacing: -0.02em;
 }
 [data-template='banner'] .cv-title {
-  color: var(--paper-accent);
+  color: var(--accent-ink);
   font-weight: 600;
 }
 [data-template='banner'] .cv-rule {
   border-bottom: 2pt solid var(--paper-accent);
 }
 [data-template='banner'] .cv-secH {
-  color: var(--paper-accent);
+  color: var(--accent-ink);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -30,6 +30,6 @@
 [data-template='banner'] .cv-chip {
   border-radius: 2pt;
   background: var(--accent-weak);
-  color: var(--paper-accent);
+  color: var(--accent-ink);
   font-weight: 600;
 }

@@ -1,5 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { Reorder, useDragControls } from 'framer-motion';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { Reorder, useDragControls, MotionConfig } from 'framer-motion';
 import { useResumeStore } from '@/store/resumeStore';
 import type { Bullet, Line, Resume, Section } from '@/schema/resume';
 import { uid, newItem, newSection, newBullet } from '@/schema/factory';
@@ -35,6 +36,44 @@ const SECTION_TYPES: { type: Section['type']; label: string }[] = [
 // when the cursor is near IT, not anywhere on the row (and a bullet's handle never
 // also lights up its parent entry's).
 
+/**
+ * Reorder feel. framer-motion was previously passed no config at all, so rows ran on
+ * the library defaults: dragElastic 0.5, which let a row rubber-band half its own
+ * height past the end of the list, and an untuned spring that was still settling when
+ * the print stylesheet ran (hence the transform reset in print.css).
+ *
+ * Damping ratio here is ~1.1 (42 / 2*sqrt(600*0.6)), i.e. just overdamped: the row
+ * arrives quickly and does NOT overshoot, matching the rest of the motion scale.
+ */
+const ROW_SPRING = { type: 'spring', stiffness: 600, damping: 42, mass: 0.6 } as const;
+const ROW_ELASTIC = 0.08;
+/**
+ * framer measures layout in SCREEN space, so scaling the paper looks to it like every
+ * row moved, and it animates all of them: one zoom step slid all 8 rows ~19px over
+ * ~230ms. Neither a stable MotionConfig identity nor layoutDependency stops it, because
+ * the projection re-runs on the scale change itself.
+ *
+ * The spring is only ever WANTED while a row is being dragged. Outside a drag the
+ * animation has no job, so it is switched off and framer snaps rows straight to their
+ * measured position; zooming then has nothing to animate. Reordering is unaffected.
+ */
+const ROW_STATIC = { duration: 0 } as const;
+
+// Drag state as a tiny external store: Row and SectionView both need it and share no
+// ancestor below EditorPaper, and threading a prop through every list was not worth it.
+let dragActive = false;
+const dragSubs = new Set<() => void>();
+const setDragActive = (v: boolean) => {
+  if (dragActive === v) return;
+  dragActive = v;
+  dragSubs.forEach((f) => f());
+};
+const subscribeDrag = (cb: () => void) => {
+  dragSubs.add(cb);
+  return () => void dragSubs.delete(cb);
+};
+const useIsDragging = () => useSyncExternalStore(subscribeDrag, () => dragActive, () => false);
+
 type DragControls = ReturnType<typeof useDragControls>;
 
 // Drag handle (left). Pointer-down starts a framer drag on the owning Reorder.Item;
@@ -49,6 +88,19 @@ function DragHandle({ controls }: { controls: DragControls }) {
         onPointerDown={(e) => {
           e.preventDefault();
           controls.start(e);
+          // Controls are anchored to rows that are about to move. Leaving them lit
+          // means a trail of buttons sliding through the gaps between rows, which is
+          // what made dragging look broken. Cleared on the next pointerup anywhere.
+          document.body.classList.add('cv-dragging');
+          setDragActive(true);
+          const end = () => {
+            document.body.classList.remove('cv-dragging');
+            setDragActive(false);
+            window.removeEventListener('pointerup', end);
+            window.removeEventListener('pointercancel', end);
+          };
+          window.addEventListener('pointerup', end);
+          window.addEventListener('pointercancel', end);
         }}
       >
         <svg viewBox="0 0 8 12" fill="currentColor" aria-hidden="true">
@@ -74,6 +126,7 @@ function Row({
   className,
   canReorder,
   onCommit,
+  layoutKey,
   children,
 }: {
   id: string;
@@ -81,14 +134,23 @@ function Row({
   className: string;
   canReorder: boolean;
   onCommit: () => void;
+  layoutKey: string;
   children: (handle: ReactNode) => ReactNode;
 }) {
   const controls = useDragControls();
+  const dragging = useIsDragging();
   return (
     <Reorder.Item
       value={id}
       as={as}
       className={className}
+      // Projection OFF unless a drag is in progress. With it on, changing the paper's
+      // scale made framer hold every row at its pre-zoom position for ~3 frames and
+      // then snap it 19px, so the document appeared to lag behind its own page.
+      layout={dragging ? true : undefined}
+      layoutDependency={layoutKey}
+      transition={dragging ? ROW_SPRING : ROW_STATIC}
+      dragElastic={ROW_ELASTIC}
       dragListener={false}
       dragControls={controls}
       onDragEnd={onCommit}
@@ -161,23 +223,117 @@ function SecAdd({ label, onClick }: { label: string; onClick: () => void }) {
   );
 }
 
+const MENU_W = 176;
+const MENU_GAP = 6;
+const MENU_EDGE = 10;
+const MENU_MIN = 140;
+
+type MenuPos = { left: number; top?: number; bottom?: number; maxHeight: number };
+
+/**
+ * Anchored in VIEWPORT pixels, not paper pixels, because the menu is portalled out
+ * of .print-paper: that element is `transform: scale(zoom)` and clipped by the
+ * stage's overflow, so inside it the list painted at 8.7px at fit zoom and its top
+ * options were cut off above the stage. Outside, it is always full size and the
+ * max-height is the space actually left on screen, so it scrolls when it has to.
+ */
+function placeMenu(btn: HTMLElement): MenuPos {
+  const r = btn.getBoundingClientRect();
+  const below = window.innerHeight - r.bottom - MENU_GAP - MENU_EDGE;
+  const above = r.top - MENU_GAP - MENU_EDGE;
+  // Under the button is the default; flip up only when down cannot hold a usable
+  // list and up can hold more.
+  const flip = below < MENU_MIN && above > below;
+  const maxHeight = Math.min(
+    Math.max(MENU_MIN, flip ? above : below),
+    window.innerHeight - MENU_EDGE * 2,
+  );
+  const left = Math.max(MENU_EDGE, Math.min(r.left, window.innerWidth - MENU_W - MENU_EDGE));
+  // Flipped, the menu is anchored by its BOTTOM. Anchoring by top would place it at
+  // the top of the space it is allowed to use, so a list shorter than that space
+  // floated ~22px clear of the button instead of sitting against it.
+  return flip
+    ? { left, bottom: window.innerHeight - r.top + MENU_GAP, maxHeight }
+    : { left, top: r.bottom + MENU_GAP, maxHeight };
+}
+
+// Reuse the old object when nothing moved, so scroll/resize re-placement does not
+// re-render the menu on every frame.
+const samePos = (a: MenuPos | null, b: MenuPos): MenuPos =>
+  a && a.left === b.left && a.top === b.top && a.bottom === b.bottom && a.maxHeight === b.maxHeight ? a : b;
+
 // "+ Add section" at the document end: click opens a small type picker; picking a
 // type appends a seeded section and focuses its title. Screen only.
 function AddSection({ onAdd }: { onAdd: (type: Section['type']) => void }) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<MenuPos | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Measure AFTER the open class lands. The button is collapsed (max-height: 0)
+  // until .cv-addsec-open reveals it, so a rect taken during the pointerdown that
+  // opens the menu is a zero-height one and anchors the menu a row too high. The
+  // reveal also grows the paper, which the stage's ResizeObserver settles a frame
+  // later and nudges the button down ~4px, so re-anchor once on the next frame.
+  useLayoutEffect(() => {
+    if (!open) {
+      setPos(null);
+      return;
+    }
+    const place = () => btnRef.current && setPos((p) => samePos(p, placeMenu(btnRef.current!)));
+    place();
+    // Two frames: one for the reveal's own reflow, one for the stage ResizeObserver
+    // that reacts to it. samePos makes the extra passes free when nothing moved.
+    let id = requestAnimationFrame(() => {
+      place();
+      id = requestAnimationFrame(place);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
-    const close = () => setOpen(false);
-    window.addEventListener('pointerdown', close);
-    return () => window.removeEventListener('pointerdown', close);
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    // The stage scrolls underneath a fixed-position menu, so follow the button
+    // rather than let the two drift apart. Capture: .print-stage's scroll event
+    // does not bubble to window.
+    let raf = 0;
+    const reflow = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        if (btnRef.current) setPos((p) => samePos(p, placeMenu(btnRef.current!)));
+      });
+    };
+    window.addEventListener('pointerdown', onDown);
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', reflow, true);
+    window.addEventListener('resize', reflow);
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      window.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', reflow, true);
+      window.removeEventListener('resize', reflow);
+    };
   }, [open]);
+
   return (
     <div className={`cv-addsec no-print${open ? ' cv-addsec-open' : ''}`} contentEditable={false}>
       <button
+        ref={btnRef}
         type="button"
         className="cv-addsec-btn"
         title="Add section"
         aria-label="Add section"
+        aria-expanded={open}
         onPointerDown={(e) => {
           e.stopPropagation();
           setOpen((o) => !o);
@@ -186,23 +342,33 @@ function AddSection({ onAdd }: { onAdd: (type: Section['type']) => void }) {
         <PlusIcon />
         Section
       </button>
-      {open && (
-        <div className="cv-addsec-menu" onPointerDown={(e) => e.stopPropagation()}>
-          {SECTION_TYPES.map((t) => (
-            <button
-              key={t.type}
-              type="button"
-              className="cv-addsec-opt"
-              onClick={() => {
-                onAdd(t.type);
-                setOpen(false);
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {open &&
+        pos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="cv-addsec-menu app-scroll no-print"
+            role="menu"
+            data-flip={pos.bottom != null}
+            style={{ left: pos.left, top: pos.top, bottom: pos.bottom, maxHeight: pos.maxHeight, width: MENU_W }}
+          >
+            {SECTION_TYPES.map((t) => (
+              <button
+                key={t.type}
+                type="button"
+                role="menuitem"
+                className="cv-addsec-opt"
+                onClick={() => {
+                  onAdd(t.type);
+                  setOpen(false);
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -232,6 +398,8 @@ function BulletList({
 }) {
   const [dragIds, setDragIds] = useState<string[] | null>(null);
   const ordered = applyOrder(bullets, dragIds);
+  // Only the ORDER may trigger a framer layout measurement (see Row).
+  const orderKey = ordered.map((b) => b.id).join(',');
   const commit = () =>
     setDragIds((ids) => {
       if (ids) reorderBullets(itemId, ids);
@@ -239,9 +407,9 @@ function BulletList({
     });
   return (
     <>
-      <Reorder.Group as="ul" axis="y" className="cv-ul" values={ordered.map((b) => b.id)} onReorder={setDragIds}>
+      <Reorder.Group as="ul" axis="y" className="cv-ul" values={orderKey.split(',')} onReorder={setDragIds}>
         {ordered.map((b) => (
-          <Row key={b.id} id={b.id} as="li" className="cv-li" canReorder={bullets.length > 1} onCommit={commit}>
+          <Row key={b.id} id={b.id} as="li" className="cv-li" canReorder={bullets.length > 1} onCommit={commit} layoutKey={orderKey}>
             {(handle) => (
               <>
                 {handle}
@@ -276,6 +444,7 @@ function SectionView({
   canReorderSection,
   onDeleteSection,
   onSectionCommit,
+  layoutKey,
 }: {
   section: Section;
   update: UpdateFn;
@@ -283,11 +452,17 @@ function SectionView({
   canReorderSection: boolean;
   onDeleteSection: () => void;
   onSectionCommit: () => void;
+  layoutKey: string;
 }) {
   const controls = useDragControls();
+  const sectionDragging = useIsDragging();
   // Item order while dragging (list of ids); null when not dragging. Rendering reads
   // from this so framer animates; on release the store is sorted to match, once.
   const [itemDragIds, setItemDragIds] = useState<string[] | null>(null);
+  // Certifications render their own Reorder.Group inline; same order-only key.
+  const certOrderKey = ('items' in section ? applyOrder(section.items as Array<{ id: string }>, itemDragIds) : [])
+    .map((i) => i.id)
+    .join(',');
   const commitItems = () =>
     setItemDragIds((ids) => {
       if (ids) editSection((s) => 'items' in s && sortByIds(s.items as Array<{ id: string }>, ids));
@@ -394,10 +569,11 @@ function SectionView({
   // item to a <Row>; ids drive stable keys/values so edits never reset the order.
   const itemsGroup = <T extends { id: string }>(items: T[], render: (it: T, handle: ReactNode) => ReactNode) => {
     const ordered = applyOrder(items, itemDragIds);
+    const orderKey = ordered.map((i) => i.id).join(',');
     return (
       <Reorder.Group as="div" axis="y" values={ordered.map((i) => i.id)} onReorder={setItemDragIds}>
         {ordered.map((it) => (
-          <Row key={it.id} id={it.id} as="div" className="cv-entry" canReorder={items.length > 1} onCommit={commitItems}>
+          <Row key={it.id} id={it.id} as="div" className="cv-entry" canReorder={items.length > 1} onCommit={commitItems} layoutKey={orderKey}>
             {(handle) => render(it, handle)}
           </Row>
         ))}
@@ -410,6 +586,10 @@ function SectionView({
       value={section.id}
       as="div"
       className={`cv-section${section.hidden ? ' cv-hidden' : ''}`}
+      layout={sectionDragging ? true : undefined}
+      layoutDependency={layoutKey}
+      transition={sectionDragging ? ROW_SPRING : ROW_STATIC}
+      dragElastic={ROW_ELASTIC}
       dragListener={false}
       dragControls={controls}
       onDragEnd={onSectionCommit}
@@ -538,9 +718,9 @@ function SectionView({
 
       {section.type === 'certifications' && (
         <>
-          <Reorder.Group as="ul" axis="y" className="cv-ul" values={applyOrder(section.items, itemDragIds).map((i) => i.id)} onReorder={setItemDragIds}>
+          <Reorder.Group as="ul" axis="y" className="cv-ul" values={certOrderKey.split(',')} onReorder={setItemDragIds}>
             {applyOrder(section.items, itemDragIds).map((it) => (
-              <Row key={it.id} id={it.id} as="li" className="cv-entry" canReorder={section.items.length > 1} onCommit={commitItems}>
+              <Row key={it.id} id={it.id} as="li" className="cv-entry" canReorder={section.items.length > 1} onCommit={commitItems} layoutKey={certOrderKey}>
                 {(handle) => (
                   <>
                     {handle}
@@ -711,6 +891,13 @@ function SectionView({
 }
 
 // The A4 HTML paper. This same DOM is what "Download PDF" prints (option B).
+/**
+ * Zoom is NOT transitioned. It was tried: because the page is anchored top-left and
+ * the shadow box's width animates alongside it, an eased zoom made the whole page
+ * appear to slide sideways while it grew. Scaling is a size change, not a movement,
+ * and animating it reads as the layout lurching. The wheel path is continuous
+ * (see EditorPage), which is what actually needed fixing.
+ */
 export function EditorPaper({ scale }: { scale: number }) {
   const doc = useResumeStore((s) => s.doc);
   const update = useResumeStore((s) => s.update);
@@ -725,6 +912,7 @@ export function EditorPaper({ scale }: { scale: number }) {
   // release, so a whole section drag is a single undo step.
   const [secDragIds, setSecDragIds] = useState<string[] | null>(null);
   const orderedSections = applyOrder(doc.sections, secDragIds);
+  const sectionOrderKey = orderedSections.map((s) => s.id).join(',');
   const commitSections = () =>
     setSecDragIds((ids) => {
       if (ids) update((d) => sortByIds(d.sections, ids));
@@ -761,6 +949,18 @@ export function EditorPaper({ scale }: { scale: number }) {
     }
     setFocusFid(null);
   }, [focusFid, doc]);
+
+  // Scale is read through a ref so this callback's IDENTITY never changes. It used
+  // to be an inline arrow, which meant a new function on every render; EditorPaper
+  // re-renders on every zoom step, so the motion context changed, framer re-measured
+  // every Reorder.Item, and each row visibly slid ~6px over ~230ms. Zooming animated
+  // the whole document. The ref keeps the value current without churning the context.
+  const scaleRef = useRef(scale);
+  scaleRef.current = scale;
+  const transformPagePoint = useCallback(
+    (pt: { x: number; y: number }) => ({ x: pt.x / scaleRef.current, y: pt.y / scaleRef.current }),
+    [],
+  );
 
   // Measure the PRINTED height: hide every no-print affordance first, else their
   // on-screen height falsely trips the warning on a CV that actually fits one page.
@@ -863,6 +1063,18 @@ export function EditorPaper({ scale }: { scale: number }) {
   };
 
   return (
+    /**
+     * transformPagePoint is the fix for dragging inside a scaled container. The paper
+     * is `transform: scale(...)`, and framer applies a drag delta measured in SCREEN
+     * pixels as a LOCAL translate, which the scale then shrinks: measured at 0.687
+     * zoom, a 120px pointer move dragged the row only 82px, so the row visibly lagged
+     * the cursor at every zoom except 100%. Dividing the point by the scale converts
+     * screen space back into the paper's own space.
+     *
+     * reducedMotion="user" is the only thing that makes framer honour the OS setting;
+     * a CSS media query cannot reach a JS-driven spring.
+     */
+    <MotionConfig transformPagePoint={transformPagePoint} reducedMotion="user">
     <div
       className="print-scale-box relative shrink-0 rounded-xl"
       style={{
@@ -975,6 +1187,7 @@ export function EditorPaper({ scale }: { scale: number }) {
               canReorderSection={doc.sections.length > 1}
               onDeleteSection={() => removeSectionById(section.id)}
               onSectionCommit={commitSections}
+              layoutKey={sectionOrderKey}
             />
           ))}
         </Reorder.Group>
@@ -1002,5 +1215,6 @@ export function EditorPaper({ scale }: { scale: number }) {
         </>
       )}
     </div>
+    </MotionConfig>
   );
 }

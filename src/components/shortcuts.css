@@ -8,58 +8,22 @@
   background: rgba(15, 23, 32, 0.45);
   backdrop-filter: blur(2px);
 }
-/* The card itself does NOT scroll. A scrollbar on the rounded box has to render
-   inside the corner radius, so it either clips or squares off the right edge no
-   matter how it is styled. Instead the card is a fixed header / scrolling body /
-   fixed footer column: the scrollbar is a straight strip between two solid rows and
-   never reaches a corner, so the radius and the scroll can both be real.
-   Pinning the header and footer also keeps Close reachable in a long help sheet. */
+/* Plain scrolling card. A split head/body/foot was tried to keep the scrollbar off
+   the rounded corners; it made the dialog feel heavy for what is a help sheet. The
+   thin inset scrollbar (.app-scroll) already keeps the radius readable. */
 .sc-card {
-  display: flex;
-  flex-direction: column;
   width: 100%;
   max-width: 640px;
   max-height: 88vh;
-  overflow: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border-radius: 20px;
   background: var(--surface);
+  padding: 24px;
   box-shadow: 0 20px 60px rgba(15, 23, 32, 0.3);
 }
-.sc-head,
-.sc-foot {
-  flex: 0 0 auto;
-  padding: 20px 24px;
-}
-.sc-foot {
-  border-top: 1px solid var(--line);
-}
-.sc-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 0 24px 4px;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: var(--line-2) transparent;
-}
-.sc-body::-webkit-scrollbar {
-  width: 10px;
-}
-.sc-body::-webkit-scrollbar-track {
-  background: transparent;
-}
-.sc-body::-webkit-scrollbar-thumb {
-  border: 3px solid transparent;
-  border-radius: 10px;
-  background: var(--line-2);
-  background-clip: content-box;
-}
-.sc-body::-webkit-scrollbar-thumb:hover {
-  background: var(--muted);
-  background-clip: content-box;
-}
 .sc-title {
-  margin: 0;
+  margin: 0 0 14px;
   font-size: 17px;
   font-weight: 700;
 }
@@ -101,6 +65,9 @@
 }
 .sc-q[open] > summary::before {
   content: '▾';
+}
+.sc-q > summary {
+  transition: background var(--dur-1) var(--ease-out);
 }
 .sc-q > summary:hover {
   background: var(--surface-2);
@@ -167,6 +134,33 @@
   font-weight: 600;
   cursor: pointer;
 }
+.sc-close {
+  transition: background var(--dur-1) var(--ease-out);
+}
 .sc-close:hover {
   background: var(--line);
+}
+
+/* ---- Open motion ----
+   Both dialogs used to appear with no transition at all, which is the one place a
+   hard cut actually reads as a bug rather than as speed: a full-screen veil that
+   blinks on looks like a rendering glitch. Enter only; the close is instantaneous
+   because the component unmounts, and holding a dialog on screen purely to animate
+   it out delays the thing the user asked for. */
+.sc-overlay {
+  animation: dlg-veil var(--dur-2) var(--ease-out);
+}
+.sc-card {
+  animation: dlg-card var(--dur-2) var(--ease-out);
+}
+@keyframes dlg-veil {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes dlg-card {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
 }

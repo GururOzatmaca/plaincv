@@ -97,14 +97,10 @@ export function Shortcuts({ open, onOpenChange }: { open: boolean; onOpenChange:
 
   return (
     <div className="sc-overlay" onClick={() => onOpenChange(false)}>
-      <div ref={cardRef} className="sc-card" role="dialog" aria-modal="true" aria-labelledby="sc-title" onClick={(e) => e.stopPropagation()}>
-        <div className="sc-head">
-          <h2 className="sc-title" id="sc-title">
-            Help
-          </h2>
-        </div>
-        {/* only this scrolls, so the scrollbar never meets the card's rounded corners */}
-        <div className="sc-body">
+      <div ref={cardRef} className="sc-card app-scroll" role="dialog" aria-modal="true" aria-labelledby="sc-title" onClick={(e) => e.stopPropagation()}>
+        <h2 className="sc-title" id="sc-title">
+          Help
+        </h2>
         <div className="sc-howto">
           {HOWTO.map((h) => (
             <details className="sc-q" key={h.q}>
@@ -126,7 +122,6 @@ export function Shortcuts({ open, onOpenChange }: { open: boolean; onOpenChange:
             </div>
           ))}
         </dl>
-        </div>
         <div className="sc-foot">
           <label className="sc-sound">
             <input

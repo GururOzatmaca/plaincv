@@ -40,7 +40,10 @@
   border: none;
   padding: 0.42rem 0;
   color: var(--muted);
-  transition: all 0.15s ease-in-out;
+  /* was `all`, which also transitioned font-weight and padding: both reflow, and
+     tweening a font-weight is visibly mushy. Only the three that actually change. */
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-1) var(--ease-out);
 }
 .radio-inputs .radio:hover .name {
   background: rgba(255, 255, 255, 0.5);
@@ -51,11 +54,12 @@
   color: var(--ink);
   position: relative;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  animation: cvselect 0.3s ease;
+  animation: cvselect var(--dur-2) var(--ease-out);
 }
+/* Settles up to size instead of overshooting past it. The old 0.95 -> 1.05 -> 1 bounce
+   made a radio you had just clicked wobble under the pointer. */
 @keyframes cvselect {
-  0% { transform: scale(0.95); }
-  50% { transform: scale(1.05); }
+  0% { transform: scale(0.96); }
   100% { transform: scale(1); }
 }
 .radio-inputs .radio input:checked + .name::before,
@@ -68,7 +72,7 @@
   background: var(--accent);
   opacity: 0;
   left: 50%;
-  animation: cvparticles 0.5s ease forwards;
+  animation: cvparticles var(--dur-3) var(--ease-out) forwards;
 }
 .radio-inputs .radio input:checked + .name::before {
   top: -8px;
@@ -101,7 +105,7 @@
   position: relative;
   border: none;
   padding: 0;
-  transition: flex 0.14s linear;
+  transition: flex var(--dur-1) var(--ease-out);
 }
 .cv-color:focus-visible {
   outline: 2px solid var(--ink);
@@ -130,14 +134,6 @@
   inset: 0;
   border: 2.5px solid #fff;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cv-color,
-  .radio-inputs .radio .name {
-    transition: none;
-    animation: none;
-  }
 }
 
 /* ---- Custom colour popover ----
@@ -341,7 +337,7 @@ input[type='range'].cp-range::-moz-range-thumb {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .pnl-shuffle:hover {
   background: var(--surface-2);
@@ -398,7 +394,7 @@ input[type='range'].cp-range::-moz-range-thumb {
   background: transparent;
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
 }
 .tpl-opt:hover {
   background: var(--surface-2);
@@ -432,9 +428,7 @@ input[type='range'].cp-range::-moz-range-thumb {
 .tpl-thumb {
   display: block;
   width: 100%;
-  /* tall enough to reach the first entry: the date's position is where entryLayout
-     shows itself, and at 96px every preset cropped just above it */
-  height: 132px;
+  height: 80px;
   margin-bottom: 5px;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -475,7 +469,7 @@ input[type='range'].cp-range::-moz-range-thumb {
   background: var(--surface);
   color: var(--ink);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
 .fp-trigger:hover {
   background: var(--surface-2);
@@ -518,7 +512,7 @@ input[type='range'].cp-range::-moz-range-thumb {
   background: transparent;
   cursor: pointer;
   text-align: left;
-  transition: background 0.12s ease;
+  transition: background var(--dur-1) var(--ease-out);
 }
 .fp-opt:hover {
   background: var(--surface-2);
@@ -592,7 +586,7 @@ input[type='range'].cp-range::-moz-range-thumb {
   font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
 }
 .seg-btn:hover:not(.on) {
   color: var(--ink);
@@ -602,10 +596,6 @@ input[type='range'].cp-range::-moz-range-thumb {
   color: var(--accent);
   box-shadow: 0 1px 2px rgba(15, 23, 32, 0.12);
 }
-@media (prefers-reduced-motion: reduce) {
-  .seg-btn { transition: none; }
-}
-
 /* ---- Design panel scroll: thin, subtle, unobtrusive ---- */
 .panel-scroll {
   scrollbar-width: thin;
