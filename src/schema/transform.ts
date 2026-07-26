@@ -27,16 +27,12 @@ const oneOf = <T extends string>(v: unknown, allowed: readonly T[], fallback: T)
 
 function mergeTheme(t?: ImportDto['theme']): Theme {
   const m = { ...DEFAULT_THEME, ...(t ?? {}) };
-  // Pre-v7 file: one headingScale drove the name at 1.15x and the section heading at
-  // max(0.6x, 1). Detected by nameScale being ABSENT on the raw input rather than by
-  // the value's range - the old (1.2-2.2) and new (1-1.5) ranges overlap, so a range
-  // test would misread a legitimate new file. Same conversion as applyV7 in
-  // src/store/migrations.ts, so an import and a migration agree.
+
   const legacy = t?.nameScale === undefined && t?.headingScale !== undefined;
   const headingScale = legacy ? Math.max(m.headingScale * 0.6, 1) : m.headingScale;
   const nameScale = legacy ? m.headingScale * 1.15 : m.nameScale;
   return {
-    // clamp to a known font id so the picker never desyncs from the render
+
     fontFamily: FONTS[m.fontFamily] ? m.fontFamily : DEFAULT_FONT_ID,
     dividers: m.dividers ?? true,
     headerLayout: oneOf(m.headerLayout, ['left', 'centered', 'split'] as const, 'left'),
@@ -47,26 +43,22 @@ function mergeTheme(t?: ImportDto['theme']): Theme {
     lineHeight: clamp(m.lineHeight, 1.1, 1.8),
     headingScale: clamp(headingScale, 1, 1.5),
     nameScale: clamp(nameScale, 1.2, 2.6),
-    // 1 for a file that predates the control, which is what the old render was
+
     roleScale: clamp(t?.roleScale ?? 1, 1, 1.3),
-    // A file that predates the split carried a title at a flat 1.12x body, so derive
-    // the fraction from the name it actually had rather than defaulting to Classic's.
+
     titleScale: clamp(t?.titleScale ?? 1.12 / nameScale, 0.35, 0.9),
     density: clamp(m.density, 0.7, 1.3),
-    // A JSON written before the v8 split carries only `density`; fall back to it so an
-    // older export still imports at its own rhythm rather than at the default.
+
     blockSpacing: clamp(t?.blockSpacing ?? m.density, 0, 1.3),
     rowSpacing: clamp(t?.rowSpacing ?? m.density, 0, 1.3),
     secondaryInk: oneOf(m.secondaryInk, ['grey', 'soft', 'black'] as const, 'grey'),
     marginPt: clamp(m.marginPt, 24, 64),
-    // Left undefined when the file does not carry one, so the CSS fallback keeps the
-    // sides equal to the top/bottom instead of a backfilled value freezing them apart.
+
     ...(m.marginXPt === undefined ? {} : { marginXPt: clamp(m.marginXPt, 24, 64) }),
     accent: clampAccent(m.accent),
   };
 }
 
-/** Lenient import shape -> strict internal document. Fills ids, theme, titles. */
 export function dtoToResume(dto: ImportDto): Resume {
   const sections: Section[] = (dto.sections ?? []).map((s): Section => {
     const title = s.title ?? TITLE[s.type];
@@ -107,8 +99,7 @@ export function dtoToResume(dto: ImportDto): Resume {
           })),
         };
       case 'skills': {
-        // Consecutive bare strings collapse into one unlabelled group, so a flat
-        // list stays a flat row instead of becoming one group per skill.
+
         const groups: SkillGroup[] = [];
         let loose: string[] | null = null;
         for (const it of s.items ?? []) {
@@ -166,8 +157,7 @@ export function dtoToResume(dto: ImportDto): Resume {
         };
     }
   });
-  // Patched after the switch rather than inside all seven cases: `noRule` is design
-  // state that applies to every section type identically.
+
   (dto.sections ?? []).forEach((s, i) => {
     if (s.noRule && sections[i]) sections[i].noRule = true;
   });
@@ -192,8 +182,6 @@ export function dtoToResume(dto: ImportDto): Resume {
   };
 }
 
-/** Strict internal document -> clean lenient shape for export/copy. Bold/italic
- *  survive as `**` / `*` (see marks.ts), so export -> import is lossless. */
 export function resumeToDto(doc: Resume): ImportDto {
   const sections = doc.sections.map((s) => {
     switch (s.type) {
@@ -224,8 +212,7 @@ export function resumeToDto(doc: Resume): ImportDto {
           })),
         };
       case 'skills':
-        // Unlabelled groups export as bare strings so a simple CV stays a simple
-        // list in the JSON; only named groups need the object form.
+
         return {
           type: s.type,
           title: s.title,
@@ -265,7 +252,6 @@ export function resumeToDto(doc: Resume): ImportDto {
     }
   });
 
-  // Same reason as the import side: one patch instead of seven identical spreads.
   doc.sections.forEach((s, i) => {
     if (s.noRule) (sections[i] as { noRule?: boolean }).noRule = true;
   });
@@ -277,8 +263,7 @@ export function resumeToDto(doc: Resume): ImportDto {
     header: {
       fullName: doc.header.fullName,
       title: doc.header.title,
-      // Bare string unless the icon was overridden, so a normal CV's JSON stays a list
-      // of plain strings and the AI prompt's example keeps matching what it gets back.
+
       contacts: doc.header.contacts.map((c) => (c.icon ? { value: c.value, icon: c.icon } : c.value)),
       ...(doc.header.noRule ? { noRule: true } : {}),
     },
@@ -286,14 +271,8 @@ export function resumeToDto(doc: Resume): ImportDto {
   };
 }
 
-/** Pretty JSON of a shape for humans to read/copy. */
 export const exportJson = (doc: Resume): string => JSON.stringify(resumeToDto(doc), null, 2);
 
-/** Ready-to-paste ChatGPT prompt: instructions + a filled example as the format. */
-// A complete, realistic example covering EVERY supported section type and field,
-// so the model sees the full shape (profile, skills, experience, projects,
-// education, certifications, custom) and can fill whichever the user actually has.
-// Content is placeholder; theme/ids are intentionally omitted (the app owns design).
 const PROMPT_EXAMPLE: ImportDto = {
   name: 'Software Engineer CV',
   header: {
@@ -390,18 +369,12 @@ const PROMPT_EXAMPLE: ImportDto = {
   ],
 };
 
-/**
- * What the page can actually hold, taken from the live theme and measurement.
- * `fitDeltaPx` is signed: positive runs past one A4 page, negative is unused room.
- * Every field that changes capacity has to be here - body size alone said a 36pt
- * margin at lineHeight 1.15 held the same text as a 60pt margin at 1.6.
- */
 export interface LengthBudget {
   basePt: number;
   lineHeight: number;
   marginPt: number;
   marginXPt?: number;
-  /** theme.blockSpacing: what scales the section-heading gaps this budget counts. */
+
   blockSpacing: number;
   fitDeltaPx: number;
   pageHeightPx: number;
@@ -411,31 +384,16 @@ export interface LengthBudget {
 
 const PX_PER_PT = 96 / 72;
 
-/** Contact icon ids an import may carry; anything else falls back to auto-detection. */
 const ICONS = ['email', 'phone', 'location', 'linkedin', 'github', 'link', 'none'] as const;
 
-/**
- * Turn the measured page into instructions a model can follow.
- *
- * This is the one constraint this app enforces and every other builder ignores:
- * output is exactly one A4 page, clipped. A model told only "write me a resume"
- * reliably writes two pages of it, and the user then has to cut by hand. Giving it
- * the real character budget - and, when the page already overflows, how much to
- * remove - is worth more than any amount of prompt politeness.
- */
 function budgetLines(b: LengthBudget): string[] {
   const lineH = b.basePt * PX_PER_PT * b.lineHeight;
   const usableH = b.pageHeightPx - 2 * b.marginPt * PX_PER_PT;
   const usableW = b.pageWidthPx - 2 * (b.marginXPt ?? b.marginPt) * PX_PER_PT;
-  // A section heading's own margins are 0.82 + 0.41 of a LINE (paper.css .cv-secH,
-  // against --paper-lead = size * line-height), scaled by blockSpacing - so the cost of
-  // a section is 1.23 lines regardless of body size, and no px conversion is needed.
-  // Entry and bullet gaps ride on rowSpacing and are not counted: their number is not
-  // known until the model answers, and a safety factor for them measured ~5 lines too
-  // pessimistic on a real one-page CV, which the model spent by deleting bullets.
+
   const gapLines = b.sections.length * 1.23 * b.blockSpacing;
   const textLines = Math.max(12, Math.floor(usableH / lineH - gapLines));
-  // Average glyph ~0.5em across the serif and sans stacks; a guide, not font metrics.
+
   const perLine = Math.max(40, Math.round(usableW / (b.basePt * PX_PER_PT * 0.5)));
 
   const lines = [
@@ -512,12 +470,6 @@ export function buildAiPrompt(budget?: LengthBudget): string {
 
 const MAX_IMPORT_BYTES = 1_000_000;
 
-// ---------------------------------------------------------------------------
-// Alias fallback: models hallucinate synonym keys (jobs/work for items,
-// company for org, etc). Normalize a curated set to canonical keys BEFORE Zod,
-// which otherwise silently strips unknown keys. Rule: only fill a canonical key
-// when it is absent; never override real data. Unknown keys still get stripped.
-// ---------------------------------------------------------------------------
 const CANON_TYPES = new Set([
   'profile',
   'experience',
@@ -547,8 +499,6 @@ const BULLETS_ALIAS = ['points', 'highlights', 'responsibilities', 'achievements
 const isRecord = (x: unknown): x is Record<string, unknown> =>
   !!x && typeof x === 'object' && !Array.isArray(x);
 
-// Coerce a value the model returned as an object/array back to a flat string
-// (e.g. a skill as {name:'Go'}, a note as ['a','b']). Undefined if nothing usable.
 const asText = (v: unknown): string | undefined => {
   if (typeof v === 'string') return v;
   if (Array.isArray(v)) return v.map(asText).filter(Boolean).join(' ') || undefined;
@@ -560,9 +510,6 @@ const asText = (v: unknown): string | undefined => {
   return undefined;
 };
 
-// Coerce bullets the model returned as a single string (newline-separated) or an
-// array of objects into the expected string[]. Leaves clean input untouched;
-// unrecognizable elements pass through for Zod to reject.
 const asBullets = (v: unknown): unknown => {
   if (typeof v === 'string') {
     const parts = v
@@ -603,8 +550,7 @@ export function normalizeAliases(input: unknown): { value: unknown; notes: strin
     if (Array.isArray(header.contacts)) {
       header.contacts = header.contacts
         .map((c) => {
-          // {value, icon} is a legal contact, not a stray object to flatten: asText()
-          // reads `value` first, so coercing here would silently drop the icon override.
+
           if (isRecord(c) && typeof c.value === 'string') return c;
           return typeof c === 'string' ? c : asText(c);
         })
@@ -617,7 +563,6 @@ export function normalizeAliases(input: unknown): { value: unknown; notes: strin
     for (const s of sections) {
       if (!isRecord(s)) continue;
 
-      // section type (case-insensitive + synonyms)
       if (typeof s.type === 'string') {
         const t = s.type.toLowerCase();
         if (CANON_TYPES.has(t)) {
@@ -633,12 +578,8 @@ export function normalizeAliases(input: unknown): { value: unknown; notes: strin
         continue;
       }
 
-      // every other section is item-based
       fill(s, 'items', ITEMS_ALIAS, notes, `${String(s.type)} items`);
 
-      // Skills items are strings OR named groups. Keep anything that already looks
-      // like a group; models often return a bare object ({name:'Go'}) for a single
-      // skill, so everything else is still coerced to a string.
       if (s.type === 'skills') {
         if (Array.isArray(s.items)) {
           s.items = s.items
@@ -712,14 +653,6 @@ export type ImportResult =
   | { ok: true; doc: Resume; notes: string[] }
   | { ok: false; errors: string[] };
 
-/**
- * Every balanced `{...}` run in `raw`, outermost only, in document order.
- *
- * Replaces first-`{`-to-last-`}`, which could not survive prose either side of the
- * JSON: the model is now asked to append follow-up questions after the code block,
- * and one brace or emoticon in that prose swallowed the whole reply into a parse
- * error. String- and escape-aware so a `}` inside a bullet does not close an object.
- */
 function jsonCandidates(raw: string, cap = 10): string[] {
   const out: string[] = [];
   let i = 0;
@@ -746,8 +679,7 @@ function jsonCandidates(raw: string, cap = 10): string[] {
       }
     }
     if (end === -1) {
-      // Unbalanced from here on: a truncated reply. Keep it as a last-resort candidate
-      // so the "looks cut off" message still wins over "does not look like an answer".
+
       out.push(raw.slice(start));
       break;
     }
@@ -757,7 +689,6 @@ function jsonCandidates(raw: string, cap = 10): string[] {
   return out;
 }
 
-/** A fenced ```json block wins over loose text: it is the one place prose cannot reach. */
 function extractJson(raw: string): { text: string | null; reason: 'wrongShape' | 'truncated' | 'notAnAnswer' } {
   const ordered: string[] = [];
   for (const m of raw.matchAll(/```(?:json|JSON)?\s*([\s\S]*?)```/g)) {
@@ -769,28 +700,21 @@ function extractJson(raw: string): { text: string | null; reason: 'wrongShape' |
     try {
       const v: unknown = JSON.parse(c);
       parsedSomething = true;
-      // A model that answers in prose can still leave `{}` or a stray `{1,2}` in the
-      // text, so a candidate only counts once it looks like the shape we asked for.
+
       if (v && typeof v === 'object' && ('sections' in v || 'header' in v)) return { text: c, reason: 'wrongShape' };
-    } catch {
-      /* try the next candidate */
-    }
+    } catch {}
   }
-  // Our keys present but nothing parsed = a reply that got cut off mid-object; braces
-  // with none of our keys = the model answered in prose (questions only, or a refusal).
+
   const ours = /"(?:sections|header)"\s*:/.test(raw);
   return { text: null, reason: parsedSomething || !ours ? 'notAnAnswer' : 'truncated' };
 }
 
-/** Staged validation: size -> JSON.parse -> DTO schema -> transform -> internal schema. */
 export function parseImport(raw: string): ImportResult {
   if (raw.length > MAX_IMPORT_BYTES)
     return { ok: false, errors: ["That's too big. Paste just the reply your AI gave you."] };
   if (!raw.trim())
     return { ok: false, errors: ["Nothing pasted yet. Paste your AI's reply above."] };
 
-  // Tolerate ChatGPT wrapping: ```json fences, a leading "JSON" label, and prose on
-  // either side - the prompt asks for follow-up questions after the code block.
   const { text, reason } = extractJson(raw);
   if (text === null) {
     return {

@@ -4,24 +4,6 @@ import { fontStack, ensureFont } from '@/lib/fonts/registry';
 import { A4_W } from '@/lib/paperSize';
 import type { Theme } from '@/schema/resume';
 
-/**
- * Miniature of a template, rendered with the real paper class names, the real
- * template stylesheets AND the real layout-axis attributes, so the thumbnail shows
- * the structure clicking it gives you - not just its colours. Only the top of the
- * page is shown; that is where the presets differ most.
- *
- * The markup below mirrors EditorPaper's element nesting exactly (.cv-head wrapper,
- * .cv-etop's inner div, .cv-entry inside .cv-section, .cv-skillrow + .cv-chips).
- * That nesting is load-bearing: the axis rules in paper.css are written against it,
- * so a flattened preview would silently ignore headerLayout and entryLayout. It is
- * a hand-written miniature rather than a live <EditorPaper> because mounting one
- * interactive paper per template would put seven ResizeObservers and seven framer
- * Reorder groups in the sidebar; if EditorPaper's DOM changes, this must follow.
- *
- * The template's own typographic defaults are applied as local --paper-* overrides,
- * but the accent is deliberately inherited from :root so previews appear in the
- * colour the user actually picked.
- */
 export const TemplatePreview = memo(function TemplatePreview({
   id,
   skillStyle = 'plain',
@@ -30,8 +12,7 @@ export const TemplatePreview = memo(function TemplatePreview({
   skillStyle?: Theme['skillStyle'];
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  // Scale from the card's real width: a fixed factor would crop the page sideways
-  // and cut the centred templates' names in half.
+
   const [scale, setScale] = useState(0.18);
   useLayoutEffect(() => {
     const el = ref.current;

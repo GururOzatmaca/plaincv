@@ -4,7 +4,6 @@ import { mergeRuns } from '@/schema/marks';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-/** Line (Run[]) -> HTML with <strong>/<em>. Used for initial paint + canonical resync. */
 export function runsToHtml(line: Line): string {
   return line
     .map((r) => {
@@ -16,8 +15,6 @@ export function runsToHtml(line: Line): string {
     .join('');
 }
 
-/** contentEditable DOM -> Line. Reads <b>/<strong>/<i>/<em> and inline bold/italic
- *  styles (execCommand may emit either), ignores everything else. */
 export function domToRuns(root: HTMLElement): Line {
   const runs: Run[] = [];
   const walk = (node: Node, b: boolean, i: boolean) => {
@@ -42,7 +39,6 @@ export function domToRuns(root: HTMLElement): Line {
   return mergeRuns(runs);
 }
 
-/** Collapse whitespace and trim the line ends (matches the plain Editable). */
 function normalize(line: Line): Line {
   const collapsed = line.map((r) => ({ ...r, text: r.text.replace(/\s+/g, ' ') }));
   if (collapsed.length) {
@@ -53,11 +49,6 @@ function normalize(line: Line): Line {
   return mergeRuns(collapsed);
 }
 
-/**
- * Text before and after the caret, marks intact. Cloning ranges (rather than
- * slicing the plain string) is what keeps a bold run bold when a bullet is split
- * in the middle of one.
- */
 function splitAtCaret(el: HTMLElement | null): [Line, Line] | null {
   if (!el) return null;
   const sel = window.getSelection();
@@ -82,17 +73,11 @@ function splitAtCaret(el: HTMLElement | null): [Line, Line] | null {
 }
 
 const setMark = (cmd: 'bold' | 'italic') => {
-  // false => emit <b>/<i> tags, not inline-styled spans, so serialization is clean.
+
   document.execCommand('styleWithCSS', false, 'false');
   document.execCommand(cmd);
 };
 
-/**
- * Inline-editable rich text bound to one Line. Uncontrolled: the DOM is only
- * (re)written from `value` when the stored value actually changes (commit /
- * import), so the caret never jumps mid-edit. Bold/italic via Cmd/Ctrl+B/I or the
- * floating MarkToolbar; both preserved through DOM<->Run serialization.
- */
 export function RichEditable({
   value,
   onCommit,
@@ -107,9 +92,9 @@ export function RichEditable({
   className?: string;
   placeholder?: string;
   fid?: string;
-  /** Enter: hand back the text on each side of the caret (list makes a new row). */
+
   onSplit?: (before: Line, after: Line) => void;
-  /** Backspace in an already-empty field (list removes the row). */
+
   onDeleteEmpty?: () => void;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -125,7 +110,7 @@ export function RichEditable({
     if (!el) return;
     const next = normalize(domToRuns(el));
     if (JSON.stringify(next) !== JSON.stringify(value)) onCommit(next);
-    // repaint canonical markup so stray tags from editing don't accumulate
+
     el.innerHTML = runsToHtml(next);
   };
 
@@ -136,16 +121,14 @@ export function RichEditable({
       contentEditable
       suppressContentEditableWarning
       role="textbox"
-      // see Editable: the CSS placeholder is not an accessible name
+
       aria-label={placeholder}
       tabIndex={0}
-      // Rich fields are free prose (bullets, profile, notes), where a typo is
-      // expensive. Plain fields stay unchecked: names, employers and schools are
-      // proper nouns and would sit under a permanent red squiggle.
+
       spellCheck
       data-ph={placeholder}
       data-fid={fid}
-      // See Editable: "typed since focus", read by the global Ctrl+Z handler.
+
       onFocus={(e) => e.currentTarget.removeAttribute('data-dirty')}
       onInput={(e) => e.currentTarget.setAttribute('data-dirty', '1')}
       onBlur={(e) => {

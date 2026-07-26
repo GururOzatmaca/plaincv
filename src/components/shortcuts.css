@@ -8,9 +8,7 @@
   background: rgba(15, 23, 32, 0.45);
   backdrop-filter: blur(2px);
 }
-/* Plain scrolling card. A split head/body/foot was tried to keep the scrollbar off
-   the rounded corners; it made the dialog feel heavy for what is a help sheet. The
-   thin inset scrollbar (.app-scroll) already keeps the radius readable. */
+
 .sc-card {
   width: 100%;
   max-width: 640px;
@@ -37,8 +35,7 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-/* Collapsed by default: the answers are long, and an eight-question wall above the
-   shortcut list would bury the list this dialog was originally for. */
+
 .sc-howto {
   display: flex;
   flex-direction: column;
@@ -79,16 +76,12 @@
   font-size: 12.5px;
   line-height: 1.5;
 }
-/* Replay the first-run tour. Sits above the questions because it answers most of
-   them at once, and because a tour you can only see once is a tour most people
-   dismiss before they need it. */
+
 .sc-tour {
   display: block;
   width: 100%;
   margin: 0 0 12px;
-  /* --accent-weak (1.19:1) left this button with no edge at all; full --accent-strong
-     put a near-black hairline round it on a dark accent. A 45% mix keeps the edge
-     visible without making a secondary button the heaviest thing in the dialog. */
+
   border: 1px solid color-mix(in srgb, var(--accent-strong) 45%, white);
   border-radius: 12px;
   padding: 10px 12px;
@@ -110,7 +103,7 @@
   font-size: 11.5px;
   font-weight: 500;
 }
-/* Per-answer replay. A <p> wrapper so it inherits the answer's own indent. */
+
 .sc-showme-row {
   margin: 0 0 8px;
   padding: 0 10px 0 24px;
@@ -192,12 +185,6 @@
   background: var(--line);
 }
 
-/* ---- Open motion ----
-   Both dialogs used to appear with no transition at all, which is the one place a
-   hard cut actually reads as a bug rather than as speed: a full-screen veil that
-   blinks on looks like a rendering glitch. Enter only; the close is instantaneous
-   because the component unmounts, and holding a dialog on screen purely to animate
-   it out delays the thing the user asked for. */
 .sc-overlay {
   animation: dlg-veil var(--dur-2) var(--ease-out);
 }

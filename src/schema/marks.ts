@@ -1,6 +1,5 @@
 import type { Line, Run } from './resume';
 
-/** Collapse adjacent runs carrying the same marks; drop empty ones. */
 export function mergeRuns(runs: Run[]): Line {
   const out: Run[] = [];
   for (const r of runs) {
@@ -12,11 +11,8 @@ export function mergeRuns(runs: Run[]): Line {
   return out;
 }
 
-// `*` and `\` are the only characters that change meaning, so they are the only
-// ones escaped; escaping more would make the exported JSON noisy to hand-edit.
 const escapeMd = (s: string) => s.replace(/([\\*])/g, '\\$1');
 
-/** Line -> markdown-ish text: `**bold**`, `*italic*`, `***both***`. */
 export function lineToMd(line: Line): string {
   return line
     .map((r) => {
@@ -28,7 +24,6 @@ export function lineToMd(line: Line): string {
     .join('');
 }
 
-/** Inverse of lineToMd. Unmatched markers degrade to plain text, never throw. */
 export function mdToLine(src: string): Line {
   const runs: Run[] = [];
   let bold = false;
@@ -72,6 +67,3 @@ export function mdToLine(src: string): Line {
   flush();
   return mergeRuns(runs);
 }
-
-/** Marks stripped. For places that need the raw characters only. */
-export const lineToText = (line: Line): string => line.map((r) => r.text).join('');

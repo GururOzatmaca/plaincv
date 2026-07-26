@@ -1,11 +1,8 @@
-/* Option B: "Download PDF" = browser printing the edit paper. One engine, zero drift. */
 @page {
   size: A4;
   margin: 0;
 }
 
-/* Screen shows the editable span; print shows its anchor twin (see PrintLink.tsx).
-   Both carry identical characters, so extracted PDF text is unchanged. */
 .cv-printlink {
   display: none;
 }
@@ -15,18 +12,14 @@
   body {
     background: #ffffff !important;
   }
-  /* Printing re-runs layout against the page box, which retriggers every hover
-     transition and every framer-motion layout animation on the paper. The print
-     snapshot can then be taken mid-animation, so the PDF comes out with a row
-     offset or a control half-faded in. Nothing on a printed page should be moving. */
+
   *,
   *::before,
   *::after {
     animation: none !important;
     transition: none !important;
   }
-  /* framer-motion parks a translate on a reorderable row while it settles after a
-     drag. Left alone, printing straight after reordering bakes that offset in. */
+
   .cv-section,
   .cv-entry,
   .cv-li {
@@ -40,12 +33,11 @@
   .cv-edit.cv-haslink {
     display: none !important;
   }
-  /* everything that is app chrome, not the CV, disappears from the PDF */
+
   .no-print {
     display: none !important;
   }
-  /* flatten the screen layout so the paper fills the page instead of
-     shrink-to-fit + centering inside the flex row */
+
   .app-root,
   .print-stage,
   .editor-shell,
@@ -60,17 +52,9 @@
     box-shadow: none !important;
     border-radius: 0 !important;
   }
-  /* the paper prints at full A4 width; its own padding is the page margin.
-     height is pinned to one A4 page + overflow:hidden so the PDF matches the
-     on-screen paper exactly (which also clips at one page). Without this the
-     screen shows 1 clipped page while print silently spills to page 2. */
+
   .print-paper {
-    /* A4 at 96dpi, not 100%: printing resolves 100% against the page box (correct in
-       the PDF), but browser print-media EMULATION resolves it against the flattened
-       ancestors above, i.e. the viewport - so a 1700px window laid the paper out
-       1839px wide, wrapped nothing, and reported a CV as fitting when the real PDF
-       clipped it. An explicit width makes the emulated layout and the printed one the
-       same box. Keep in step with A4_W in src/lib/paperSize.ts. */
+
     width: 793.7px !important;
     height: 1122.52px !important;
     overflow: hidden !important;
@@ -78,11 +62,7 @@
     border-radius: 0 !important;
     transform: none !important;
     margin: 0 !important;
-    /* Print defaults to `economy`, which drops BACKGROUND fills but keeps borders
-       and text colour. That silently deleted every filled surface from the PDF -
-       boxed section headings, badge skill chips, accent-weak panels - while the
-       screen still showed them, so the template you picked was not the one you got.
-       Inherited, so declaring it on the paper covers everything inside it. */
+
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

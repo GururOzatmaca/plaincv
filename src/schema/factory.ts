@@ -10,21 +10,19 @@ export const uid = (): string =>
 export const DEFAULT_THEME: Theme = {
   fontFamily: 'serif',
   dividers: true,
-  // layout axes: Classic's preset, which is also each axis's schema default, so a
-  // document persisted before the axes existed renders exactly as it used to
+
   headerLayout: 'left',
   entryLayout: 'date-right',
   headingLayout: 'rule',
   skillStyle: 'plain',
   basePt: 10.5,
-  // matches Classic's defaultTheme, so the slider's "recommended" pin sits under the
-  // thumb on a fresh document instead of one notch off
+
   lineHeight: 1.4,
   headingScale: 1.22,
   nameScale: 1.96,
   roleScale: 1.08,
   titleScale: 0.571,
-  density: 1, // pre-v8, unused by the CSS; see blockSpacing/rowSpacing
+  density: 1,
   blockSpacing: 1,
   rowSpacing: 1,
   secondaryInk: 'grey',
@@ -32,11 +30,8 @@ export const DEFAULT_THEME: Theme = {
   accent: '#0891b2',
 };
 
-/** One empty bullet with a fresh id (stable key for drag reorder). */
 export const newBullet = () => ({ id: uid(), runs: [] as [] });
 
-// Default entry for a newly-added item, per section type. One empty bullet seeds a
-// field to type into.
 export function newItem(type: Section['type']): Record<string, unknown> {
   const id = uid();
   switch (type) {
@@ -55,8 +50,6 @@ export function newItem(type: Section['type']): Record<string, unknown> {
   }
 }
 
-// Default section per type. Item-based sections seed one empty entry so the shape
-// is visible immediately; skills seed one empty chip; profile an empty line.
 export function newSection(type: Section['type']): Section {
   const id = uid();
   switch (type) {
@@ -77,20 +70,12 @@ export function newSection(type: Section['type']): Section {
   }
 }
 
-/** Bring a persisted doc up to the current shape before validation. Currently:
- *  bullets were `Line[]` (array of run-arrays); now `{id, runs}[]`. Wrap any legacy
- *  bullet and backfill a missing id. Idempotent, defensive against unknown input. */
 export function normalizePersistedDoc(doc: unknown): unknown {
   if (!doc || typeof doc !== 'object') return doc;
   const d = doc as { sections?: unknown; templateId?: unknown; theme?: unknown };
-  // 8 templates were cut to 4; a saved doc may still name a retired one.
+
   if (typeof d.templateId === 'string') d.templateId = migrateTemplateId(d.templateId);
 
-  // Layout axes: seed from the document's own template preset, NOT from the schema
-  // defaults. Harvard's centred header and Sharp's accent bar used to be hardcoded in
-  // template CSS and applied unconditionally; now they are axis values. Letting zod
-  // fill them would silently flatten every existing Harvard and Sharp document to
-  // Classic's layout. Idempotent: only absent keys are written.
   if (d.theme && typeof d.theme === 'object') {
     const theme = d.theme as Record<string, unknown>;
     const preset = resolveTemplate(typeof d.templateId === 'string' ? d.templateId : '').defaultTheme;
@@ -102,8 +87,6 @@ export function normalizePersistedDoc(doc: unknown): unknown {
     for (const s of d.sections as Array<{ type?: unknown; items?: unknown }>) {
       if (!s || !Array.isArray(s.items)) continue;
 
-      // skills: flat string[] -> one unlabelled group, so the page looks identical
-      // after the upgrade. Idempotent: already-grouped items pass straight through.
       if (s.type === 'skills') {
         const flat = (s.items as unknown[]).filter((x) => typeof x === 'string') as string[];
         if (flat.length === s.items.length && flat.length > 0) {
@@ -137,7 +120,6 @@ export function normalizePersistedDoc(doc: unknown): unknown {
   return d;
 }
 
-/** Empty CV with the usual scaffolding, so "Start blank" is not a blank stare. */
 export function blankResume(): Resume {
   return {
     schemaVersion: SCHEMA_VERSION,

@@ -9,13 +9,6 @@ import {
   resolveFont,
 } from '@/lib/fonts/registry';
 
-/**
- * Font chooser as a popover rather than a permanently open list.
- *
- * The open list cost ~230px of sidebar height and, worse, made a second scroll
- * container inside the sidebar's own scroll area; scrolling over it moved the wrong
- * thing. Collapsed, the whole typography group fits above the fold.
- */
 export function FontPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
@@ -40,8 +33,6 @@ export function FontPicker({ value, onChange }: { value: string; onChange: (id: 
     };
   }, [open]);
 
-  // Preload every face once the menu is opened, so each row previews in its own
-  // typeface immediately instead of swapping in as you read down the list.
   useEffect(() => {
     if (open) FONT_IDS.forEach(ensureFont);
   }, [open]);
@@ -64,7 +55,7 @@ export function FontPicker({ value, onChange }: { value: string; onChange: (id: 
       </button>
 
       {open && (
-        <div className="fp-menu" role="listbox" aria-label="Font">
+        <div className="fp-menu app-scroll" role="listbox" aria-label="Font">
           {GROUP_ORDER.map((g) => (
             <div key={g}>
               <p className="fp-group">{GROUP_LABEL[g]}</p>

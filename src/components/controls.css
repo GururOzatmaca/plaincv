@@ -1,25 +1,21 @@
-/* ---- Font changer (radio segmented) ---- */
 .radio-inputs {
   position: relative;
   display: flex;
   flex-wrap: wrap;
   border-radius: var(--r-lg);
   background: var(--surface-2);
-  /* The group ring is the only thing marking where this control starts and stops:
-     --surface-2 is 1.05:1 on white, and an UNSELECTED pill is transparent, so at
-     rgba(0,0,0,.06) (1.23:1) there was no perceivable boundary at all. */
+
   box-shadow: 0 0 0 1px var(--line-ctl);
   padding: 0.25rem;
   width: 100%;
   font-size: 13px;
 }
 .radio-inputs .radio {
-  position: relative; /* anchor for the visually-hidden input (see .font-opt) */
+  position: relative;
   flex: 1 1 auto;
   text-align: center;
 }
-/* Visually hidden, NOT display:none - the latter drops the radio out of the focus
-   order and the accessibility tree, making the whole group keyboard-unreachable. */
+
 .radio-inputs .radio input {
   position: absolute;
   width: 1px;
@@ -30,9 +26,7 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
-/* --accent-strong: this ring lands on .radio-inputs' --surface-2 fill, where a legal
-   bright accent measured 2.80:1 and failed 1.4.11. See the note on the baseline
-   focus rule in src/index.css. */
+
 .radio-inputs .radio input:focus-visible + .name {
   outline: 2px solid var(--accent-strong);
   outline-offset: 1px;
@@ -46,8 +40,7 @@
   border: none;
   padding: 6px 0;
   color: var(--muted);
-  /* was `all`, which also transitioned font-weight and padding: both reflow, and
-     tweening a font-weight is visibly mushy. Only the three that actually change. */
+
   transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out),
     box-shadow var(--dur-1) var(--ease-out);
 }
@@ -62,8 +55,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   animation: cvselect var(--dur-2) var(--ease-out);
 }
-/* Settles up to size instead of overshooting past it. The old 0.95 -> 1.05 -> 1 bounce
-   made a radio you had just clicked wobble under the pointer. */
+
 @keyframes cvselect {
   0% { transform: scale(0.96); }
   100% { transform: scale(1); }
@@ -96,28 +88,13 @@
   100% { opacity: 0; transform: translateX(-50%) translateY(var(--dir)); }
 }
 
-/* ---- Accent palette: dock ----
-   Separate chips that magnify under the pointer and push their neighbours, with the
-   colour's name riding above the one you are on. The chip is the ::after, drawn
-   larger than its button and scaled, so the row reads as one strip at rest and
-   spreads only on hover. */
-/* The chips divide the row, they are not a fixed size: the palette is as wide as the
-   panel at every panel width, and adding a preset makes each one narrower rather than
-   pushing the last one out of view.
-   Padding is clearance for the hover, not decoration - see the growth rules below. */
-/* The padding is hover clearance, not a gutter: a lifted chip grows up and sideways
-   past its own box, and .panel-scroll's overflow would shave it.
-   The negative margin then takes that reserved band back out of the gap under the
-   heading, so the clearance costs layout nothing until something is actually lifted
-   into it. */
 .cv-palette {
   display: flex;
   width: 100%;
   margin-top: -14px;
   padding: 18px 5px 2px;
 }
-/* No gaps: the swatches butt together into one spectrum strip, and only the chip
-   under the pointer leaves it. */
+
 .cv-color {
   position: relative;
   flex: 1 1 0;
@@ -128,8 +105,7 @@
   padding: 0;
   background: transparent;
   cursor: pointer;
-  /* Grows UP, never down. The palette is the last thing in the panel, so a centred
-     scale pushed the bottom of the chip past the scroll box and cut it off. */
+
   transform-origin: bottom center;
   transition: transform var(--dur-3) var(--ease-dock), border-radius var(--dur-3) var(--ease-dock);
 }
@@ -139,11 +115,7 @@
 .cv-color:last-child {
   border-radius: 0 var(--r-sm) var(--r-sm) 0;
 }
-/* The fill lives here, and it bleeds half a pixel to each side so neighbours always
-   overlap. `flex: 1 1 0` over a width that does not divide by the swatch count gives
-   every chip a fractional edge, and while the hover transform runs the two sides of a
-   seam round to different device pixels: a hairline of panel white flickers between
-   them. Overlapping means there is no seam to round. */
+
 .cv-color::after {
   position: absolute;
   content: '';
@@ -153,23 +125,17 @@
   pointer-events: none;
   transition: box-shadow var(--dur-1) var(--ease-out);
 }
-/* Rounds only while it is out of the strip, so a lifted chip reads as its own object
-   and a seated one keeps the strip continuous. */
+
 .cv-color:hover,
 .cv-color:focus-visible {
   border-radius: var(--r-sm);
 }
-/* Lifts the marked chip out of DOM paint order, or its ring loses the right-hand side
-   to the next swatch (they overlap by half a pixel and later siblings paint on top).
-   It sits ABOVE this rule on purpose: the hover levels below carry the same
-   specificity, so whichever comes last wins, and hovering must still be able to raise
-   the selected chip over its neighbours. */
+
 .cv-color.sel,
 .cv-color-custom.open {
   z-index: 5;
 }
-/* 1.45, not 1.55: the chips grew to 30px and the gap under the heading shrank, and
-   the old factor lifted them into the word "Colour". */
+
 .cv-color:hover,
 .cv-color:focus-visible {
   transform: scale(1.45);
@@ -178,9 +144,7 @@
 .cv-color:active {
   transform: scale(1.3);
 }
-/* Neighbours fall off either side; that gradient is what makes it read as a dock
-   instead of one chip growing on its own. :has() covers the chips BEFORE the hovered
-   one, which the sibling combinator cannot reach. */
+
 .cv-color:hover + *,
 .cv-color:has(+ *:hover) {
   transform: scale(1.25);
@@ -191,13 +155,7 @@
   transform: scale(1.12);
   z-index: 10;
 }
-/* The marker is its own rounded box AROUND the chip, not a shadow on the fill: the
-   fill has to stay square to keep the strip continuous, and a shadow on a square box
-   is a square marker. Drawn outside, so it is rounded whether or not the chip under
-   it is. z-index because ::after is the fill and would otherwise paint over it
-   (same element, later pseudo).
-   Ring outside rather than inside: an inner ring is invisible on the dark half of the
-   palette (--ink measured 1.19:1 on Ink, 2.19:1 on Burgundy). */
+
 .cv-color.sel::before,
 .cv-color:focus-visible::before {
   position: absolute;
@@ -212,17 +170,14 @@
 .cv-color:focus-visible::before {
   border-color: var(--accent-strong);
 }
-/* Rainbow only while the accent is one of the presets; once a custom colour is in
-   use this chip carries it, so the row always shows what the document has. */
+
 .cv-color-custom::after {
   background: conic-gradient(from 0deg, #ff5757, #ffde59, #7ed957, #5ce1e6, #5b8cff, #cb6ce6, #ff5757);
 }
 .cv-color-custom.sel::after {
   background: var(--color);
 }
-/* Weaker than the .sel ring on purpose: open means "the dialog is yours", not "this
-   is the accent". Two --ink rings at once left no way to tell which chip the document
-   was actually using. */
+
 .cv-color-custom.open:not(.sel)::before {
   position: absolute;
   content: '';
@@ -234,10 +189,6 @@
   pointer-events: none;
 }
 
-/* ---- Custom colour dialog ----
-   Floating, and only while the custom chip is open, so the panel itself stays a row
-   of presets. Anchored to the wrapper and opening UPWARD: Colour is the last section,
-   so there is room above it and none below inside the panel's scroll box. */
 .cp-wrap {
   position: relative;
 }
@@ -286,17 +237,13 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-/* Track paints the choice itself, so the thumb is neutral and stays visible on any
-   colour. Overrides the global range styling (class + element beats element). */
+
 input[type='range'].cp-range {
   width: 100%;
   min-width: 0;
   height: 24px;
 }
-/* 6px track and a 16px thumb, i.e. the global slider geometry (index.css), so these
-   three read as the same control as Font size / Margin. Only the paint differs: the
-   track shows the choice, so the thumb is a hollow ring that stays visible on any
-   colour instead of the accent-filled dot. */
+
 input[type='range'].cp-range::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 999px;
@@ -333,9 +280,6 @@ input[type='range'].cp-range::-moz-range-thumb {
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-/* ---- Panel shell ----
-   The sidebar is support, not the hero. Softer radius, near-flat elevation, and
-   dividers instead of cards inside cards. */
 .design-panel {
   display: flex;
   flex-direction: column;
@@ -344,16 +288,11 @@ input[type='range'].cp-range::-moz-range-thumb {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface);
-  /* The panel is white on --bg: 1.26:1 of fill, and its --line border is 1.01:1
-     against --bg, so neither said "separate surface". A dark border would fix the
-     number and fight the "support, not hero" intent, so the edge is carried by
-     elevation - the SAME recipe as .print-scale-box, which makes the panel and the
-     paper read as two peer surfaces rather than a card next to a page. */
+
   box-shadow: 0 1px 2px rgba(15, 23, 32, 0.04), 0 8px 24px rgba(15, 23, 32, 0.08);
   padding: 16px 4px 8px 12px;
 }
-/* left 10 + .panel-scroll's 4 = 14, against 16 on the right: the docked padding was
-   computed to net 16/16 and the narrow variant was changed without redoing it. */
+
 .design-panel-narrow {
   height: auto;
   padding: 12px 4px 8px 12px;
@@ -387,16 +326,12 @@ input[type='range'].cp-range::-moz-range-thumb {
   font-size: 12px;
   color: var(--muted);
 }
-/* `overflow-y: auto` also clips horizontally, so a selected card's 2px border and
-   its focus ring were being shaved off against the left edge of this box. The inset
-   gives them somewhere to land; the panel's own left padding is reduced to match so
-   the content does not shift right. */
+
 .panel-scroll {
   padding-left: 4px;
   padding-right: 12px;
 }
 
-/* one divider per group; no nested boxes */
 .pnl-sec {
   padding: 14px 0;
   border-bottom: 1px solid var(--line);
@@ -418,8 +353,7 @@ input[type='range'].cp-range::-moz-range-thumb {
   gap: 12px;
   margin-bottom: 12px;
 }
-/* One layout axis: label above its options, so four axes stack readably in the
-   400px docked panel without the labels competing with the radio pills. */
+
 .pnl-axis + .pnl-axis {
   margin-top: 12px;
 }
@@ -460,14 +394,12 @@ input[type='range'].cp-range::-moz-range-thumb {
   color: var(--muted);
 }
 
-/* ---- Template picker ---- */
 .tpl-list {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
-/* Keeps a control in the focus order and the a11y tree while hiding it visually.
-   display:none would remove it from both. */
+
 .vis-hidden {
   position: absolute;
   width: 1px;
@@ -479,8 +411,6 @@ input[type='range'].cp-range::-moz-range-thumb {
   white-space: nowrap;
 }
 
-/* Selection is ONE strong signal (accent border) plus one faint tint. The old
-   version stacked a blue border, a blue fill and a blue thumbnail outline. */
 .tpl-opt {
   position: relative;
   display: flex;
@@ -522,10 +452,6 @@ input[type='range'].cp-range::-moz-range-thumb {
   outline-offset: 2px;
 }
 
-/* ---- Template thumbnail ----
-   A real A4 page shrunk to the card width and cropped to its top. The inner box is
-   full size so every pt-based value in the template CSS lands exactly as it will on
-   the real paper; only the transform makes it small. */
 .tpl-thumb {
   display: block;
   width: 100%;
@@ -535,23 +461,21 @@ input[type='range'].cp-range::-moz-range-thumb {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #fff;
+  /* Keeps each of the seven scaled miniatures out of the panel's layout and raster.
+     Fixed box, already overflow:hidden, so nothing changes visually. */
+  contain: content;
 }
-/* No `display` override here: the miniature keeps .print-paper's own flex column so
-   it lays out exactly like the real page. Forcing block used to be needed for the
-   flattened markup, and would now override the layout axes it is supposed to show. */
+
 .tpl-thumb-page {
   width: 793.7px;
   height: 1122.5px;
-  /* transform is set inline from the measured card width (TemplatePreview.tsx) */
+
   transform-origin: top left;
   color: #171b1e;
   background: #fff;
   pointer-events: none;
 }
 
-/* ---- Font picker (popover) ----
-   Collapsed to a trigger: an always-open list cost ~230px and created a second
-   scroll container inside the sidebar's own scroll area. */
 .fp {
   position: relative;
   flex: 1 1 auto;
@@ -636,7 +560,6 @@ input[type='range'].cp-range::-moz-range-thumb {
   white-space: nowrap;
 }
 
-/* ---- Slider recommended pin ---- */
 .slider-wrap {
   position: relative;
 }
@@ -645,7 +568,7 @@ input[type='range'].cp-range::-moz-range-thumb {
   top: -3px;
   width: 2px;
   height: 9px;
-  /* left (in DesignPanel) is the true thumb-centre; centre the 2px pin on it */
+
   transform: translateX(-50%);
   border-radius: 1px;
   background: var(--accent);
@@ -654,9 +577,6 @@ input[type='range'].cp-range::-moz-range-thumb {
   z-index: 2;
 }
 
-/* ---- Divider-lines toggle ---- */
-/* Label + a two-state segmented control. Both options are always visible, so it
-   reads as a choice rather than as a status pill. */
 .tgl-row {
   display: flex;
   align-items: center;
@@ -670,7 +590,7 @@ input[type='range'].cp-range::-moz-range-thumb {
   font-size: 12.5px;
   color: var(--muted);
 }
-/* same reasoning as .radio-inputs: the ring is the control's only boundary */
+
 .seg {
   display: inline-flex;
   padding: 2px;
@@ -693,17 +613,13 @@ input[type='range'].cp-range::-moz-range-thumb {
 .seg-btn:hover:not(.on) {
   color: var(--ink);
 }
-/* --accent-strong, not --accent: the raw accent measures 3.68:1 on white at 11.5px,
-   which fails AA. --accent-strong is derived to clear 4.5:1 on white for exactly
-   this (see deriveAccents in src/lib/color.ts) and is visually the same hue. */
+
 .seg-btn.on {
   background: var(--surface);
   color: var(--accent-strong);
   box-shadow: 0 1px 2px rgba(15, 23, 32, 0.12);
 }
-/* The panel's scrollbar is the shared .app-scroll spec (src/index.css); only the
-   gutter is local. `stable` reserves the rail whether or not it is scrolling, so the
-   panel's contents do not jump sideways when a section expands past the fold. */
+
 .panel-scroll {
   scrollbar-gutter: stable;
 }

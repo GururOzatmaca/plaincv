@@ -20,8 +20,6 @@ function ErrorScreen({ text }: { text: string }) {
     'cv-generator error',
   )}&body=${encodeURIComponent(`Hi, I hit this error in the app:\n\n${text}`)}`;
 
-  // Never let the crash screen crash: the clipboard is exactly as likely to be
-  // refused here as it was in the app that just died.
   const copy = () => {
     navigator.clipboard
       ?.writeText(text)
@@ -30,7 +28,7 @@ function ErrorScreen({ text }: { text: string }) {
   };
 
   return (
-    <div className="err-wrap">
+    <div className="err-wrap app-scroll">
       <div className="err-card">
         <div className="err-emoji" aria-hidden="true">
           😵
@@ -82,9 +80,9 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
 
   onError = (e: ErrorEvent) => {
     if (this.state.error) return;
-    // Chrome fires this as a window error event; it's a benign layout notification, not a crash.
+
     if (/ResizeObserver loop/i.test(e.message)) return;
-    // Extension/cross-origin script noise: no Error object and no app source file.
+
     if (!e.error && !e.filename) return;
     this.setState({ error: format(e.error ?? e.message) });
   };

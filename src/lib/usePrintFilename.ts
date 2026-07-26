@@ -2,11 +2,6 @@ import { useEffect } from 'react';
 import { useResumeStore } from '@/store/resumeStore';
 import { slugify } from './download';
 
-/**
- * The browser names the PDF after document.title, which is the app name. Swap in
- * the person's name for the duration of the print, then put it back. Covers
- * Ctrl/Cmd+P too, which never goes through the Download button.
- */
 export function usePrintFilename(): void {
   const fullName = useResumeStore((s) => s.doc.header.fullName);
   useEffect(() => {

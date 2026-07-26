@@ -1,5 +1,3 @@
-/* Barrel: all template skins loaded once, globally. Only the block matching the
-   paper's data-template attribute applies. */
 @import './classic.css';
 @import './harvard.css';
 @import './sharp.css';

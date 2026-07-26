@@ -9,7 +9,6 @@ import { useDialog } from '@/lib/useDialog';
 import { playSuccess } from '@/lib/sound';
 import './import.css';
 
-/** A confirmation the user must clear before something overwrites their CV. */
 type Pending = { title: string; body: string; label: string; run: () => void };
 
 export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -25,14 +24,10 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const cardRef = useDialog(open, () => close());
 
-  // After a successful import, play the tick then auto-close (~1s). No button.
-  // 1600ms is paced to the stroke-draw choreography in import.css; with reduced
-  // motion that choreography is gone, so holding the splash would just be dead time.
-  // A CSS media query cannot reach a setTimeout, hence the match here.
   useEffect(() => {
     if (okNotes === null) return;
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const s = setTimeout(playSuccess, calm ? 0 : 300); // land the chime as the check draws
+    const s = setTimeout(playSuccess, calm ? 0 : 300);
     const t = setTimeout(() => {
       setOkNotes(null);
       setErrors([]);
@@ -47,7 +42,6 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
 
   if (!open) return null;
 
-  // Success: no dialog chrome, just the tick over a blurred backdrop.
   if (okNotes) {
     return (
       <div className="imp-overlay imp-splash" role="status" aria-label="Imported">
@@ -68,7 +62,6 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
     onClose();
   };
 
-  // Untouched seed => nothing to lose, so skip the confirmation entirely.
   const pristine = JSON.stringify(doc) === JSON.stringify(sampleResume);
   const guard = (p: Pending) => (pristine ? p.run() : setPending(p));
 
@@ -77,15 +70,10 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
     if (copyTimer.current) clearTimeout(copyTimer.current);
     copyTimer.current = setTimeout(() => setCopied(''), 1400);
   };
-  // the prompt carries the live page measurement, so the model is told the actual
-  // one-page budget (and how much to cut) rather than being left to guess
-  // Clipboard access is refused outright in an insecure context and can reject at
-  // any time (permission, unfocused document). Unhandled, that rejection reaches
-  // ErrorBoundary and replaces the whole app with the crash screen, so every path
-  // ends in a caught failure that only flips the button's label.
+
   const copy = (text: string, which: 'prompt' | 'json') => {
     const p = navigator.clipboard?.writeText(text);
-    if (!p) return setCopyFailed(true); // no clipboard API at all (insecure context)
+    if (!p) return setCopyFailed(true);
     p.then(() => {
       setCopyFailed(false);
       flashCopy(which);
@@ -110,8 +98,7 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const saveJson = () => downloadText(`${slugify(doc.name)}.json`, exportJson(doc));
 
   const load = () => {
-    // Parse before confirming: a broken paste should show its error, not a warning
-    // about replacing a CV that was never going to be replaced.
+
     const res = parseImport(text);
     if (!res.ok) {
       setErrors(res.errors);
@@ -124,7 +111,7 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
       run: () => {
         setDoc(res.doc);
         setErrors([]);
-        setOkNotes(res.notes); // any success -> "Imported ✓" confirmation (notes kept internal)
+        setOkNotes(res.notes);
       },
     });
   };
@@ -153,8 +140,7 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
         <button className="imp-x" onClick={close} aria-label="Close">
           ×
         </button>
-        {/* head / body / foot, matching the Help dialog: only the middle scrolls, so
-            the scrollbar never renders against the card's rounded corners. */}
+
         <div className="imp-head">
           <h2 className="imp-title" id="imp-title">
             Build with your AI

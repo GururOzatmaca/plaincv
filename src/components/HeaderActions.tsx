@@ -2,11 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from 'zustand';
 import { useResumeStore } from '@/store/resumeStore';
 
-/**
- * Undo/redo as buttons. The shortcuts already existed but nothing on screen said
- * so, and they are skipped while a text field has focus (native undo wins there),
- * which made them look broken to anyone who tried Ctrl+Z mid-edit.
- */
 export function UndoRedo() {
   const past = useStore(useResumeStore.temporal, (s) => s.pastStates.length);
   const future = useStore(useResumeStore.temporal, (s) => s.futureStates.length);
@@ -20,8 +15,7 @@ export function UndoRedo() {
         title="Undo (Ctrl+Z)"
         aria-label="Undo"
         disabled={past === 0}
-        // pointer-down, not click: a click would first blur the focused field and
-        // commit an edit, so the undo would land on the wrong state.
+
         onMouseDown={(e) => {
           e.preventDefault();
           t().undo();
@@ -52,11 +46,6 @@ export function UndoRedo() {
   );
 }
 
-/**
- * Autosave was real but completely silent, so there was no way to know the work
- * was safe. Mirrors the store's 300ms debounce rather than observing the write,
- * which is enough to answer "did that get kept?".
- */
 export function SaveIndicator() {
   const doc = useResumeStore((s) => s.doc);
   const [saving, setSaving] = useState(false);

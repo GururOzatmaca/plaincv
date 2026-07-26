@@ -18,19 +18,6 @@ const KEYS: { keys: string[]; what: string }[] = [
   { keys: ['?'], what: 'This list' },
 ];
 
-/**
- * The written half of the help. Everything here is something the interface shows
- * only on hover, or a rule (one page, clipped) that the interface enforces without
- * ever stating. A recorded walkthrough was the alternative and was rejected: this
- * is searchable with the browser's own find, and it cannot go stale silently
- * because it sits in the same file as the shortcut list it documents.
- */
-/**
- * `step` points at the matching tour step (see STEPS in Coachmarks). The answer then
- * gets a "Show me" button that closes this dialog and rings the real control on the
- * real page. Deliberately not screenshots: an image of a control goes stale the
- * moment the control moves or the accent changes, and it cannot point at YOUR page.
- */
 const HOWTO: { q: string; a: string; step?: string }[] = [
   {
     q: 'How do I edit anything?',
@@ -83,11 +70,6 @@ const inTextField = (el: Element | null): boolean =>
     el.tagName === 'TEXTAREA' ||
     (el.tagName === 'INPUT' && /^(text|search|url|email|tel|password|number|)$/i.test((el as HTMLInputElement).type)));
 
-/**
- * Nine shortcuts already existed and none of them were written down anywhere.
- * Opens on "?" (ignored while typing, or the character could never be typed) and
- * from the header button, since a keyboard-only hint is not discoverable.
- */
 export function Shortcuts({
   open,
   onOpenChange,
@@ -95,7 +77,7 @@ export function Shortcuts({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  /** Close this dialog and replay one tour step on the live page. */
+
   onShowMe: (step: number) => void;
 }) {
   const [mac, setMac] = useState(false);
@@ -159,7 +141,7 @@ export function Shortcuts({
             </div>
           ))}
         </dl>
-        <div className="sc-foot">
+        <div>
           <label className="sc-sound">
             <input
               type="checkbox"

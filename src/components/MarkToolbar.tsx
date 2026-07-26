@@ -4,16 +4,11 @@ import type { MouseEvent } from 'react';
 type Pos = { x: number; y: number };
 
 const setMark = (cmd: 'bold' | 'italic') => (e: MouseEvent) => {
-  e.preventDefault(); // keep the text selection + field focus (no blur/commit yet)
+  e.preventDefault();
   document.execCommand('styleWithCSS', false, 'false');
   document.execCommand(cmd);
 };
 
-/**
- * Floating Bold/Italic toolbar. Appears above a non-empty text selection made
- * inside any `.cv-rich` field; applies the mark to the selection via execCommand.
- * Rendered once (screen only). Fixed-positioned from the selection's client rect.
- */
 export function MarkToolbar() {
   const [pos, setPos] = useState<Pos | null>(null);
 

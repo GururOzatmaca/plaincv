@@ -1,35 +1,27 @@
 import { z } from 'zod';
 
-// Lenient, human/AI-authorable shape. Everything optional; ids never required;
-// bullets/notes are plain strings; contacts are plain strings. Transformed into
-// the strict internal ResumeSchema by dtoToResume(). Unknown keys are stripped.
 const bullets = z.array(z.string()).optional();
 
 const ThemeDto = z
   .object({
     fontFamily: z.string().optional(),
     dividers: z.boolean().optional(),
-    // Layout axes are plain strings, not z.enum: an LLM writing "centred" for
-    // "centered" should fall back to the default, not fail the whole import.
-    // mergeTheme() validates them against the allowed values.
+
     headerLayout: z.string().optional(),
     entryLayout: z.string().optional(),
     headingLayout: z.string().optional(),
     skillStyle: z.enum(['badge', 'plain', 'bullets']).optional(),
     basePt: z.number().optional(),
     lineHeight: z.number().optional(),
-    // v7 split headingScale into headingScale (section headings) + nameScale (the
-    // name); both are plain multipliers on basePt. An import carrying only the old
-    // combined value is converted in mergeTheme, not here, so this stays lenient.
+
     headingScale: z.number().optional(),
     nameScale: z.number().optional(),
     roleScale: z.number().optional(),
     titleScale: z.number().optional(),
-    density: z.number().optional(), // pre-v8; mergeTheme maps it onto the two below
+    density: z.number().optional(),
     blockSpacing: z.number().optional(),
     rowSpacing: z.number().optional(),
-    // Plain string, like the layout axes above: a model writing "gray" should fall back
-    // to the default rather than failing the whole import. mergeTheme validates it.
+
     secondaryInk: z.string().optional(),
     marginPt: z.number().optional(),
     marginXPt: z.number().optional(),
@@ -41,12 +33,11 @@ const HeaderDto = z
   .object({
     fullName: z.string().optional(),
     title: z.string().optional(),
-    // Same shape rule as skills: a bare string is the normal case, and the object form
-    // exists only for a contact whose icon the user overrode (including 'none').
+
     contacts: z
       .array(z.union([z.string(), z.object({ value: z.string(), icon: z.string().optional() })]))
       .optional(),
-    // Design, like `theme`: which single divider lines the document turns off.
+
     noRule: z.boolean().optional(),
   })
   .optional();
@@ -90,9 +81,7 @@ const SectionDto = z.discriminatedUnion('type', [
       )
       .optional(),
   }),
-  // Accepts both shapes: a flat list ("Go", "AWS") and named groups
-  // ({ label: "Languages", values: [...] }). Old exports and simpler AI replies
-  // keep working; the transform normalises to groups.
+
   z.object({
     type: z.literal('skills'),
     title: z.string().optional(),

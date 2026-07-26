@@ -1,11 +1,3 @@
-/* Banner: contacts sit opposite the name and every section heading is a filled block,
-   so the page is built out of horizontal bands. Heavy sans, accent used as fill rather
-   than as a line - the opposite gesture to Rail, which uses it only on text.
-   GUARDRAIL: template CSS must NEVER set position / display / overflow / max-height
-   on .cv-section/.cv-secH/.cv-entry/.cv-li/.cv-etop; those drive the drag hit-zones
-   and the collapse-to-zero add/reorder affordances. Structure belongs to paper.css.
-   Enforced by `npm run guardrail` (scripts/check-guardrail.mjs), which also requires
-   every selector here to be scoped to this file's own data-template id. */
 [data-template='banner'] .cv-h1 {
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -23,14 +15,11 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
-/* was `content: '▸  '` - same two costs as Sharp's ▪: it entered the text layer, and
-   U+25B8 is outside the bundled subset so it embedded a fallback font too. Banner's
-   identity is its filled heading bands, not its marker glyph.
-   --accent-ink: the raw accent measured 3.68:1 on white and a marker is text */
+
 [data-template='banner'] .cv-li::marker {
   color: var(--accent-ink);
 }
-[data-template='banner'] .cv-chip {
+[data-template='banner'] .cv-chip:not(.cv-chip-add) {
   border-radius: 2pt;
   background: var(--accent-weak);
   color: var(--accent-ink);

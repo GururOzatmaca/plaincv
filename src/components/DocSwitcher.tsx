@@ -1,18 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useResumeStore, docSummaries } from '@/store/resumeStore';
 
-/**
- * Switch between CVs. The point of more than one document is tailoring: keep a
- * general CV and a version cut down for a specific job, instead of destroying the
- * general one every time you apply.
- *
- * Deleting is confirmed inline rather than by a dialog, because unlike every other
- * delete on the page it is NOT undoable - undo history is per-document and is
- * cleared on switch, so there is nothing to Ctrl+Z back to.
- */
 export function DocSwitcher() {
-  // each piece selected on its own so the selector result stays reference-stable;
-  // the list is derived, never selected (see docSummaries)
+
   const library = useResumeStore((s) => s.library);
   const doc = useResumeStore((s) => s.doc);
   const activeId = useResumeStore((s) => s.activeId);
@@ -103,7 +93,7 @@ export function DocSwitcher() {
                     className="doc-pick"
                     onClick={() => {
                       switchDoc(d.id);
-                      setOpen(false); // the menu named the thing you just left open behind it
+                      setOpen(false);
                     }}
                   >
                     <span className="doc-name">{d.name || 'Untitled CV'}</span>

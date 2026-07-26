@@ -1,8 +1,3 @@
-/* Classic: left-aligned serif, accent Title-Case section headings on an accent rule,
-   italic organisation, outlined pill skills. The conventional CV.
-   GUARDRAIL: template CSS must NEVER set position / display / overflow / max-height
-   on .cv-section/.cv-secH/.cv-entry/.cv-li/.cv-etop; those drive the drag hit-zones
-   and the collapse-to-zero add/reorder affordances. */
 [data-template='classic'] .cv-title {
   color: var(--accent-ink);
 }
@@ -14,19 +9,11 @@
   font-weight: 700;
   border-bottom: 1pt solid var(--paper-accent);
 }
-/* --accent-ink, not --paper-accent: a raw accent marker measured 3.68:1 on white
-   (2.53-3.92:1 across the templates), and a list marker is text. --accent-ink is
-   derived to clear 4.5:1 and keeps the template's colour. */
+
 [data-template='classic'] .cv-li::marker {
   color: var(--accent-ink);
 }
-[data-template='classic'] .cv-chip {
+[data-template='classic'] .cv-chip:not(.cv-chip-add) {
   background: transparent;
   border: 0.75pt solid var(--paper-accent);
-}
-/* The skills "+" carries .cv-chip so it sits on the pills' baseline, but it is a solid
-   accent square, not a pill: the outline is invisible on it and, being border-box, it
-   inset the content box by 1px so the glyph no longer shared the chip's box. */
-[data-template='classic'] .cv-chip.cv-chip-add {
-  border: 0;
 }

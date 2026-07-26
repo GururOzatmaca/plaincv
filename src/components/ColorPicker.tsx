@@ -1,16 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { hexToHsl, hslToHex, maxLightness } from '@/lib/color';
 
-/**
- * One ramp, not a wheel: hue runs 222 -> 142 (near-black through navy, blue, cyan and
- * teal, into green) and the luminance arcs up and back down, so the row starts and
- * ends dark instead of stopping mid-air. A full spin of the wheel put orange next to
- * fuchsia next to violet, which is a swatch collection, not a gradient.
- *
- * Every value is under the luminance cap in lib/color, so the chip shows exactly what
- * gets applied; a brighter one would be clamped on the way into the store and the
- * chip would then be lying about the result.
- */
 const ACCENTS = [
   '#0f172a',
   '#172554',
@@ -26,7 +16,7 @@ const ACCENTS = [
   '#15803d',
   '#166534',
 ];
-// "accent #0891b2" told a screen reader nothing; a name does.
+
 const ACCENT_NAMES: Record<string, string> = {
   '#0f172a': 'Ink',
   '#172554': 'Midnight',
@@ -43,21 +33,6 @@ const ACCENT_NAMES: Record<string, string> = {
   '#166534': 'Pine',
 };
 
-/**
- * Accent presets plus an in-app custom picker.
- *
- * The custom picker replaces `<input type="color">`. Chrome anchors that control's
- * popup to the input's box and dismisses it the moment the box moves, so the first
- * click opened and instantly closed it inside the panel's scroll container.
- *
- * Ours is a popover we own, so nothing repositions it out from under the pointer, and
- * it exists only while the custom chip is open: the panel itself stays a single row
- * of presets with no permanent picker section in it.
- *
- * `onChange(hex)` only paints (CSS variables, no React render of the paper);
- * `onChange(hex, true)` also writes the store. Nothing commits mid-drag, so a drag
- * is exactly one undo step however slowly it is made.
- */
 export function ColorPicker({
   value,
   onChange,
@@ -66,16 +41,12 @@ export function ColorPicker({
   onChange: (hex: string, commit?: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
-  // hex is kept beside the hsl triple rather than derived from it: rounding h/s/l to
-  // whole numbers is lossy (#0891b2 round-trips to #088eaf), so an untouched picker
-  // would show a colour the document is not actually using.
+
   const [{ hsl, hex }, setState] = useState(() => ({ hsl: hexToHsl(value), hex: value }));
   const wrap = useRef<HTMLDivElement>(null);
   const mine = useRef(value);
   const hexId = useId();
 
-  // Adopt an accent set elsewhere (preset, undo, template switch) but ignore the
-  // echo of our own commit, which would snap the sliders back mid-drag.
   useEffect(() => {
     if (value.toLowerCase() === mine.current.toLowerCase()) return;
     mine.current = value;
@@ -111,8 +82,6 @@ export function ColorPicker({
     onChange(nextHex, commit);
   };
 
-  // Reads the ref, not the render's hsl: pointerup can arrive in the same tick as
-  // the last change, before this component has re-rendered with it.
   const commit = () => onChange(mine.current, true);
 
   const [hexDraft, setHexDraft] = useState(hex);
@@ -131,9 +100,7 @@ export function ColorPicker({
   return (
     <div className="cp-wrap" ref={wrap}>
       <div className="cv-palette">
-        {/* real buttons: a div with role="button" and only onClick is not focusable
-            and does not respond to Enter or Space. The name is the aria-label only:
-            a chip that grows under the pointer does not also need a caption. */}
+
         {ACCENTS.map((c) => (
           <button
             key={c}
@@ -149,9 +116,7 @@ export function ColorPicker({
             aria-label={ACCENT_NAMES[c] ?? c}
           />
         ))}
-        {/* Last chip, not a separate row: picking a custom colour is the same kind of
-            act as picking a preset one. It carries the live colour once that colour
-            is not a preset, so the row always shows what the document is using. */}
+
         <button
           type="button"
           className={`cv-color cv-color-custom${custom ? ' sel' : ''}${open ? ' open' : ''}`}
@@ -199,9 +164,7 @@ export function ColorPicker({
             onChange={(s) => push({ ...hsl, s })}
             onDone={commit}
           />
-          {/* Capped, not corrected afterwards: every reachable position is a colour
-              that still reads as a heading on white. A thumb that stops is
-              understandable; a colour that changes after you pick it is not. */}
+
           <CpSlider
             label="Brightness"
             min={0}
@@ -218,8 +181,6 @@ export function ColorPicker({
   );
 }
 
-// Same shape as the panel's other sliders (see LiveSlider in DesignPanel): label and
-// its current value on one line, full-width track under them.
 function CpSlider(props: {
   label: string;
   min: number;

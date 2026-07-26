@@ -1,31 +1,18 @@
-/* CV paper internals: STRUCTURE ONLY (sizes, spacing, flow). Everything decorative
-   - colour, rules, casing, tracking, bullet markers, chip fills - belongs to the
-   template stylesheets in src/templates/, so no template is a diff against another.
-   Driven by the --paper-* tokens set on .print-paper from the document theme. */
 .cv-h1 {
-  /* Its own scale since v7. Sharing --paper-hscale with .cv-secH meant one slider
-     driving two things whose usable ranges are 1.9x apart. */
+
   font-size: calc(var(--paper-size) * var(--paper-nscale));
   font-weight: 700;
   margin: 0 0 2pt;
-  line-height: inherit; /* it is an <h1>; do not inherit the UA heading metrics */
+  line-height: inherit;
 }
 .cv-title {
-  /* A fraction of the NAME, not of the body, so the two move together. Each preset's
-     --paper-tscale is 1.12 / its nameScale, which reproduces the old flat 1.12x body
-     to within 0.01pt while making Name size drive both lines of the header. */
+
   font-size: calc(var(--paper-size) * var(--paper-nscale) * var(--paper-tscale));
   font-weight: 700;
   margin-bottom: 5pt;
 }
 .cv-contact {
-  /* 0.9x, and deliberately NOT lifted to body size or floored at 10pt. Yale OCS puts
-     resume text at 10-12pt, which this misses at the 10pt templates (9.0pt), but that
-     rule is about the text a recruiter READS and the contact line's real consumer is
-     the parser - it extracts identically at any size. Lifting it cost ~1.5pt of page
-     outright and risked a whole line whenever a contact wrapped to a second row, on a
-     document whose entire promise is one page. Secondary-ink contrast carries the
-     legibility instead (see --paper-muted). */
+
   font-size: calc(var(--paper-size) * 0.9);
   color: var(--paper-muted);
   display: flex;
@@ -34,17 +21,10 @@
 }
 .cv-rule {
   position: relative;
-  /* No bottom margin, and NOT because the gap looked big: .print-paper is a flex
-     column (see below), which switches margin collapsing off, so this element's
-     bottom margin ADDED to the first .cv-secH's 12pt top margin instead of
-     collapsing into it. Measured: 34.56pt from the contact line to the first
-     heading, against a 12.67pt gap between sections - 2.7x, for a break that is
-     one step bigger, not three. The heading's own margin is the gap now (22.8pt).
-     Density-scaled like every other vertical gap. */
+
   margin: calc(var(--paper-lead) * 0.68 * var(--paper-block)) 0 0;
 }
-/* X to remove all divider lines (screen only); revealed on hover of the header rule
-   or in show-ctl. Bring dividers back from the Design panel toggle. */
+
 .cv-rule-x {
   position: absolute;
   right: -9px;
@@ -70,8 +50,7 @@ body.coach-tour:not(.coach-bare) .cv-rule-x,
 .cv-rule-x:focus-visible {
   opacity: 1;
 }
-/* On a section heading the same button sits ON that heading's underline (the thing it
-   removes) rather than centred on the title. .cv-secH is already position:relative. */
+
 .cv-secH > .cv-rule-x {
   top: auto;
   bottom: -8px;
@@ -82,9 +61,9 @@ body.coach-tour:not(.coach-bare) .cv-rule-x,
   color: #fff;
 }
 .cv-rule-x {
-  --glyph: 0.5625; /* keeps the old 9px glyph in this 16px chip; see the --glyph note */
+  --glyph: 0.5625;
 }
-/* dividers off: hide the header rule and every section-header underline */
+
 .print-paper[data-dividers='false'] .cv-rule {
   display: none;
 }
@@ -92,9 +71,7 @@ body.coach-tour:not(.coach-bare) .cv-rule-x,
   border-bottom: none;
   padding-bottom: 0;
 }
-/* Per-line opt-out (schema: header.noRule / section.noRule). Two class-or-attribute
-   selectors deep so it outranks the template skins, which each set their own
-   border-bottom on .cv-secH at one attribute + one class. */
+
 .cv-rule[data-norule] {
   display: none;
 }
@@ -103,21 +80,13 @@ body.coach-tour:not(.coach-bare) .cv-rule-x,
   padding-bottom: 0;
 }
 .cv-secH {
-  /* A section heading may never print SMALLER than the body it labels: below body
-     size a parser stops reading it as a heading, and three templates had drifted to
-     0.78-0.87x (Minimal was 8.19pt against a 10.5pt body).
-     --paper-hscale is now this element's OWN multiplier (v7; .cv-h1 took --paper-nscale),
-     so the floor is a plain max() against 1x rather than the old `* 0.6` that made the
-     slider stop responding below hscale 1.667 while still moving the name. Measured
-     before the split: five of seven presets rendered headings at EXACTLY body size. */
+
   font-size: max(calc(var(--paper-size) * var(--paper-hscale)), var(--paper-size));
-  /* Scaled by --paper-density, like every other fixed vertical gap. These were hard
-     pt and so did not follow the font-size slider at all: measured identical at 10,
-     10.5 and 11pt bodies, which is why shrinking type to win a page stopped paying. */
+
   margin: calc(var(--paper-lead) * 0.82 * var(--paper-block)) 0 calc(var(--paper-lead) * 0.41 * var(--paper-block));
   padding-bottom: 2pt;
 }
-/* inline editing affordance (screen only; never printed) */
+
 .cv-edit {
   outline: none;
   border-radius: 3px;
@@ -131,8 +100,7 @@ body.coach-tour:not(.coach-bare) .cv-rule-x,
   box-shadow: 0 0 0 2px var(--paper-accent);
   background: #fff;
 }
-/* Full strength, no opacity: at 0.55 this composited to #a2a5a9 = 2.47:1, and on a
-   blank CV the placeholders are the ONLY thing on the page. */
+
 .cv-edit:empty::before {
   content: attr(data-ph);
   color: var(--paper-muted);
@@ -148,12 +116,10 @@ body.coach-tour:not(.coach-bare) .cv-rule-x,
   }
 }
 
-/* rich line: wraps like normal text, edited in place */
 .cv-rich {
   display: inline;
 }
 
-/* floating bold/italic toolbar over a text selection (screen only) */
 .mark-toolbar {
   position: fixed;
   z-index: 60;
@@ -194,9 +160,6 @@ body.coach-tour:not(.coach-bare) .cv-rule-x,
   position: relative;
 }
 
-/* Hit-zones: a transparent ~44px box (≈20px around the control). The control shows
-   only while the pointer is inside its OWN hit-zone (proximity), never on whole-row
-   hover, so a bullet's handle doesn't also light up the parent entry's. */
 .cv-hz {
   position: absolute;
   z-index: 3;
@@ -214,25 +177,12 @@ body.coach-tour:not(.coach-bare) .cv-rule-x,
   right: -50px;
   top: -13px;
 }
-/* The section's hide toggle sits outboard of its delete, so the two never overlap.
-   The 44px hit-zone runs ~27px past the paper edge, which is fine: the zone is
-   transparent and the stage reserves side padding for exactly this. */
+
 .cv-hz-eye {
-  /* Reads as one pair with the delete rather than a stray control drifting off in
-     the margin. The delete's 20px button sits +18..+38 past the page edge; a 44px
-     zone at -71 centres the 14px eye at +49, i.e. +42..+56, leaving a 4px gap.
-     (-80 = 13px and -75 = 8px both still read as two separate controls; the eye lost
-     its chip, so it needs to sit closer to be read as the delete's sibling.) */
+
   right: -71px;
   top: -13px;
-  /* The eye and delete zones are both 44px and overlap, so whichever paints later
-     swallowed the other's clicks. The zone itself stops intercepting (only its button
-     does), which is what makes raising z-index safe here - the old note warned that
-     lifting the whole eye ZONE blanketed the delete, and that was true while the zone
-     was still clickable. It no longer is.
-     Without the lift the two tie at z-index 3 and DOM order decides, so the delete's
-     zone painted over the eye's target and held it to 20 screen px. Measured with the
-     lift: eye 34, delete 24. */
+
   pointer-events: none;
   z-index: 4;
 }
@@ -250,25 +200,18 @@ body.coach-tour:not(.coach-bare) .cv-rule-x,
 .cv-hz:hover > * {
   opacity: 1;
 }
-/* Keyboard users get no hover, so a Tab landing on a control that is still at
-   opacity 0 focuses something invisible. */
+
 .cv-hz > *:focus-visible,
 .cv-hz:focus-within > * {
   opacity: 1;
 }
-/* Findability: hovering a bullet reveals its OWN delete; hovering an entry's top
-   line (role/org, or a custom heading) reveals that entry's delete. Drag handles
-   stay proximity-only so they don't clutter every hover.
-   The delete floats above/right of the row, so the pointer briefly crosses a gap
-   between the text and the button. A hide-delay keeps it lit across that gap (it
-   appears instantly; the reveal rules reset the delay to 0). */
+
 .cv-li > .cv-hz-r > *,
 .cv-entry > .cv-hz-r > *,
 .cv-skillrow > .cv-hz-r > * {
   transition: opacity var(--dur-1) var(--ease-out) 0.3s;
 }
-/* a skill row has no "top line" to key on the way an entry does - the row IS the
-   content - so plain row-hover is the reveal trigger. */
+
 .cv-li:hover > .cv-hz-r > *,
 .cv-li > .cv-hz-r:hover > *,
 .cv-entry:has(> .cv-etop:hover) > .cv-hz-r > *,
@@ -280,7 +223,7 @@ body.coach-tour:not(.coach-bare) .cv-rule-x,
   opacity: 1;
   transition-delay: 0s;
 }
-/* "show controls" toggle: reveal every affordance at once */
+
 .show-ctl .cv-hz > *,
 body.coach-tour:not(.coach-bare) .cv-hz > *,
 .show-ctl .cv-chip-x,
@@ -293,8 +236,7 @@ body.coach-tour:not(.coach-bare) .cv-contact-add,
 body.coach-tour:not(.coach-bare) .cv-chip-add {
   display: grid;
 }
-/* bullet controls both on the LEFT: drag outermost, delete just inside; aligned to
-   the bullet's first line. (hz-l = drag, hz-r = delete; delete repositioned left.) */
+
 .cv-li > .cv-hz-l {
   left: -23px;
   width: 18px;
@@ -306,21 +248,6 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   top: -12px;
 }
 
-/* ---- Hit areas ----
-   Every control in here is painted through .print-paper's scale(), so its LOCAL size
-   is not its real one: the 15px chip delete measured 10.3 screen px at fit zoom and
-   6.5 on a 390px phone, against a 24px floor. --zoom is published as a custom
-   property next to the transform (EditorPaper), so the invisible target can be sized
-   in inverse scale and stay ~24 SCREEN px at any zoom.
-
-   Clamped at both ends on purpose: the lower bound keeps it at least as big as the
-   glyph, and the upper bound stops a zoomed-out page from growing a target so far
-   past its own control that it swallows the neighbouring one. */
-/* :where() so this carries ZERO specificity. Several of these controls are already
-   `position: absolute` from rules ABOVE (.cv-rule-x pins itself to the divider,
-   .cv-chip > .cv-chip-x floats at the chip corner); a plain class selector here beat
-   those on source order and dropped them back into normal flow. The pseudo-element
-   only needs its parent to be positioned SOMEHOW, so absolute is equally fine. */
 :where(.cv-drag, .cv-del, .cv-eye, .cv-chip-x, .cv-ico-x, .cv-chip-add, .cv-contact-add, .cv-rule-x, .cv-plus) {
   position: relative;
 }
@@ -332,16 +259,8 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
 .cv-contact-add,
 .cv-rule-x,
 .cv-plus {
-  /* 24 SCREEN px, expressed in the paper's own units. The upper clamp is 44 rather
-     than 36 so the floor still holds at the lowest reachable zoom: MIN_EFFECTIVE is
-     0.55 (see EditorPage) and 44 * 0.55 = 24.2. At 36 it broke at ~15 screen px.
-
-     Measured: 24px on every control at fit. Zoomed fully OUT, a few vertically
-     adjacent pairs (the section "+" under a drag handle, the rule's x above a
-     delete) settle at 20-22px each, because the local target is then 43.6px while
-     the rows are only ~26px apart, so the two meet and split the gap. That is the
-     right outcome - the click still lands on one of them deterministically - and
-     shrinking --hit to avoid it would cost every control at every zoom. */
+  /* Hit areas sized in INVERSE zoom: everything here paints through scale(), so a
+     20px control is ~14 screen px at fit zoom and ~9 on a phone. */
   --hit: clamp(16px, calc(24px / var(--zoom, 1)), 44px);
 }
 .cv-drag::after,
@@ -360,15 +279,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   height: var(--hit);
   transform: translate(-50%, -50%);
 }
-/* The three chip-level controls sit ON the text rather than out in the margin: the
-   skill x floats at the pill's top-right corner, and the contact x and "+" are inline
-   right after the words. A CENTRED expander therefore lands on top of the text, and
-   the expander is ~34 local px against text that can be 4px wide - measured 0% of a
-   one-character skill clickable and 71% of a contact.
-   These grow up and right instead, into the empty margin the controls already hang
-   into, so they never cover the text they belong to. Measured after: skill 75% (the
-   remainder is under the VISIBLE x, which is honest), contact 92%, and the contact's
-   own delete went from unreachable at its centre to a real target. */
+
 .cv-chip-x::after,
 .cv-chip-add::after,
 .cv-contact-add::after {
@@ -378,14 +289,11 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   right: auto;
   transform: none;
 }
-/* The two ghost "+" rows are WIDE text buttons: their width already clears 24 screen
-   px, only the row height fell short (12.9px and 14.7px at fit zoom). So the expander
-   is vertical-only, spanning the button's own width rather than a centred square.
-   They are excluded from the group above because a square --hit box would be much
-   narrower than the button and would shrink the target horizontally. */
+
 .cv-addbul,
 .cv-addsec-btn {
-  position: relative;
+  position: relative;  /* Hit areas sized in INVERSE zoom: everything here paints through scale(), so a
+     20px control is ~14 screen px at fit zoom and ~9 on a phone. */
   --hit: clamp(16px, calc(24px / var(--zoom, 1)), 44px);
 }
 .cv-addbul::after,
@@ -399,9 +307,6 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   transform: translateY(-50%);
 }
 
-/* On a section header the eye and the delete are only 6px apart, so a symmetric
-   target makes the delete swallow the eye. Each is held back to half the gap on the
-   side that faces its neighbour and grows freely on the other three. */
 .cv-secH > .cv-hz-r > .cv-del::after,
 .cv-secH > .cv-hz-eye > .cv-eye::after {
   left: auto;
@@ -410,15 +315,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   height: var(--hit);
   transform: translateY(-50%);
 }
-/* The eye sits OUTBOARD of the delete (right: -71px vs -50px), so the delete may not
-   grow right and the eye may not grow left. Each is held to half the gap on the side
-   that faces the other and grows freely away from it. The subtracted constants are
-   each control's own width, so the ::after grows by exactly the shortfall. */
-/* They meet exactly at the delete's right edge, but the gap is NOT split evenly:
-   the delete is 20px and only needs (--hit - 20) of growth to reach 24 screen px,
-   which it takes entirely on its free (left) side. So it claims none of the gap and
-   the eye - the smaller button at 14px, and the one that would otherwise fall short -
-   takes all 4px of it. An even split left the eye short of the 24px floor. */
+
 .cv-secH > .cv-hz-r > .cv-del::after {
   right: 0;
   left: calc(-1 * (var(--hit) - 20px));
@@ -428,8 +325,6 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   right: calc(-1 * (var(--hit) - 14px));
 }
 
-/* Controls are fully coloured the moment they're revealed (no hover needed).
-   Delete's feedback is the row turning red, not the button. */
 .cv-drag,
 .cv-del {
   display: flex;
@@ -442,24 +337,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   border-radius: 4px;
   line-height: 1;
 }
-/* ---- One chip language: white fill, hairline ring, coloured glyph ----
-   Every one of these sits on the WHITE page, so SOMETHING has to clear 3:1 against
-   white or the control is invisible. The old tinted fills did not: --accent-weak
-   measured 1.19:1 and #f3c7c7 measured 1.52:1.
 
-   A tinted fill cannot be rescued by darkening the glyph, because the two
-   requirements pull apart: chip-vs-paper >= 3:1 forces the fill dark, and then
-   glyph-vs-chip >= 3:1 forces the glyph light. Solid fills satisfy both and were
-   tried - but "show controls" reveals every affordance at once, and a page carrying
-   ~25 solid red chips reads as an error state rather than as an editor.
-
-   So the RING carries the boundary (--line-ctl, 3.23:1) and the glyph carries the
-   meaning on white (6.57:1 for the delete). Destructive stays quiet until aimed at,
-   then fills solid; only the constructive "+" is filled at rest. inset box-shadow
-   rather than border, so the 20 / 18 / 16px box geometry is untouched. */
-/* The eye is deliberately OUT of this chip language: a bare grey glyph, no fill, no
-   ring. It is the only non-destructive, non-structural control here, and the solid
-   FontAwesome silhouette already carries its own boundary against the page. */
 .cv-drag {
   background: #fff;
   box-shadow: inset 0 0 0 1px var(--line-ctl);
@@ -471,18 +349,13 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
 .cv-drag:active {
   cursor: grabbing;
 }
-/* Soft red chip, no ring - a deliberate, owner-approved exception.
-   The FILL is 1.42:1 against the page, so the chip's boundary does not meet WCAG
-   1.4.11 on its own. What carries it instead is the glyph: the red x is 4.63:1 on
-   this fill, so the control is perceivable even though its edge is soft. A ring at
-   3:1 was tried and rejected as too heavy for a control that appears ~25 times at
-   once in "show controls". Do not re-add the border without asking. */
+
 .cv-del {
   background: #f7cfcf;
   color: #b42318;
   cursor: pointer;
 }
-/* SVG icons center by geometry (no font baseline). One size everywhere. */
+
 .cv-x {
   display: block;
   width: 11px;
@@ -492,17 +365,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   width: 8px;
   height: 8px;
 }
-/* The glyph fills the button instead of being a smaller centred box inside it, and the
-   X's size is set by the viewBox insets (ink is 53% of 12 units) rather than by a CSS
-   width. Flex-centring a 10px svg in a 13px button IS exact in CSS - measured 18.54px
-   clear on both sides of a 96px test render - but the disc is the button's background
-   and the X is a child, so at real size the two boxes land on different fractional
-   device coordinates and round apart: captured 1px left and 0.5px down, with an 8x9
-   ink box that should have been square. Sharing one box makes them round together. */
-/* --glyph then sets how much of that shared box the drawn X or + covers, replacing the
-   CSS width each chip used to give its svg: it is the old width over the chip width
-   (11/20, 11/18, 8/16, 9/16, 9/15 ...). Scaling happens about the box centre, which is
-   now the chip's own centre, so the two still round together. */
+
 .cv-chip-x .cv-x,
 .cv-ico-x .cv-x,
 .cv-del .cv-x,
@@ -514,9 +377,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   height: 100%;
   transform: scale(var(--glyph, 0.55));
 }
-/* 8/13: the contact and skill x draw the SAME X as the bullet delete, which is an 8px
-   glyph box (16px chip x 0.5). Stroke weight rides on the box, so anything larger here
-   read as a bolder, heavier x than the one two rows below it. */
+
 .cv-chip-x {
   --glyph: 0.6154;
 }
@@ -545,19 +406,18 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   width: 6px;
   height: 9px;
 }
-/* control glyphs (the "+" text buttons) shouldn't inherit the paper font */
+
 .cv-plus,
 .cv-contact-add,
 .cv-chip-add {
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
-/* armed: fills solid. 6.57:1 both ways, and a step DOWN in lightness, unlike the old
-   #e5484d which was LIGHTER than its resting chip and measured 3.91:1. */
+
 .cv-del:hover {
   background: #b42318;
   color: #fff;
 }
-/* bullet-level controls: round + a bit smaller, so they read as bullet actions */
+
 .cv-li .cv-drag,
 .cv-li .cv-del,
 .cv-li-add .cv-plus {
@@ -566,8 +426,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   border-radius: 50%;
   font-size: 10px;
 }
-/* Size hierarchy: SECTION controls are the biggest (20px, squarest) since a section
-   is the largest unit; an ITEM/entry is 18px; a bullet is 16px round. */
+
 .cv-secH .cv-drag,
 .cv-secH .cv-del {
   width: 20px;
@@ -581,8 +440,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   height: 18px;
   border-radius: 4px;
 }
-/* hovering a delete tints ONLY the row it removes. Direct-child :has() so a
-   bullet's delete does not also match (and tint) its parent entry. */
+
 .cv-entry:has(> .cv-hz-r > .cv-del:hover),
 .cv-li:has(> .cv-hz-r > .cv-del:hover),
 .cv-skillrow:has(> .cv-hz-r > .cv-del:hover),
@@ -592,9 +450,6 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   border-radius: 3px;
 }
 
-/* ghost "add bullet" row: a subtle text+icon link aligned to the bullet TEXT (not
-   the marker column, not the far right, not centered). Collapsed to zero height so
-   it leaves NO gap in normal view; expands only on entry-hover or in show-ctl. */
 .cv-addbul {
   display: flex;
   align-items: center;
@@ -602,9 +457,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   max-height: 0;
   overflow: hidden;
   opacity: 0;
-  /* horizontal padding is CONSTANT so revealing never shifts the text sideways;
-     only max-height/opacity change, and they SNAP (0s) after a hide-delay so there
-     is no laggy grow/shrink animation - just a delayed show/hide. */
+
   margin: 0 0 0 13pt;
   padding: 0 5px 0 3px;
   border: none;
@@ -620,21 +473,15 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   width: 10px;
   height: 10px;
 }
-/* reveal while hovering the whole experience (the button lives inside it, so you can
-   always travel onto it to click); suppressed only while hovering a drag handle. */
+
 .cv-entry:hover:not(:has(.cv-hz-l:hover)) .cv-addbul,
 .cv-addbul:hover,
 .show-ctl .cv-addbul,
 body.coach-tour:not(.coach-bare) .cv-addbul,
-/* The button itself, NOT .cv-entry:focus-within: keying on the entry would expand
-   this row every time the caret entered any bullet in it, i.e. the page would shift
-   under you while typing. It stays in the tab order while collapsed, so Tab reaches
-   it and it then reveals itself. */
+
 .cv-addbul:focus-visible {
   max-height: 60px;
-  /* visible only once REVEALED, so the ::after hit expander below can hang outside
-     the box. Collapsed it stays hidden, which is what makes max-height:0 work.
-     Nothing is clipped either way: the content is ~19px inside a 60px cap. */
+
   overflow: visible;
   opacity: 1;
   margin-top: 2pt;
@@ -662,15 +509,12 @@ body.coach-tour:not(.coach-bare) .cv-addbul,
   cursor: pointer;
 }
 
-/* item "+": square accent chip at the section's bottom-LEFT. Collapsed to zero
-   height so it reserves NO gap (matched the printed output), expanding only when the
-   section is hovered or edit-controls are on. */
 .cv-secadd-wrap {
   display: block;
   max-height: 0;
   overflow: hidden;
   margin-left: -24pt;
-  /* size snaps instantly, no animation and no hide-delay. */
+
   transition: max-height 0s;
 }
 .cv-hz-secadd {
@@ -681,17 +525,14 @@ body.coach-tour:not(.coach-bare) .cv-addbul,
 .cv-hz-secadd > * {
   transition: opacity 0s;
 }
-/* reveal while hovering the section (the "+" lives inside it, so it's reachable);
-   suppressed while hovering any drag handle. */
+
 .cv-section:hover:not(:has(.cv-hz-l:hover)) .cv-secadd-wrap,
 .cv-secadd-wrap:hover,
 .show-ctl .cv-secadd-wrap,
 body.coach-tour:not(.coach-bare) .cv-secadd-wrap,
 .cv-secadd-wrap:focus-within {
   max-height: 60px;
-  /* .cv-hz-secadd is only 26px tall, so this wrapper's overflow:hidden was cropping
-     the "+" button's --hit expander to 20 screen px. Same fix as .cv-addbul: clip
-     only while collapsed. */
+
   overflow: visible;
   margin-top: 2pt;
 }
@@ -700,13 +541,6 @@ body.coach-tour:not(.coach-bare) .cv-secadd-wrap,
   opacity: 1;
 }
 
-/* add section: a "+ Section" ghost row at the document end. Same mechanic as the
-   "+ Add bullet" row - collapsed to zero height so it reserves NO space, expanding
-   only when a section is hovered (or its own chip is), or in show-ctl. Click opens
-   a type-picker popover. */
-/* Paper is a column so the add-section chip can flex-grow into the empty page area
-   below the last section, making that whole area its hover zone. Content keeps its
-   natural height (no grow/shrink); only .cv-addsec expands. */
 .print-paper {
   display: flex;
   flex-direction: column;
@@ -714,10 +548,17 @@ body.coach-tour:not(.coach-bare) .cv-secadd-wrap,
 .print-paper > *:not(.cv-addsec) {
   flex: 0 0 auto;
 }
+
+/* Scrolling: no hover, so none of the :hover / :has() rules below re-resolve per frame
+   while the page moves. Set by EditorPage; skipped mid-drag, where a wheel scroll would
+   otherwise pull the row out from under framer's pointer capture. */
+body:not(.cv-dragging) .print-stage.is-scrolling .print-paper {
+  pointer-events: none;
+}
 .cv-addsec {
   position: relative;
-  flex: 1 1 auto; /* fill leftover height so the bottom whitespace reveals the chip */
-  min-height: 7px; /* bridge under the last section when the page is already full */
+  flex: 1 1 auto;
+  min-height: 7px;
   padding-top: 7px;
 }
 .cv-addsec-btn {
@@ -727,8 +568,7 @@ body.coach-tour:not(.coach-bare) .cv-secadd-wrap,
   max-height: 0;
   overflow: hidden;
   opacity: 0;
-  /* constant horizontal padding + snapped size, same as add-bullet, so it never
-     slides sideways or eases in laggily. */
+
   margin: 0;
   padding: 0 5px 0 3px;
   border: none;
@@ -744,8 +584,7 @@ body.coach-tour:not(.coach-bare) .cv-secadd-wrap,
   width: 12px;
   height: 12px;
 }
-/* Reveal when hovering the last section, or anywhere in the empty page area below it
-   (that area IS .cv-addsec, which flex-grows to fill the leftover page height). */
+
 .print-paper:has(.cv-section:last-of-type:hover) .cv-addsec-btn,
 .cv-addsec:hover .cv-addsec-btn,
 .cv-addsec-open .cv-addsec-btn,
@@ -753,7 +592,7 @@ body.coach-tour:not(.coach-bare) .cv-secadd-wrap,
 body.coach-tour:not(.coach-bare) .cv-addsec-btn,
 .cv-addsec-btn:focus-visible {
   max-height: 40px;
-  overflow: visible; /* see the matching note on .cv-addbul */
+  overflow: visible;
   opacity: 1;
   margin-top: 4pt;
   padding-top: 1px;
@@ -763,12 +602,7 @@ body.coach-tour:not(.coach-bare) .cv-addsec-btn,
   color: var(--accent-ink);
   background: var(--accent-weak);
 }
-/* Portalled to <body> and positioned from the button's viewport rect (see
-   placeMenu). It must NOT be absolute inside .cv-addsec: that puts it inside
-   .print-paper's scale(zoom) transform, which shrank the text with the page, and
-   inside .print-stage's overflow, which clipped whichever end pointed off-stage.
-   Fixed + portal means real screen pixels at every zoom; JS supplies left/top/
-   max-height, so the list scrolls only when the viewport genuinely runs out. */
+
 .cv-addsec-menu {
   position: fixed;
   z-index: 60;
@@ -790,7 +624,7 @@ body.coach-tour:not(.coach-bare) .cv-addsec-btn,
     transform: translateY(-4px);
   }
 }
-/* flipped above the button: enter from the same side it grows out of */
+
 .cv-addsec-menu[data-flip='true'] {
   animation-name: addsec-menu-up;
 }
@@ -817,20 +651,17 @@ body.coach-tour:not(.coach-bare) .cv-addsec-btn,
   color: var(--accent-ink);
 }
 
-/* delete on skills/contacts: round, small, filled (like the bullet delete) */
 .cv-chip-x {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* 13, not 15: on a skill this is a badge sitting over the word's own corner, so it
-     has to be lighter than the row-level deletes. The clickable area is unchanged,
-     being driven by --hit rather than by this box. */
+
   width: 13px;
   height: 13px;
   margin-left: 4px;
   border: none;
   border-radius: 50%;
-  /* same soft-red chip as .cv-del; see the note there */
+
   background: #f7cfcf;
   color: #b42318;
   cursor: pointer;
@@ -840,11 +671,7 @@ body.coach-tour:not(.coach-bare) .cv-addsec-btn,
   opacity: 0;
   transition: opacity var(--dur-1) var(--ease-out);
 }
-/* skills delete floats at the chip's corner (absolute, no reserved space) so the
-   skill text stays centered and hovering never reflows the row. Contacts keep the
-   inline X above.
-   -6px is calibrated to the BADGE pill, whose 12px of right padding is what the
-   button overhangs; see the padding-less styles below for the other two. */
+
 .cv-chip > .cv-chip-x {
   position: absolute;
   top: -4px;
@@ -856,7 +683,7 @@ body.coach-tour:not(.coach-bare) .cv-addsec-btn,
 .cv-contact-item:hover .cv-chip-x,
 .show-ctl .cv-chip-x,
 body.coach-tour:not(.coach-bare) .cv-chip-x,
-/* keyboard has no hover: without these a Tab stop lands on an invisible button */
+
 .cv-chip:focus-within .cv-chip-x,
 .cv-contact-item:focus-within .cv-chip-x,
 .cv-chip-x:focus-visible {
@@ -869,12 +696,9 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
 .cv-contact-item {
   display: inline-flex;
   align-items: center;
-  position: relative; /* containing block for the delete button below */
+  position: relative;
 }
-/* Icon column. em-sized, so it tracks the contact line's own 0.9x font at every zoom and
-   template instead of being a fixed px that looks huge on Dense. 0.28em of air, which is
-   under the ~0.9 em-widths at which a geometry-based extractor calls a gap a column
-   boundary - the icon draws no text, but the GAP is still measured by the parser. */
+
 .cv-contact-ico {
   position: relative;
   display: inline-flex;
@@ -887,16 +711,12 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
   height: 0.95em;
   display: block;
 }
-/* Same corner badge as a skill's delete, on the icon it removes. Absolute, so it reserves
-   no width: an inline control here would put the contact line back into the
-   screen-wraps/print-fits split that the delete button caused. */
+
 .cv-ico-x {
   position: absolute;
   top: -6px;
   left: -6px;
-  /* Above the contact's delete: both carry a 24px+ ::after hit pad (see --hit), and on a
-     short contact the delete's pad reaches back over the icon. Equal z-index left the
-     later element in source order - the delete - swallowing every click on the icon. */
+
   z-index: 5;
   display: inline-flex;
   align-items: center;
@@ -921,11 +741,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
   background: #b42318;
   color: #fff;
 }
-/* Absolute, exactly like the skills chip's: inline it reserved 13px + 4px per contact
-   while invisible (opacity:0, not display:none), so five contacts lost ~85px of the
-   line on screen. Print hides .no-print and got that width back, which is how the
-   same five contacts wrapped onto two lines on screen and printed as one - the app's
-   whole promise is that the paper IS the PDF. */
+
 .cv-contact-item > .cv-chip-x {
   position: absolute;
   top: -5px;
@@ -933,41 +749,29 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
   margin-left: 0;
   z-index: 2;
 }
-/* The generic 24px-inverse-zoom hit pad is too big HERE, and only here: contacts sit
-   10pt apart, so at fit zoom a 35px pad centred on one contact's delete reached ~26px
-   into the NEXT contact - far enough to swallow clicks on its icon and on the first
-   characters of its text. Sized to the gap instead, and still ~20px of target. */
+
 .cv-contact-item > .cv-chip-x::after {
   width: 20px;
   height: 20px;
 }
+
 .cv-contact-add,
 .cv-chip-add {
+  --glyph: 0.6;
   display: none;
   place-items: center;
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   border: none;
-  border-radius: 5px;
+  border-radius: 4px;
   background: var(--accent-strong);
   color: #fff;
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
 }
-/* skills "+" is the EXACT same button as the contact "+" (filled accent, 15px). */
-.cv-contact-add,
-.cv-chip-add {
-  width: 15px;
-  height: 15px;
-  border-radius: 4px;
-}
 .cv-contact-add {
   margin-left: -8pt;
-}
-.cv-contact-add,
-.cv-chip-add {
-  --glyph: 0.6; /* the old 9px glyph in this 15px chip; see the --glyph note */
 }
 .cv-contact:hover .cv-contact-add,
 .cv-chips:hover .cv-chip-add,
@@ -985,9 +789,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
   gap: 10pt;
 }
 .cv-role {
-  /* Scalable since the Role size control. Bold alone used to be the entire hierarchy
-     here, at exactly body size. --paper-rscale defaults to 1, so a document saved
-     before the control renders identically. */
+
   font-size: calc(var(--paper-size) * var(--paper-rscale));
   font-weight: 700;
 }
@@ -1003,27 +805,13 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
 .cv-ul {
   margin: calc(var(--paper-lead) * 0.27 * var(--paper-row)) 0 0;
   padding-left: 13pt;
-  /* Load-bearing, NOT a restatement of the UA default: Tailwind's preflight sets
-     `ol, ul, menu { list-style: none }`, so without this every bullet on the page
-     loses its marker. It lives on .cv-ul rather than on .cv-li so a template can
-     override the SHAPE from the parent (a value specified on .cv-li would win over
-     any `[data-template] .cv-ul` rule and pin every template to the same marker). */
+
   list-style-type: disc;
 }
 .cv-li {
   margin-bottom: calc(var(--paper-lead) * 0.17 * var(--paper-row));
 }
-/* Marker colour and SHAPE are a template decision (see src/templates/). Only
-   disc / circle / square may be used: Blink PAINTS those as vector shapes, so they
-   never enter the PDF's text layer. A `::marker { content: '...' }` string does - it
-   landed at the head of every extracted bullet - and any glyph outside the bundled
-   latin + latin-ext subset (see scripts/build-fonts.mjs) also makes Chrome embed an
-   entire extra fallback font for that one character. */
 
-/* Hovering a section outlines it, so the page reads as an editor rather than a
-   preview sitting next to a settings form. `outline` is used deliberately: it does
-   not affect layout, so it cannot disturb the drag hit-zones or the pt-based
-   geometry that has to match the PDF exactly. Screen only. */
 @media screen {
   .cv-section {
     border-radius: 4pt;
@@ -1039,10 +827,6 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
   }
 }
 
-/* Hidden section: still editable on screen (dimmed, with a strike on the heading)
-   so it can be brought back; gone from the PDF. */
-/* 0.38 dropped the text under 2:1 against the page while it is still editable.
-   0.6 keeps body ink at ~4.7:1 and the strike-through below still carries the state. */
 .cv-hidden {
   opacity: 0.6;
 }
@@ -1057,45 +841,33 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
 .cv-eye {
   display: grid;
   place-items: center;
-  /* a touch smaller than the delete beside it: hiding a section is the quieter of
-     the two actions, and it sits outboard where it needs less weight */
+
   width: 14px;
   height: 14px;
   padding: 0;
   border: none;
   border-radius: 4px;
-  /* Light grey, no chip. --line-ctl is the lightest grey in the palette that still
-     clears 3:1 on white (3.23:1), which a bare glyph with no ring behind it has to. */
+
   color: var(--line-ctl);
   cursor: pointer;
   transition: color var(--dur-1) var(--ease-out);
 }
-/* Both glyphs are wider than tall (576x512 and 640x512), so height drives and width
-   follows: a square box would squash them. 11px without a ring to sit inside. */
+
 .cv-eye svg {
   width: auto;
   height: 11px;
   fill: currentColor;
 }
-/* The toggle's pop lives in popEye() (EditorPaper), not here - see the note there. */
+
 .cv-eye:hover {
   color: var(--ink);
 }
-/* One skill group per row. With a label it reads "Languages   Go · Python"; with an
-   empty label the column collapses to nothing and the row is a plain list, which is
-   what every pre-grouping document migrates to. Works with all three data-skills
-   modes because only the label column is added here. */
+
 .cv-skillrow {
-  position: relative; /* containing block for the row's delete hit-zone */
+  position: relative;
   display: flex;
   align-items: baseline;
-  /* Relative, and small. This gap resolves against the ROW's font-size but the values
-     next to it render at 0.88x that (see .cv-chip), so the old fixed 8pt was 0.96
-     em-widths of the value font at Dense's 9.5pt body against 0.87 at Classic's 10.5pt
-     - and past roughly 0.9 a geometry-based PDF extractor calls it a column boundary.
-     Dense's labels split into a column of their own and the three rows stopped reading
-     across. A pt value could also be pushed back over the line by the font-size
-     slider; an em one cannot. */
+
   gap: 0.2em;
   margin-bottom: calc(var(--paper-lead) * 0.2 * var(--paper-row));
 }
@@ -1108,13 +880,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
   font-weight: 700;
   color: var(--paper-muted);
 }
-/* The "Group" placeholder stays put instead of being clipped to max-width 0 until the
-   section is hovered: an unnamed group is the one you most need to see you CAN name, and
-   a column that only exists on hover is a column nobody finds. It costs nothing in the
-   PDF - print blanks every placeholder (.cv-edit:empty::before), so the box collapses.
-   nowrap stays: without it the placeholder wrapped to one character per line and the row
-   grew to fit the resulting column, measured 63.4px per unnamed group against 13.6px for
-   a named one. */
+
 .cv-skilllabel-empty {
   white-space: nowrap;
 }
@@ -1127,8 +893,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
   flex: 1 1 auto;
   min-width: 0;
 }
-/* Badge: soft filled pill (a hairline outline read cheap). Neutral fill stays legible
-   under any accent and prints clean; delete-X floats at the corner (rules below). */
+
 .cv-chip {
   position: relative;
   display: inline-flex;
@@ -1137,34 +902,21 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
   border: none;
   border-radius: 20pt;
   background: #eef1f4;
-  /* asymmetric top/bottom nudges the text down ~2px so it reads vertically centered
-     (line-height:1 on the contentEditable otherwise sits slightly high). */
+
   padding: 3.5pt 9pt 1.5pt;
   font-size: calc(var(--paper-size) * 0.88);
-  /* Inherit, NOT a hardcoded #2a2f34: a skill value is content, like a bullet, and that
-     literal was a third grey - neither the body ink nor --paper-muted - so the Secondary
-     text control could not move it and neither could anything else. The group LABEL is
-     the muted one (.cv-skilllabel); the values print in body ink. */
+
   color: inherit;
 }
 
-/* skills "+" is the EXACT contact "+" (filled accent, 15px, radius 4). Defined AFTER
-   .cv-chip so it wins the pill's border/radius/padding/background, since the button
-   carries both .cv-chip and .cv-chip-add. */
 .cv-chip-add {
-  /* Reveals on hover like the bullet controls, but by OPACITY and never by display: the
-     button keeps its box at all times, so arriving at a skill row does not reflow the
-     chips beside it or push the row's own wrap point. */
+
   display: grid;
   opacity: 0;
   transition: opacity var(--dur-1) var(--ease-out);
-  /* above the preceding chip's delete (z-index 2), whose enlarged hit area otherwise
-     covers this button completely */
+
   z-index: 3;
-  width: 15px;
-  height: 15px;
   padding: 0;
-  border: none;
   border-radius: 4px;
   background: var(--accent-strong);
   color: #fff;
@@ -1172,18 +924,12 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
 .cv-skillrow:hover .cv-chip-add,
 .show-ctl .cv-chip-add,
 body.coach-tour:not(.coach-bare) .cv-chip-add,
-/* keyboard has no hover: without these a Tab stop lands on an invisible button */
+
 .cv-chips:focus-within .cv-chip-add,
 .cv-chip-add:focus-visible {
   opacity: 1;
 }
 
-/* Skills display modes (theme.skillStyle -> data-skills on .print-paper). Badge is
-   the base .cv-chip pill. Plain = inline text with middot separators; Bullets = a
-   vertical disc list. All keep the same editable DOM (add/delete unaffected); the
-   "+" add button (.cv-chip-add) is excluded from the restyle. */
-/* Plain: inline text, middot separated. Small top + left offset so it does not hug
-   the header or the left edge. */
 .print-paper[data-skills='plain'] .cv-chips {
   gap: 0;
   margin-top: 2pt;
@@ -1198,64 +944,35 @@ body.coach-tour:not(.coach-bare) .cv-chip-add,
 }
 .print-paper[data-skills='plain'] .cv-chip:not(.cv-chip-add) + .cv-chip:not(.cv-chip-add)::before {
   content: '·';
-  /* em, not pt, for the same reason as .cv-skillrow's gap: 6pt was 0.72 em-widths at
-     Dense's body size and would cross the extractor's column threshold if the
-     font-size slider went any lower. */
+
   margin: 0 0.45em;
   color: var(--paper-muted);
 }
-/* gap:0 in plain glues the "+" to the last skill; give it breathing room */
+
 .print-paper[data-skills='plain'] .cv-chip-add {
   margin-left: 8pt;
 }
-/* Plain and Bullets strip the pill's padding, and the delete's -6px overhang was
-   measured against that padding: with it gone the 15px button landed 9px INSIDE the
-   word and covered 59% of it ("Go" read as "G").
-   Lifted to a true corner badge rather than just pushed right. Plain packs skills
-   about 14px apart, so a button moved only sideways cleared its own word and landed
-   on the NEXT one instead (measured: 8 of them). Swept top/right together; this is
-   the only pair that collides with neither the next skill nor the row above, and it
-   leaves the badge grazing the ascender line the way it overlaps the pill's corner in
-   Badge. Nothing here touches layout or extraction: the button is absolutely
-   positioned and .no-print. */
+
 .print-paper[data-skills='plain'] .cv-chip:not(.cv-chip-add) > .cv-chip-x,
 .print-paper[data-skills='bullets'] .cv-chip:not(.cv-chip-add) > .cv-chip-x {
   right: -13px;
 }
-/* Only Plain needs the lift. Its skills sit ~14px apart on one line, so sideways
-   alone put the badge on the next word; Bullets is a grid with an 18pt column gap and
-   2.5pt between rows, where lifting would reach the row ABOVE instead (measured: 6). */
+
 .print-paper[data-skills='plain'] .cv-chip:not(.cv-chip-add) > .cv-chip-x {
   top: -10px;
 }
-/* Bullets: a fixed 3-column grid (grid, not CSS columns, so it is always 3 and does
-   not collapse to one with few items). Items fill left-to-right, so the "+" naturally
-   lands in the next empty cell - exactly where the next skill will go. */
-/* Bullets is the ungrouped view, so it hides the labels rather than laying out around
-   them, and every row gets the grid. The groups stay in the DOCUMENT untouched: switch
-   back to Plain or Badges and the labels are exactly as they were, which is why this is
-   CSS and not a data change. It is also the answer to a discoverability problem - with
-   the label column always visible, a first-time user never learns that a flat bulleted
-   list is available at all. Labels are not editable while Bullets is selected; the
-   Design panel says so under the axis. */
+
 .print-paper[data-skills='bullets'] .cv-skilllabel {
   display: none;
 }
-/* ONE grid for the whole section, not one per group. Per-group grids meant a group of
-   four printed as 3 + 1 and the next group started a fresh line, so the column edges
-   never lined up and the vertical gaps alternated between a chip gap and a row gap.
-   The rows and their chip boxes go display:contents, which lifts every .cv-chip into
-   this grid as a direct item; they then flow left-to-right and fill continuously. */
+
 .print-paper[data-skills='bullets'] .cv-skills {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   column-gap: 18pt;
-  /* One rhythm for every line of the block, driven by Row spacing like the bullets in
-     an entry, instead of a fixed 2.5pt that ignored the control. */
+
   row-gap: calc(var(--paper-lead) * 0.2 * var(--paper-row));
-  /* start, not center: one long value ("AWS (Lambda, API Gateway, ...)") wraps to two
-     lines and makes its row taller, and centring then pushed its neighbours' baselines
-     down by half a line, so the columns stopped reading as rows. */
+
   align-items: start;
   margin-top: 3pt;
 }
@@ -1263,26 +980,15 @@ body.coach-tour:not(.coach-bare) .cv-chip-add,
 .print-paper[data-skills='bullets'] .cv-chips {
   display: contents;
 }
-/* A display:contents row has no box, so its absolutely-positioned delete would anchor
-   to the section and land on an unrelated line. Deleting a GROUP belongs to the grouped
-   views anyway; the per-skill delete still works here, and Plain brings the rest back. */
+
 .print-paper[data-skills='bullets'] .cv-skillrow > .cv-hz-r {
   display: none;
 }
-/* Same reason as the row delete, but this one was VISIBLE damage: each group's "add
-   skill" button is a grid item, so seven groups spent seven cells and the flow came out
-   3 + 2 + 3 + 2 ... with holes. Per-group adds belong to the grouped views; the section's
-   own "add skill group" control below the grid is unaffected. */
+
 .print-paper[data-skills='bullets'] .cv-chip-add {
   display: none;
 }
-/* 0.7em, not 14pt. The gap resolves against the ROW's font-size but the skills next
-   to it render at 0.88x (see .cv-chip), so 14pt at Classic's 10.5pt body was 1.33
-   row-em = 1.51 em-widths of the value font - past the ~0.9 at which a geometry-based
-   PDF extractor calls a gap a column boundary, and all three labelled groups came out
-   read DOWN the columns. Measured with `npm run ats-check -- --axes`: 0.87 em clean,
-   0.91 em broken, so 0.7em (= 0.795 value-em) sits under it at every font size, which
-   a pt value cannot promise. Same reasoning as .cv-skillrow's gap above. */
+
 .print-paper[data-skills='bullets'] .cv-chips {
   column-gap: 0.7em;
 }
@@ -1299,21 +1005,6 @@ body.coach-tour:not(.coach-bare) .cv-chip-add,
   color: var(--paper-accent);
 }
 
-/* ===========================================================================
-   LAYOUT AXES (theme.headerLayout / entryLayout / headingLayout -> data-* on
-   .print-paper). These live here, not in src/templates/, because they set
-   display/position and a template stylesheet may not (see check-guardrail.mjs).
-   A template is a named preset over these axes plus colour; that is what keeps
-   two templates from being ~35 CSS declarations apart.
-
-   Every axis's first value reproduces the pre-axis layout exactly, so the
-   default block below is intentionally empty - the base rules already are it.
-   =========================================================================== */
-
-/* --- headerLayout ------------------------------------------------------- */
-/* left (default): .cv-head is a plain block; base .cv-h1/.cv-title/.cv-contact apply. */
-
-/* centred: name, title and contacts all on the page's centre line. */
 .print-paper[data-header='centered'] .cv-h1,
 .print-paper[data-header='centered'] .cv-title {
   text-align: center;
@@ -1322,10 +1013,6 @@ body.coach-tour:not(.coach-bare) .cv-chip-add,
   justify-content: center;
 }
 
-/* split: name over title on the left, contacts as a right-aligned block. Grid areas,
-   not flex: the three header elements are siblings, so flex would put the title
-   beside the name instead of under it. The contact column is capped so a long list
-   wraps within itself rather than squeezing the name. */
 .print-paper[data-header='split'] .cv-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 45%);
@@ -1348,11 +1035,6 @@ body.coach-tour:not(.coach-bare) .cv-chip-add,
   text-align: right;
 }
 
-/* --- entryLayout -------------------------------------------------------- */
-/* date-right (default): .cv-etop is flex + space-between; base rules apply. */
-
-/* stacked: the date drops under the role/org line. Quieter, and it buys horizontal
-   room for long role + organisation pairs that otherwise collide with the date. */
 .print-paper[data-entry='date-stacked'] .cv-etop {
   display: block;
 }
@@ -1360,42 +1042,21 @@ body.coach-tour:not(.coach-bare) .cv-chip-add,
   margin-top: 1pt;
 }
 
-/* rail: the date becomes a fixed-width left column and the entry body indents to
-   clear it. row-reverse (not a grid on .cv-entry) is deliberate - .cv-etop keeps a
-   real box, so `.cv-entry:has(> .cv-etop:hover)` still reveals the entry's delete. */
 .print-paper[data-entry='date-rail'] {
-  /* Sized for WRAP, not for the gap - the gap is fixed by .cv-date's padding-right
-     below and no longer depends on this. 68pt held a bare year but wrapped a real
-     month range: "Sep 2019 - Mar 2022" broke after "Mar", and the orphan "2022"
-     extracted as a line of its own with the role stranded on the line above. Swept
-     with `npm run ats-check -- --only rail --sweep entry-rail=...`: 86 and 88pt still
-     wrap, 90pt is the first clean value, 92pt is that plus one character of headroom.
-     A longer range than this will wrap again; the harness is what catches it. */
+
   --entry-rail: 92pt;
 }
 .print-paper[data-entry='date-rail'] .cv-etop {
   flex-direction: row-reverse;
   justify-content: flex-end;
   gap: 0;
-  /* .cv-date renders at 0.9x the body size, so under the flex default (stretch) its
-     first baseline sat ~0.10em ABOVE the role's. That is enough for a geometry-based
-     PDF extractor to call them two separate lines, which is why "2022 - Present" came
-     out on a line of its own with nothing tying it to the role underneath. The
-     horizontal gap was the obvious suspect and was not the cause. */
+
   align-items: baseline;
 }
-/* The base .cv-date is nowrap, which is right when it floats at the page edge but
-   here would spill a long range ("Sep 2023 - Present") straight into the role text.
-   In the rail the column width is the alignment, so the date wraps inside it. */
+
 .print-paper[data-entry='date-rail'] .cv-date {
   flex: 0 0 var(--entry-rail);
-  /* Right-aligned inside the rail so the distance from the end of the date to the
-     start of the role is ALWAYS this padding, instead of "the rail width minus
-     however long this particular date happens to be" - which was 41pt (3.9 em-widths)
-     for a bare year and read as a column boundary, putting the date on its own
-     extracted line. The rail's WIDTH still decides where the role starts, so the
-     column alignment the layout exists for is unchanged; only the ragged edge moves
-     from the right side to the left. */
+
   text-align: right;
   padding-right: 6pt;
   white-space: normal;
@@ -1408,35 +1069,23 @@ body.coach-tour:not(.coach-bare) .cv-chip-add,
   padding-left: calc(var(--entry-rail) + 13pt);
 }
 
-/* --- headingLayout ------------------------------------------------------ */
-/* rule (default): the section heading's underline, drawn by the template. */
-
-/* left-rail: a solid accent bar replaces the underline. The underline is suppressed
-   here rather than in each template, so the two never stack. */
 .print-paper[data-heading='left-rail'] .cv-secH {
   border-bottom: none;
   border-left: 4pt solid var(--paper-accent);
   padding: 0 0 0 7pt;
 }
 
-/* boxed: the heading becomes a filled block. Same reason for killing the underline. */
 .print-paper[data-heading='boxed'] .cv-secH {
   border-bottom: none;
   background: var(--accent-weak);
   padding: 3pt 6pt;
 }
-/* the drag/eye/delete hit-zones hang off .cv-secH's left and right edges; boxed and
-   left-rail change that box, so pull the left handle back clear of the new padding */
+
 .print-paper[data-heading='left-rail'] .cv-secH > .cv-hz-l,
 .print-paper[data-heading='boxed'] .cv-secH > .cv-hz-l {
   left: -53px;
 }
 
-/* ---- While dragging ----
-   Every control is anchored to a row, and during a reorder the rows move. Anything
-   still visible slides across the gaps between them, which reads as the page coming
-   apart. Handles are hidden too: keeping them lit meant every OTHER row's handle
-   stayed on screen and slid about, which was the trail itself. */
 body.cv-dragging .cv-hz > *,
 body.cv-dragging .cv-chip-x,
 body.cv-dragging .cv-ico-x,
@@ -1449,10 +1098,7 @@ body.cv-dragging .cv-addsec {
   opacity: 0 !important;
   pointer-events: none !important;
 }
-/* The three add affordances do not reveal by opacity; they grow from max-height 0,
-   and dragging still moves the pointer across rows, so their hover rules kept firing.
-   Hiding them left the SPACE they had opened, i.e. a gap that follows the cursor down
-   the page. Every property their reveal sets has to be put back, not just opacity. */
+
 body.cv-dragging .cv-addbul,
 body.cv-dragging .cv-secadd-wrap,
 body.cv-dragging .cv-addsec-btn {

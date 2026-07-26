@@ -1,7 +1,3 @@
-// Accent legibility guard. Section headers + rules on the paper use the accent
-// as their color; a light pick (yellow, pale green) would make them near-invisible
-// and hurt ATS visual scanning. Cap relative luminance so contrast on white stays
-// usable. MAX_LUM 0.30 ≈ 3:1 on white and leaves all shipped presets unchanged.
 const MAX_LUM = 0.3;
 
 function toLinear(channel: number): number {
@@ -52,12 +48,6 @@ export function hslToHex(h: number, s: number, l: number): string {
   return `#${to(r1)}${to(g1)}${to(b1)}`;
 }
 
-/**
- * Highest lightness at this hue/saturation that still passes MAX_LUM. The picker
- * clamps its Brightness slider to this instead of silently darkening the result:
- * a thumb that stops is understandable, a colour that changes after you pick it
- * is not.
- */
 export function maxLightness(h: number, s: number): number {
   const lum = (l: number) => {
     const hex = hslToHex(h, s, l);
@@ -75,12 +65,6 @@ export function maxLightness(h: number, s: number): number {
   return Math.floor(lo);
 }
 
-// ---------------------------------------------------------------------------
-// Oklab. Needed because the accent tints are produced by CSS
-// `color-mix(in oklab, ...)`, and a contrast guarantee has to be computed against
-// the SAME colour the browser will paint. Verified to match the browser exactly for
-// every shipped preset at both mix ratios.
-// ---------------------------------------------------------------------------
 const srgbToLinear = (c: number): number => {
   const s = c / 255;
   return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
@@ -121,7 +105,7 @@ function fromOklab([L, A, B2]: RGB): RGB {
     linearToSrgb(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
   ];
 }
-/** Perceptual mix, identical to CSS `color-mix(in oklab, hex pct%, <other>)`. */
+
 function mixOklab(hex: string, other: RGB, pct: number): string {
   const rgb = parseHex(hex);
   if (!rgb) return hex;
@@ -134,7 +118,6 @@ function mixOklab(hex: string, other: RGB, pct: number): string {
 const WHITE: RGB = [255, 255, 255];
 const BLACK: RGB = [0, 0, 0];
 
-/** WCAG contrast ratio between two hex colours. */
 export function contrastRatio(a: string, b: string): number {
   const ra = parseHex(a);
   const rb = parseHex(b);
@@ -144,11 +127,10 @@ export function contrastRatio(a: string, b: string): number {
   return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
 }
 
-/** Darken `hex` toward black (in oklab, so the hue holds) until it clears `target` against `bg`. */
 function darkenUntil(hex: string, bg: string, target: number): string {
   if (contrastRatio(hex, bg) >= target) return hex;
-  let lo = 0; // fully black
-  let hi = 100; // the original colour
+  let lo = 0;
+  let hi = 100;
   for (let i = 0; i < 14; i++) {
     const mid = (lo + hi) / 2;
     if (contrastRatio(mixOklab(hex, BLACK, mid), bg) >= target) lo = mid;
@@ -157,8 +139,6 @@ function darkenUntil(hex: string, bg: string, target: number): string {
   return mixOklab(hex, BLACK, lo);
 }
 
-/** AA for normal-size text. The headings and chips this guards are all below the
- *  18.66px-bold / 24px threshold that would let 3:1 apply. */
 const AA_TEXT = 4.5;
 
 export interface AccentSet {
@@ -168,18 +148,6 @@ export interface AccentSet {
   strong: string;
 }
 
-/**
- * The accent family.
- *
- * `clampAccent` only guarantees 3:1 on white, which is fine for a rule or a focus
- * ring and NOT fine for text: accent-on-accent-weak measured 3.10:1 for the default
- * cyan and 2.61:1 at the floor. Rather than darken every accent (which would change
- * colours the user picked), two extra steps are derived and used only where text
- * sits on a coloured surface. Every visible FILL is unchanged.
- *
- * `ink` is measured against `weak`, not white: weak is the darker of the two
- * backgrounds accent text ever sits on, so clearing it clears white for free.
- */
 export function deriveAccents(accent: string): AccentSet {
   const weak = mixOklab(accent, WHITE, 15);
   const soft = mixOklab(accent, WHITE, 72);
@@ -191,11 +159,6 @@ export function deriveAccents(accent: string): AccentSet {
   };
 }
 
-/**
- * Write the whole accent family to a style declaration. Both the committed theme and
- * the live colour-picker preview call this, so the two can never derive them
- * differently (they were previously two hand-copied blocks of four setProperty calls).
- */
 export function writeAccentVars(style: CSSStyleDeclaration, accent: string): void {
   const a = deriveAccents(accent);
   style.setProperty('--paper-accent', accent);
@@ -206,22 +169,18 @@ export function writeAccentVars(style: CSSStyleDeclaration, accent: string): voi
   style.setProperty('--accent-strong', a.strong);
 }
 
-/** Fallback when an accent is not a usable colour at all. Matches DEFAULT_THEME. */
 const SAFE_ACCENT = '#0891b2';
 
-/** Darken a hex accent toward black until its luminance is within the cap. */
 export function clampAccent(hex: string): string {
   const m = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
-  // Anything that is not a hex colour is REPLACED, never echoed: the return value
-  // is written into CSS custom properties, so passing input through let imported
-  // JSON inject arbitrary CSS.
+
   if (!m) return SAFE_ACCENT;
   const n = parseInt(m[1], 16);
   let r = (n >> 16) & 255;
   let g = (n >> 8) & 255;
   let b = n & 255;
   if (luminance(r, g, b) <= MAX_LUM) return `#${m[1].toLowerCase()}`;
-  // Iterate: the sRGB offset makes a single scale overshoot the cap slightly.
+
   for (let i = 0; i < 8 && luminance(r, g, b) > MAX_LUM; i++) {
     const k = Math.pow(MAX_LUM / luminance(r, g, b), 1 / 2.4);
     r = Math.max(0, Math.floor(r * k));

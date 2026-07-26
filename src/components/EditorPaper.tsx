@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Reorder, useDragControls, MotionConfig } from 'framer-motion';
 import { useResumeStore } from '@/store/resumeStore';
@@ -14,9 +14,6 @@ import { resolveTemplate } from '@/templates/registry';
 import './paper.css';
 import '@/templates/templates.css';
 
-// Paper renders at real A4 size, scaled, so the screen is an exact miniature of the
-// printed page. The paper never scrolls internally; growing it (zoom) makes the
-// stage scroll instead.
 export { A4_W, A4_H };
 
 type UpdateFn = (recipe: (doc: Resume) => void) => void;
@@ -32,36 +29,11 @@ const SECTION_TYPES: { type: Section['type']; label: string }[] = [
   { type: 'custom', label: 'Custom' },
 ];
 
-// Each control lives inside a transparent hit-zone (.cv-hz). The visible glyph is
-// hidden until the pointer is within the hit-zone (~20px), so a control only shows
-// when the cursor is near IT, not anywhere on the row (and a bullet's handle never
-// also lights up its parent entry's).
-
-/**
- * Reorder feel. framer-motion was previously passed no config at all, so rows ran on
- * the library defaults: dragElastic 0.5, which let a row rubber-band half its own
- * height past the end of the list, and an untuned spring that was still settling when
- * the print stylesheet ran (hence the transform reset in print.css).
- *
- * Damping ratio here is ~1.1 (42 / 2*sqrt(600*0.6)), i.e. just overdamped: the row
- * arrives quickly and does NOT overshoot, matching the rest of the motion scale.
- */
 const ROW_SPRING = { type: 'spring', stiffness: 600, damping: 42, mass: 0.6 } as const;
 const ROW_ELASTIC = 0.08;
-/**
- * framer measures layout in SCREEN space, so scaling the paper looks to it like every
- * row moved, and it animates all of them: one zoom step slid all 8 rows ~19px over
- * ~230ms. Neither a stable MotionConfig identity nor layoutDependency stops it, because
- * the projection re-runs on the scale change itself.
- *
- * The spring is only ever WANTED while a row is being dragged. Outside a drag the
- * animation has no job, so it is switched off and framer snaps rows straight to their
- * measured position; zooming then has nothing to animate. Reordering is unaffected.
- */
+
 const ROW_STATIC = { duration: 0 } as const;
 
-// Drag state as a tiny external store: Row and SectionView both need it and share no
-// ancestor below EditorPaper, and threading a prop through every list was not worth it.
 let dragActive = false;
 const dragSubs = new Set<() => void>();
 const setDragActive = (v: boolean) => {
@@ -77,7 +49,6 @@ const useIsDragging = () => useSyncExternalStore(subscribeDrag, () => dragActive
 
 type DragControls = ReturnType<typeof useDragControls>;
 
-/** New id order with `id` moved by `dir`, or null when it cannot move that way. */
 const moveId = (ids: string[], id: string, dir: number): string[] | null => {
   const i = ids.indexOf(id);
   const j = i + dir;
@@ -87,12 +58,6 @@ const moveId = (ids: string[], id: string, dir: number): string[] | null => {
   return next;
 };
 
-// Drag handle (left). Pointer-down starts a framer drag on the owning Reorder.Item;
-// preventDefault stops the browser from starting a text selection from the grip.
-//
-// A real <button>, not a <span>: as a span it was unfocusable, so reordering was
-// pointer-only and 45 consecutive Tab presses never reached a single handle. The
-// arrow keys move the row without any pointer at all.
 function DragHandle({
   controls,
   what,
@@ -119,9 +84,7 @@ function DragHandle({
         onPointerDown={(e) => {
           e.preventDefault();
           controls.start(e);
-          // Controls are anchored to rows that are about to move. Leaving them lit
-          // means a trail of buttons sliding through the gaps between rows, which is
-          // what made dragging look broken. Cleared on the next pointerup anywhere.
+
           document.body.classList.add('cv-dragging');
           setDragActive(true);
           const end = () => {
@@ -131,8 +94,7 @@ function DragHandle({
             window.removeEventListener('pointercancel', end);
             window.removeEventListener('keydown', onKey, true);
           };
-          // Escape abandons the drag: the transient order is dropped, framer snaps
-          // the row home, and the pointerup that follows commits nothing.
+
           const onKey = (ev: KeyboardEvent) => {
             if (ev.key !== 'Escape') return;
             ev.preventDefault();
@@ -158,10 +120,6 @@ function DragHandle({
   );
 }
 
-// A framer sortable row. The whole body is NOT a drag listener (dragListener=false)
-// so contentEditable text stays selectable; only the grip handle starts a drag via
-// dragControls. Reorder happens live via transforms (no DOM thrash); the parent
-// commits the new order to the store once, on release (onCommit).
 function Row({
   id,
   as,
@@ -192,9 +150,7 @@ function Row({
       value={id}
       as={as}
       className={className}
-      // Projection OFF unless a drag is in progress. With it on, changing the paper's
-      // scale made framer hold every row at its pre-zoom position for ~3 frames and
-      // then snap it 19px, so the document appeared to lag behind its own page.
+
       layout={dragging ? true : undefined}
       layoutDependency={layoutKey}
       transition={dragging ? ROW_SPRING : ROW_STATIC}
@@ -208,14 +164,13 @@ function Row({
   );
 }
 
-// Sort an array in place to match a target order of ids (used on drag release).
 const sortByIds = <T extends { id: string }>(arr: T[], ids: string[]): void => {
   arr.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
 };
-// Reorder a copy of `arr` to `ids` for rendering during a drag (null => unchanged).
+
 const applyOrder = <T extends { id: string }>(arr: T[], ids: string[] | null): T[] =>
   ids ? (ids.map((id) => arr.find((a) => a.id === id)).filter(Boolean) as T[]) : arr;
-// Thin X / + as SVG (no font baseline, so they're actually centered).
+
 function XIcon() {
   return (
     <svg className="cv-x" viewBox="0 0 12 12" aria-hidden="true">
@@ -232,17 +187,7 @@ function PlusIcon() {
     </svg>
   );
 }
-/**
- * Driven from the click rather than from CSS on purpose.
- *
- * A class-based animation had to stay on the element, and these buttons sit at
- * opacity 0 until their header is hovered: Chrome parks a never-painted element's
- * animation at play-pending, so a stale class fired its pop the NEXT time that eye
- * was revealed - other rows appearing to animate themselves. And the glyph itself is
- * swapped for the other icon component in the same commit, so anything mounted on it
- * is torn down mid-play. The button survives the swap and is on screen by definition
- * when it is clicked.
- */
+
 function popEye(el: HTMLElement) {
   if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   el.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.35)', offset: 0.4 }, { transform: 'scale(1)' }], {
@@ -264,16 +209,7 @@ function EyeOffIcon() {
     </svg>
   );
 }
-/**
- * Rows re-flow the instant one is deleted, so the second click of a double-click
- * lands on whatever moved under the cursor: a 3-click burst measured at 20ms
- * intervals removed two different bullets.
- *
- * Guarded by POSITION as well as time, and deliberately not per-button: the second
- * click is on a different button by then, so a per-button ref would never see it.
- * Two deliberate deletes on different rows are at different points and both go
- * through; only a repeat click that has not moved is dropped.
- */
+
 let lastDeleteAt = 0;
 let lastDeleteX = 0;
 let lastDeleteY = 0;
@@ -303,8 +239,7 @@ function Del({ onClick }: { onClick: () => void }) {
     </span>
   );
 }
-// Add a whole section entry: bare "+", centered below the section (distinct spot
-// from the left-column bullet "+"), hidden until the pointer approaches.
+
 function SecAdd({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <div className="cv-secadd-wrap no-print" contentEditable={false}>
@@ -324,51 +259,32 @@ const MENU_MIN = 140;
 
 type MenuPos = { left: number; top?: number; bottom?: number; maxHeight: number };
 
-/**
- * Anchored in VIEWPORT pixels, not paper pixels, because the menu is portalled out
- * of .print-paper: that element is `transform: scale(zoom)` and clipped by the
- * stage's overflow, so inside it the list painted at 8.7px at fit zoom and its top
- * options were cut off above the stage. Outside, it is always full size and the
- * max-height is the space actually left on screen, so it scrolls when it has to.
- */
 function placeMenu(btn: HTMLElement): MenuPos {
   const r = btn.getBoundingClientRect();
   const below = window.innerHeight - r.bottom - MENU_GAP - MENU_EDGE;
   const above = r.top - MENU_GAP - MENU_EDGE;
-  // Under the button is the default; flip up only when down cannot hold a usable
-  // list and up can hold more.
+
   const flip = below < MENU_MIN && above > below;
   const maxHeight = Math.min(
     Math.max(MENU_MIN, flip ? above : below),
     window.innerHeight - MENU_EDGE * 2,
   );
   const left = Math.max(MENU_EDGE, Math.min(r.left, window.innerWidth - MENU_W - MENU_EDGE));
-  // Flipped, the menu is anchored by its BOTTOM. Anchoring by top would place it at
-  // the top of the space it is allowed to use, so a list shorter than that space
-  // floated ~22px clear of the button instead of sitting against it.
+
   return flip
     ? { left, bottom: window.innerHeight - r.top + MENU_GAP, maxHeight }
     : { left, top: r.bottom + MENU_GAP, maxHeight };
 }
 
-// Reuse the old object when nothing moved, so scroll/resize re-placement does not
-// re-render the menu on every frame.
 const samePos = (a: MenuPos | null, b: MenuPos): MenuPos =>
   a && a.left === b.left && a.top === b.top && a.bottom === b.bottom && a.maxHeight === b.maxHeight ? a : b;
 
-// "+ Add section" at the document end: click opens a small type picker; picking a
-// type appends a seeded section and focuses its title. Screen only.
 function AddSection({ onAdd }: { onAdd: (type: Section['type']) => void }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<MenuPos | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Measure AFTER the open class lands. The button is collapsed (max-height: 0)
-  // until .cv-addsec-open reveals it, so a rect taken during the pointerdown that
-  // opens the menu is a zero-height one and anchors the menu a row too high. The
-  // reveal also grows the paper, which the stage's ResizeObserver settles a frame
-  // later and nudges the button down ~4px, so re-anchor once on the next frame.
   useLayoutEffect(() => {
     if (!open) {
       setPos(null);
@@ -376,8 +292,7 @@ function AddSection({ onAdd }: { onAdd: (type: Section['type']) => void }) {
     }
     const place = () => btnRef.current && setPos((p) => samePos(p, placeMenu(btnRef.current!)));
     place();
-    // Two frames: one for the reveal's own reflow, one for the stage ResizeObserver
-    // that reacts to it. samePos makes the extra passes free when nothing moved.
+
     let id = requestAnimationFrame(() => {
       place();
       id = requestAnimationFrame(place);
@@ -395,9 +310,7 @@ function AddSection({ onAdd }: { onAdd: (type: Section['type']) => void }) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
-    // The stage scrolls underneath a fixed-position menu, so follow the button
-    // rather than let the two drift apart. Capture: .print-stage's scroll event
-    // does not bubble to window.
+
     let raf = 0;
     const reflow = () => {
       if (raf) return;
@@ -467,10 +380,6 @@ function AddSection({ onAdd }: { onAdd: (type: Section['type']) => void }) {
   );
 }
 
-// A framer-reorderable bullet list. Owns only the transient drag order; the parent
-// supplies id-based edit/add/remove/reorder ops. Module-level (not inlined) so React
-// keeps the bullet DOM across renders; bullet ids give stable keys so editing (which
-// replaces a bullet's runs) never remounts or resets the order.
 function BulletList({
   itemId,
   bullets,
@@ -492,7 +401,7 @@ function BulletList({
 }) {
   const [dragIds, setDragIds] = useState<string[] | null>(null);
   const ordered = applyOrder(bullets, dragIds);
-  // Only the ORDER may trigger a framer layout measurement (see Row).
+
   const orderKey = ordered.map((b) => b.id).join(',');
   const commit = () =>
     setDragIds((ids) => {
@@ -535,8 +444,7 @@ function BulletList({
           </Row>
         ))}
       </Reorder.Group>
-      {/* ghost "add bullet" row: aligned to bullet text, collapsed (0 height) until
-          the entry is hovered or edit-controls are on, so it never leaves a gap. */}
+
       <button className="cv-addbul no-print" type="button" contentEditable={false} title="Add bullet" onClick={() => addBullet(itemId)}>
         <PlusIcon />
         Add bullet
@@ -568,10 +476,9 @@ function SectionView({
 }) {
   const controls = useDragControls();
   const sectionDragging = useIsDragging();
-  // Item order while dragging (list of ids); null when not dragging. Rendering reads
-  // from this so framer animates; on release the store is sorted to match, once.
+
   const [itemDragIds, setItemDragIds] = useState<string[] | null>(null);
-  // Certifications render their own Reorder.Group inline; same order-only key.
+
   const certOrderKey = ('items' in section ? applyOrder(section.items as Array<{ id: string }>, itemDragIds) : [])
     .map((i) => i.id)
     .join(',');
@@ -580,7 +487,7 @@ function SectionView({
       if (ids) editSection((s) => 'items' in s && sortByIds(s.items as Array<{ id: string }>, ids));
       return null;
     });
-  /** Keyboard equivalent of a drag: commit a one-step move straight to the store. */
+
   const moveItemById = (ids: string[], id: string, dir: number) => {
     const next = moveId(ids, id, dir);
     if (next) editSection((s) => 'items' in s && sortByIds(s.items as Array<{ id: string }>, next));
@@ -607,7 +514,6 @@ function SectionView({
       if (b) b.runs = line;
     });
 
-  // ---- structure ops ----
   const withItems = (apply: (a: unknown[]) => void) =>
     editSection((s) => {
       if ('items' in s) apply(s.items as unknown[]);
@@ -631,7 +537,7 @@ function SectionView({
   const removeBullet = (itemId: string, bulletId: string) =>
     editItem(itemId, (i) => {
       const a = i.bullets as Bullet[];
-      if (a.length <= 1) a[0] = newBullet(); // keep one (empty) bullet to type into
+      if (a.length <= 1) a[0] = newBullet();
       else {
         const idx = a.findIndex((x) => x.id === bulletId);
         if (idx >= 0) a.splice(idx, 1);
@@ -640,9 +546,6 @@ function SectionView({
   const reorderBullets = (itemId: string, ids: string[]) =>
     editItem(itemId, (i) => sortByIds(i.bullets as Bullet[], ids));
 
-  // Enter: text left of the caret stays, text right of it moves to a new bullet
-  // below. At the end of a line both halves are empty-and-full as expected, so the
-  // common case (type, Enter, type) needs no special handling.
   const splitBullet = (itemId: string, bulletId: string, before: Line, after: Line) => {
     const next = newBullet();
     next.runs = after as never;
@@ -656,9 +559,6 @@ function SectionView({
     requestFocus(`${itemId}:b:${next.id}`);
   };
 
-  // Backspace in an empty bullet removes it and puts the caret at the end of the one
-  // above, which is where the user was heading. The first bullet is kept: deleting it
-  // would leave the entry with nothing to type into.
   const dropEmptyBullet = (itemId: string, bulletId: string) => {
     const list = (section as { items?: Array<{ id: string; bullets?: Bullet[] }> }).items?.find(
       (i) => i.id === itemId,
@@ -682,8 +582,6 @@ function SectionView({
     />
   );
 
-  // Wrap a section's item list in a framer reorder group. `render` maps each (typed)
-  // item to a <Row>; ids drive stable keys/values so edits never reset the order.
   const itemsGroup = <T extends { id: string }>(items: T[], render: (it: T, handle: ReactNode) => ReactNode) => {
     const ordered = applyOrder(items, itemDragIds);
     const orderKey = ordered.map((i) => i.id).join(',');
@@ -723,11 +621,7 @@ function SectionView({
       dragControls={controls}
       onDragEnd={onSectionCommit}
     >
-      {/* Deliberately NOT role="heading". It reads like one, but the box holds the
-          drag handle, the hide toggle, the delete and an editable textbox, and
-          `heading` is not a composite role: announcing it as a heading flattens the
-          controls inside it, and the title itself is a field you type in, not a
-          label. A wrong role is worse than a missing one. */}
+
       <div className="cv-secH">
         {canReorderSection && (
           <DragHandle controls={controls} what="section" onMove={onMoveSection} onCancel={onCancelSectionDrag} />
@@ -748,9 +642,7 @@ function SectionView({
           </button>
         </span>
         <Del onClick={onDeleteSection} />
-        {/* Hides only THIS heading's rule; the panel toggle still governs all of them.
-            Absent once hidden, so the control never claims to undo what it did - the
-            way back is the panel, same as the header rule's X. */}
+
         {!section.noRule && (
           <button
             className="cv-rule-x no-print"
@@ -954,14 +846,11 @@ function SectionView({
 
       {section.type === 'skills' && (
         <>
-          {/* Wrapper so Bullets can lay EVERY skill out in one grid: with the rows as its
-              own grids, each group started a new line and left holes in the last one.
-              Plain and Badges leave this a bare block, so nothing else changes. */}
+
           <div className="cv-skills">
           {section.items.map((g) => (
             <div className="cv-skillrow" key={g.id}>
-              {/* Deleting the last group is allowed: the "add skill group" control below
-                  is outside this map, so an empty skills section still has a way back. */}
+
               <Del
                 onClick={() =>
                   editSection((sec) => {
@@ -970,8 +859,7 @@ function SectionView({
                   })
                 }
               />
-              {/* Label is optional data: with one, the row reads "Languages  Go · Python";
-                  without, it is the plain flat list every older document migrates to. */}
+
               <Editable
                 className={`cv-skilllabel${g.label ? '' : ' cv-skilllabel-empty'}`}
                 value={g.label ?? ''}
@@ -1012,7 +900,7 @@ function SectionView({
                           const grp = sec.items.find((x) => x.id === g.id);
                           if (!grp) return;
                           grp.values.splice(i, 1);
-                          // never leave a group with no way back to typing in it
+
                           if (!grp.values.length) sec.items = sec.items.filter((x) => x.id !== g.id);
                         })
                       }
@@ -1032,8 +920,7 @@ function SectionView({
                       const grp = sec.items.find((x) => x.id === g.id);
                       if (grp) grp.values.push('');
                     });
-                    // pre-push length == the new chip's index; requested after the
-                    // mutation, not inside the recipe (matches addItem/addBullet).
+
                     requestFocus(`sk:${g.id}:${g.values.length}`);
                   }}
                 >
@@ -1060,68 +947,17 @@ function SectionView({
   );
 }
 
-// The A4 HTML paper. This same DOM is what "Download PDF" prints (option B).
-/**
- * Zoom is NOT transitioned. It was tried: because the page is anchored top-left and
- * the shadow box's width animates alongside it, an eased zoom made the whole page
- * appear to slide sideways while it grew. Scaling is a size change, not a movement,
- * and animating it reads as the layout lurching. The wheel path is continuous
- * (see EditorPage), which is what actually needed fixing.
- */
-export function EditorPaper({ scale }: { scale: number }) {
-  const doc = useResumeStore((s) => s.doc);
-  const update = useResumeStore((s) => s.update);
-  const paperRef = useRef<HTMLDivElement>(null);
+// Memoised: nothing in here reads `scale`, so zoom must not reconcile these ~600 nodes.
+const PaperBody = memo(function PaperBody({
+  doc,
+  update,
+  paperRef,
+}: {
+  doc: Resume;
+  update: UpdateFn;
+  paperRef: { current: HTMLDivElement | null };
+}) {
 
-  // TEMP DEBUG - render tracing for the contact row. Remove before shipping.
-  // EditorPaper subscribes to the WHOLE doc and also takes `scale` as a prop, so it
-  // re-renders for any edit anywhere and for every zoom step; the contacts are inline
-  // JSX inside it, so they re-render every time it does.
-  const dbgRenders = useRef(0);
-  const dbgPrev = useRef<{ doc: unknown; scale: number } | null>(null);
-  dbgRenders.current += 1;
-  {
-    const changed: string[] = [];
-    const p = dbgPrev.current;
-    if (p) {
-      if (p.doc !== doc) changed.push('doc');
-      if (p.scale !== scale) changed.push('scale');
-      if (!changed.length) changed.push('parent/other');
-    }
-    // eslint-disable-next-line no-console
-    console.log(
-      `[contacts] EditorPaper render #${dbgRenders.current} | contact buttons drawn: ${doc.header.contacts.length + 1}` +
-        ` | scale ${scale.toFixed(4)} | trigger: ${p ? changed.join('+') : 'mount'}`,
-    );
-    dbgPrev.current = { doc, scale };
-  }
-  /**
-   * The whole result of one page measurement, in ONE state.
-   *
-   * These were three useStates written back to back by check(). Every measurement
-   * pass therefore pushed three updates, and - worse - it pushed them even when the
-   * numbers were identical, so the ResizeObserver's own re-fires each cost a full
-   * re-render of the document. Measured: 4 renders per zoom click and 6 per committed
-   * edit, when 1 was needed.
-   *
-   * As one object the updater can return `prev` unchanged, and React bails out
-   * without rendering. That is what makes a no-op measurement free, which matters
-   * most for zoom: scrollHeight/clientHeight are read on the UNSCALED box, so zooming
-   * cannot change them, and every one of those passes is now a no-op.
-   *
-   * `fitFailedAt` is the printed height at which "Fit to page" gave up, not a boolean,
-   * so the verdict expires as soon as the content actually changes.
-   */
-  const [pageFit, setPageFit] = useState<{ contentH: number; overflow: boolean; fitFailedAt: number | null }>({
-    contentH: A4_H,
-    overflow: false,
-    fitFailedAt: null,
-  });
-  const { contentH, overflow, fitFailedAt } = pageFit;
-  const fitFailed = fitFailedAt !== null;
-
-  // Section order while dragging (ids); null when idle. Commit to the store once, on
-  // release, so a whole section drag is a single undo step.
   const [secDragIds, setSecDragIds] = useState<string[] | null>(null);
   const orderedSections = applyOrder(doc.sections, secDragIds);
   const sectionOrderKey = orderedSections.map((s) => s.id).join(',');
@@ -1131,7 +967,6 @@ export function EditorPaper({ scale }: { scale: number }) {
       return null;
     });
 
-  /** Keyboard equivalent of a section drag. */
   const moveSection = (id: string, dir: number) => {
     const next = moveId(orderedSections.map((s) => s.id), id, dir);
     if (next) update((d) => sortByIds(d.sections, next));
@@ -1147,8 +982,6 @@ export function EditorPaper({ scale }: { scale: number }) {
     requestFocus(`sec:${s.id}:title`);
   };
 
-  // Focus (and select) a just-added field. Set after an add mutation; the effect
-  // runs once the new element has rendered (depends on doc).
   const [focusFid, setFocusFid] = useState<{ fid: string; caret: 'start' | 'end' } | null>(null);
   const requestFocus: RequestFocus = (fid, caret = 'start') => setFocusFid({ fid, caret });
   useEffect(() => {
@@ -1158,21 +991,140 @@ export function EditorPaper({ scale }: { scale: number }) {
       el.focus();
       const r = document.createRange();
       r.selectNodeContents(el);
-      // start: correct for a split's moved text. end: correct when merging back into
-      // the bullet above, where the caret belongs after the existing text.
+
       r.collapse(focusFid.caret === 'start');
       const s = window.getSelection();
       s?.removeAllRanges();
       s?.addRange(r);
     }
     setFocusFid(null);
-  }, [focusFid, doc]);
+  }, [focusFid, doc, paperRef]);
 
-  // Scale is read through a ref so this callback's IDENTITY never changes. It used
-  // to be an inline arrow, which meant a new function on every render; EditorPaper
-  // re-renders on every zoom step, so the motion context changed, framer re-measured
-  // every Reorder.Item, and each row visibly slid ~6px over ~230ms. Zooming animated
-  // the whole document. The ref keeps the value current without churning the context.
+  return (
+    <>
+
+      <div className="cv-head">
+
+        <h1 className="cv-h1">
+          <Editable value={doc.header.fullName} placeholder="Your name" onCommit={(t) => update((d) => (d.header.fullName = t))} />
+        </h1>
+        <div className="cv-title">
+          <Editable value={doc.header.title} placeholder="Your title" onCommit={(t) => update((d) => (d.header.title = t))} />
+        </div>
+        <div className="cv-contact">
+          {doc.header.contacts.map((c) => (
+            <span className="cv-contact-item" key={c.id}>
+              {(() => {
+
+                const kind = c.icon ? (c.icon === 'none' ? null : c.icon) : detectContactKind(c.value);
+                if (!kind) return null;
+                return (
+                  <span className="cv-contact-ico" contentEditable={false}>
+                    <ContactIcon kind={kind} />
+                    <button
+                      type="button"
+                      className="cv-ico-x no-print"
+                      title="Remove this icon"
+                      aria-label="Remove this icon"
+                      onClick={() =>
+                        update((d) => {
+                          const ct = d.header.contacts.find((x) => x.id === c.id);
+                          if (ct) ct.icon = 'none';
+                        })
+                      }
+                    >
+                      <XIcon />
+                    </button>
+                  </span>
+                );
+              })()}
+              <Editable
+                className={willLink(c.value) ? 'cv-haslink' : undefined}
+                value={c.value}
+                fid={`c:${c.id}`}
+                placeholder="contact"
+                onCommit={(t) =>
+                  update((d) => {
+                    const ct = d.header.contacts.find((x) => x.id === c.id);
+                    if (ct) ct.value = t;
+                  })
+                }
+              />
+              <PrintLink value={c.value} />
+              <button
+                type="button"
+                className="cv-chip-x no-print"
+                aria-label="Delete contact"
+                onClick={() => update((d) => (d.header.contacts = d.header.contacts.filter((x) => x.id !== c.id)))}
+              >
+                <XIcon />
+              </button>
+            </span>
+          ))}
+          <button
+            type="button"
+            className="cv-contact-add no-print"
+            title="Add contact"
+            aria-label="Add contact"
+            onClick={() => {
+              const id = uid();
+              update((d) => d.header.contacts.push({ id, value: '' }));
+              requestFocus(`c:${id}`);
+            }}
+          >
+            <PlusIcon />
+          </button>
+        </div>
+      </div>
+
+      <div className="cv-rule" data-norule={doc.header.noRule ? '1' : undefined}>
+        <button
+          className="cv-rule-x no-print"
+          type="button"
+          title="Remove this divider line"
+          aria-label="Remove this divider line"
+          contentEditable={false}
+          onClick={() => update((d) => void (d.header.noRule = true))}
+        >
+          <XIcon />
+        </button>
+      </div>
+      <Reorder.Group as="div" axis="y" values={orderedSections.map((s) => s.id)} onReorder={setSecDragIds}>
+        {orderedSections.map((section) => (
+          <SectionView
+            key={section.id}
+            section={section}
+            update={update}
+            requestFocus={requestFocus}
+            canReorderSection={doc.sections.length > 1}
+            onDeleteSection={() => removeSectionById(section.id)}
+            onSectionCommit={commitSections}
+            onMoveSection={(dir) => moveSection(section.id, dir)}
+            onCancelSectionDrag={() => setSecDragIds(null)}
+            layoutKey={sectionOrderKey}
+          />
+        ))}
+      </Reorder.Group>
+      <AddSection onAdd={addSection} />
+    </>
+  );
+});
+
+export function EditorPaper({ scale }: { scale: number }) {
+  const doc = useResumeStore((s) => s.doc);
+  const update = useResumeStore((s) => s.update);
+  const paperRef = useRef<HTMLDivElement>(null);
+
+  const [pageFit, setPageFit] = useState<{ contentH: number; overflow: boolean; fitFailedAt: number | null }>({
+    contentH: A4_H,
+    overflow: false,
+    fitFailedAt: null,
+  });
+  const { contentH, overflow, fitFailedAt } = pageFit;
+  const fitFailed = fitFailedAt !== null;
+
+  // Via a ref so this callback's identity never changes: an inline arrow churned the
+  // motion context every zoom step, and framer then re-measured every Reorder.Item.
   const scaleRef = useRef(scale);
   scaleRef.current = scale;
   const transformPagePoint = useCallback(
@@ -1180,33 +1132,30 @@ export function EditorPaper({ scale }: { scale: number }) {
     [],
   );
 
-  // Measure the PRINTED height: hide every no-print affordance first, else their
-  // on-screen height falsely trips the warning on a CV that actually fits one page.
-  // .cv-hidden counts too: it is display:none only inside @media print, so on screen
-  // a hidden section still occupies height and would make hiding it fail to help.
-  const measure = (): number => {
+  /**
+   * Two different limits, and conflating them is what made a page that prints fine
+   * claim its content was being cut:
+   *   ink    - bottom of the real content. Past clientHeight is where print.css
+   *            actually clips, i.e. the only place content is LOST.
+   *   needed - ink plus the bottom margin. What the page needs to look right, which
+   *            is the budget Fit to page and the AI prompt should work against.
+   * Content sitting inside the bottom margin is 61px short of being clipped.
+   */
+  const measure = (): { ink: number; needed: number } => {
     const el = paperRef.current;
-    if (!el) return A4_H;
+    if (!el) return { ink: A4_H, needed: A4_H };
+    // Hide the on-screen-only chrome first, or its height trips the overflow warning
+    // on a CV that actually prints to one page.
     const chrome = el.querySelectorAll<HTMLElement>('.no-print, .cv-hidden');
     chrome.forEach((n) => (n.style.display = 'none'));
-    // Bottom of the last laid-out child, NOT scrollHeight: the paper is a fixed-height
-    // A4 box, so scrollHeight can never fall below clientHeight and a page with room
-    // left reads as an exact fit. That made the free-room half of the AI budget dead
-    // code - it could only ever ask for cuts. Children, so a half-empty page measures
-    // short and the prompt can say how much room is left.
-    //
-    // offsetTop/offsetHeight, NOT getBoundingClientRect: the paper is painted through
-    // transform: scale(zoom), so rects come back in SCREEN px while the clientHeight
-    // this is compared against is layout px. At a 0.7 fit that hid every overflow up
-    // to ~40% past the page - the warning simply did not appear. Offsets ignore
-    // transforms, so no zoom value has to be threaded in here.
+
     const kids = Array.from(el.children).filter((k): k is HTMLElement => k instanceof HTMLElement && k.style.display !== 'none');
     const padBottom = parseFloat(getComputedStyle(el).paddingBottom) || 0;
-    const h = kids.length
-      ? Math.round(Math.max(...kids.map((k) => k.offsetTop + k.offsetHeight)) + padBottom)
-      : el.scrollHeight;
+    const ink = kids.length
+      ? Math.round(Math.max(...kids.map((k) => k.offsetTop + k.offsetHeight)))
+      : Math.round(el.scrollHeight - padBottom);
     chrome.forEach((n) => (n.style.display = ''));
-    return h;
+    return { ink, needed: Math.round(ink + padBottom) };
   };
 
   useLayoutEffect(() => {
@@ -1215,24 +1164,19 @@ export function EditorPaper({ scale }: { scale: number }) {
     let raf = 0;
     const ro = new ResizeObserver(() => check());
 
-    // measure() hides chrome and clips the box, both of which change layout. Doing
-    // that inside the observer's own callback re-triggers it forever and pins the
-    // CPU, so the observer is detached for the duration of every read.
+    // measure() mutates layout, so the observer must be detached around every read or
+    // it re-triggers itself forever and pins the CPU.
     const check = () => {
       ro.disconnect();
-      const h = measure();
-      const nextOverflow = h > el.clientHeight + 1;
-      setFitDeltaPx(h - el.clientHeight); // module-level, not React state; sign carries free room too
+      const { ink, needed } = measure();
+      // Warn only where the PDF actually loses content. Running into the bottom margin
+      // is a layout problem, not a missing paragraph, and must not raise "cut".
+      const nextOverflow = ink > el.clientHeight + 1;
+      setFitDeltaPx(needed - el.clientHeight);
       setPageFit((prev) => {
-        // A "cannot fit" verdict only holds for the content it was measured on. It
-        // used to be cleared solely by a SUCCESSFUL fit, which a failure makes
-        // unreachable (it removes the button), so the message and the missing button
-        // survived deleting content all the way back down to a fittable page.
-        const nextFailed = prev.fitFailedAt === null || prev.fitFailedAt === h ? prev.fitFailedAt : null;
-        // Identity back = React bails out and nothing re-renders. This is the branch
-        // every zoom step and every re-observe takes.
-        if (prev.contentH === h && prev.overflow === nextOverflow && prev.fitFailedAt === nextFailed) return prev;
-        return { contentH: h, overflow: nextOverflow, fitFailedAt: nextFailed };
+        const nextFailed = prev.fitFailedAt === null || prev.fitFailedAt === needed ? prev.fitFailedAt : null;
+        if (prev.contentH === needed && prev.overflow === nextOverflow && prev.fitFailedAt === nextFailed) return prev;
+        return { contentH: needed, overflow: nextOverflow, fitFailedAt: nextFailed };
       });
       raf = requestAnimationFrame(() => ro.observe(el));
     };
@@ -1244,17 +1188,6 @@ export function EditorPaper({ scale }: { scale: number }) {
     };
   }, [doc]);
 
-  /**
-   * Shrink typography until the CV fits one page, then commit once.
-   *
-   * Order is least-destructive first: line spacing is barely noticeable, margins
-   * next, font size last, because a shrunken font is what makes a CV look padded.
-   * Floors are readability limits, not the slider minimums; going to 8pt/1.1 to
-   * win a fit would produce a page nobody wants to read.
-   *
-   * Candidates are written straight to the CSS vars (same trick as the sliders) so
-   * each trial reflows without a React render; the store sees one update at the end.
-   */
   const fitToPage = () => {
     const el = paperRef.current;
     if (!el) return;
@@ -1262,15 +1195,8 @@ export function EditorPaper({ scale }: { scale: number }) {
     const limit = el.clientHeight + 1;
     const t = { ...doc.theme };
 
-    // Density first: it is the only knob that costs the reader nothing, and it did not
-    // exist before, so this used to open with line spacing and end up spending font
-    // size. Floors are sourced, not the slider minimums: Yale OCS puts body text at
-    // 10-12pt and margins at "no smaller than 0.5inch" (= 36pt), so 9pt/34pt was the
-    // automatic fix quietly landing the user under the published floor.
-    // https://ocs.yale.edu/resources/resume-formatting/
     const knobs = [
-      // Row gaps before block gaps: tightening the space between bullets of one entry
-      // is less visible than closing the break between two sections.
+
       { key: 'rowSpacing', cssVar: '--paper-row', floor: 0.72, step: 0.04, unit: '' },
       { key: 'blockSpacing', cssVar: '--paper-block', floor: 0.72, step: 0.04, unit: '' },
       { key: 'lineHeight', cssVar: '--paper-lh', floor: 1.15, step: 0.02, unit: '' },
@@ -1282,26 +1208,27 @@ export function EditorPaper({ scale }: { scale: number }) {
       for (const k of knobs) root.setProperty(k.cssVar, `${t[k.key]}${k.unit}`);
     };
 
-    let fits = measure() <= limit;
+    // `needed`, not `ink`: fitting means the page looks right, margin included.
+    let fits = measure().needed <= limit;
     for (const k of knobs) {
-      // guard: floating-point steps can stall just above the floor
+
       let guard = 200;
       while (!fits && t[k.key] > k.floor && guard-- > 0) {
         t[k.key] = Math.max(k.floor, +(t[k.key] - k.step).toFixed(2));
         apply();
-        fits = measure() <= limit;
+        fits = measure().needed <= limit;
       }
       if (fits) break;
     }
 
     if (!fits) {
-      // put the preview back; nothing is committed, so the doc is untouched
+
       root.setProperty('--paper-row', String(doc.theme.rowSpacing));
       root.setProperty('--paper-block', String(doc.theme.blockSpacing));
       root.setProperty('--paper-lh', String(doc.theme.lineHeight));
       root.setProperty('--paper-margin', `${doc.theme.marginPt}pt`);
       root.setProperty('--paper-size', `${doc.theme.basePt}pt`);
-      const failedAt = measure(); // remember WHICH page could not be fitted
+      const failedAt = measure().needed;
       setPageFit((prev) => (prev.fitFailedAt === failedAt ? prev : { ...prev, fitFailedAt: failedAt }));
       return;
     }
@@ -1317,30 +1244,15 @@ export function EditorPaper({ scale }: { scale: number }) {
   };
 
   return (
-    /**
-     * transformPagePoint is the fix for dragging inside a scaled container. The paper
-     * is `transform: scale(...)`, and framer applies a drag delta measured in SCREEN
-     * pixels as a LOCAL translate, which the scale then shrinks: measured at 0.687
-     * zoom, a 120px pointer move dragged the row only 82px, so the row visibly lagged
-     * the cursor at every zoom except 100%. Dividing the point by the scale converts
-     * screen space back into the paper's own space.
-     *
-     * reducedMotion="user" is the only thing that makes framer honour the OS setting;
-     * a CSS media query cannot reach a JS-driven spring.
-     */
+
     <MotionConfig transformPagePoint={transformPagePoint} reducedMotion="user">
     <div
       className="print-scale-box relative shrink-0 rounded-xl"
       style={{
         width: A4_W * scale,
-        // Grow to show what spills past the page edge. Print is unaffected: print.css
-        // pins .print-paper to one A4 and clips, so the PDF is still exactly one page.
+
         height: Math.max(A4_H, contentH) * scale,
-        // Shadow on the un-scaled outer box: constant at every zoom and even on all
-        // four sides. (On the inner paper it scaled with transform and the downward
-        // offset left the sides nearly shadowless.)
-        // layered and light: the page should read as elevated paper, not as a card
-        // floating off the screen
+
         boxShadow: '0 1px 2px rgba(15,23,32,.04), 0 8px 24px rgba(15,23,32,.08)',
       }}
     >
@@ -1356,18 +1268,15 @@ export function EditorPaper({ scale }: { scale: number }) {
         style={{
           width: `${A4_W}px`,
           height: `${A4_H}px`,
-          // Published so CSS can size hit areas in INVERSE scale: everything in here
-          // is painted through scale(), so a 20px control is ~14 screen px at fit
-          // zoom and ~9 on a phone. See the --hit rules in paper.css.
+
           ['--zoom' as string]: String(scale),
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
-          // above .cv-cut, so overflowing content paints over the tint, not under it
+
           position: 'relative',
           zIndex: 1,
           background: 'var(--surface)',
-          // side margin falls back to the vertical one, so a document saved before the
-          // margin split is byte-identical and needs no migration
+
           padding: 'var(--paper-margin) var(--paper-margin-x, var(--paper-margin))',
           fontFamily: 'var(--paper-font)',
           fontSize: 'var(--paper-size)',
@@ -1375,121 +1284,11 @@ export function EditorPaper({ scale }: { scale: number }) {
           color: '#171b1e',
         }}
       >
-        {/* Wrapper exists for headerLayout='split', which needs name+title and contacts
-            as two columns of one row. It stays a direct child of .print-paper, so the
-            `> *:not(.cv-addsec)` flex rule and the .cv-addsec grow zone are unaffected. */}
-        <div className="cv-head">
-          {/* the CV's own name is the page's heading; the app had no h1 at all */}
-          <h1 className="cv-h1">
-            <Editable value={doc.header.fullName} placeholder="Your name" onCommit={(t) => update((d) => (d.header.fullName = t))} />
-          </h1>
-          <div className="cv-title">
-            <Editable value={doc.header.title} placeholder="Your title" onCommit={(t) => update((d) => (d.header.title = t))} />
-          </div>
-          <div className="cv-contact">
-            {doc.header.contacts.map((c, dbgI) => (
-              // eslint-disable-next-line no-console
-              (console.log(`[contacts]   delete button ${dbgI} rebuilt (id ${c.id})`), true) && (
-              <span className="cv-contact-item" key={c.id}>
-                {(() => {
-                  // Detection is the default only; `icon` overrides it, 'none' silences it.
-                  const kind = c.icon ? (c.icon === 'none' ? null : c.icon) : detectContactKind(c.value);
-                  if (!kind) return null;
-                  return (
-                    <span className="cv-contact-ico" contentEditable={false}>
-                      <ContactIcon kind={kind} />
-                      <button
-                        type="button"
-                        className="cv-ico-x no-print"
-                        title="Remove this icon"
-                        aria-label="Remove this icon"
-                        onClick={() =>
-                          update((d) => {
-                            const ct = d.header.contacts.find((x) => x.id === c.id);
-                            if (ct) ct.icon = 'none';
-                          })
-                        }
-                      >
-                        <XIcon />
-                      </button>
-                    </span>
-                  );
-                })()}
-                <Editable
-                  className={willLink(c.value) ? 'cv-haslink' : undefined}
-                  value={c.value}
-                  fid={`c:${c.id}`}
-                  placeholder="contact"
-                  onCommit={(t) =>
-                    update((d) => {
-                      const ct = d.header.contacts.find((x) => x.id === c.id);
-                      if (ct) ct.value = t;
-                    })
-                  }
-                />
-                <PrintLink value={c.value} />
-                <button
-                  type="button"
-                  className="cv-chip-x no-print"
-                  aria-label="Delete contact"
-                  onClick={() => update((d) => (d.header.contacts = d.header.contacts.filter((x) => x.id !== c.id)))}
-                >
-                  <XIcon />
-                </button>
-              </span>
-              )
-            ))}
-            <button
-              type="button"
-              className="cv-contact-add no-print"
-              title="Add contact"
-              aria-label="Add contact"
-              onClick={() => {
-                const id = uid();
-                update((d) => d.header.contacts.push({ id, value: '' }));
-                requestFocus(`c:${id}`);
-              }}
-            >
-              <PlusIcon />
-            </button>
-          </div>
-        </div>
-        {/* One rule, one X: this hides the header's own line only. The Design panel's
-            Divider lines toggle is still the master switch for all of them. */}
-        <div className="cv-rule" data-norule={doc.header.noRule ? '1' : undefined}>
-          <button
-            className="cv-rule-x no-print"
-            type="button"
-            title="Remove this divider line"
-            aria-label="Remove this divider line"
-            contentEditable={false}
-            onClick={() => update((d) => void (d.header.noRule = true))}
-          >
-            <XIcon />
-          </button>
-        </div>
-        <Reorder.Group as="div" axis="y" values={orderedSections.map((s) => s.id)} onReorder={setSecDragIds}>
-          {orderedSections.map((section) => (
-            <SectionView
-              key={section.id}
-              section={section}
-              update={update}
-              requestFocus={requestFocus}
-              canReorderSection={doc.sections.length > 1}
-              onDeleteSection={() => removeSectionById(section.id)}
-              onSectionCommit={commitSections}
-              onMoveSection={(dir) => moveSection(section.id, dir)}
-              onCancelSectionDrag={() => setSecDragIds(null)}
-              layoutKey={sectionOrderKey}
-            />
-          ))}
-        </Reorder.Group>
-        <AddSection onAdd={addSection} />
+        <PaperBody doc={doc} update={update} paperRef={paperRef} />
       </div>
       {overflow && (
         <>
-          {/* Sits behind the paper (which paints no background past its own box), so
-              the spilled content stays readable on a tinted "this is cut" strip. */}
+
           <div className="no-print cv-cut" style={{ top: A4_H * scale }} aria-hidden="true">
             <span className="cv-cut-label">Cut from the PDF</span>
           </div>

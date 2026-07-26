@@ -1,5 +1,3 @@
-/* First-run pointers. The page underneath is inert for the duration: the tour drives
-   every action itself, so only Skip / Next / Escape end it. */
 .coach-root {
   position: fixed;
   inset: 0;
@@ -7,13 +5,6 @@
   pointer-events: none;
 }
 
-/* One masked dim rather than a veil plus a ring.
-   The previous pair laid rgba(15,23,32,.34) over the WHOLE viewport and then added a
-   second copy of it outside the ring, so the highlighted control was darkened too -
-   a 13px muted label under a 34% black wash is what "I can see the animation but not
-   the text" was. A mask cuts real holes, so the target is lit at full strength, and
-   it is also the only way to spotlight several controls at once: N stacked
-   box-shadow rings would multiply the dim toward black. */
 .coach-dim {
   position: absolute;
   inset: 0;
@@ -24,9 +15,7 @@
 .coach-shade {
   fill: rgba(15, 23, 32, 0.5);
 }
-/* Transparent, on top, and the only thing that takes pointer events: this is what
-   makes the page inert. `all` rather than the default `visiblePainted`, which would
-   let clicks through a fill of `none`. */
+
 .coach-block {
   fill: transparent;
   pointer-events: all;
@@ -36,8 +25,7 @@
   stroke: var(--accent);
   stroke-width: 3;
   animation: coach-pulse var(--dur-pulse) var(--ease-in-out) infinite;
-  /* Rings travel between steps instead of teleporting, so the sequence reads as one
-     tour rather than ten unrelated flashes. */
+
   transition: x var(--dur-3) var(--ease-in-out), y var(--dur-3) var(--ease-in-out),
     width var(--dur-3) var(--ease-in-out), height var(--dur-3) var(--ease-in-out);
 }
@@ -53,11 +41,6 @@
   }
 }
 
-/* The tour pressing a control on your behalf.
-   Held for PRESS_MS before the effect fires, so the dialog opening (or the layout
-   changing) reads as a consequence of THIS button rather than as the page deciding
-   something on its own. Scale plus a dip in brightness, which is what a pressed
-   control does everywhere else in the app. */
 .coach-press {
   animation: coach-press var(--dur-3) var(--ease-out);
   transform-origin: center;

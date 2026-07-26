@@ -1,28 +1,14 @@
-/**
- * Icons for the header contact line.
- *
- * Inline SVG, `aria-hidden`, and never a glyph: an icon FONT (or an emoji) lands in the
- * PDF's text layer, where an ATS reads it as a word joined to the address next to it,
- * and one character outside the bundled latin subset makes Chrome embed a whole fallback
- * font (which `npm run ats-check` fails on). A path draws nothing into the text layer,
- * so the extracted contact line is byte-identical with icons on or off.
- *
- * `detectContactKind` is a guess about a plain string, so it is only ever a default:
- * every contact carries an optional `icon` that overrides it, including 'none'.
- */
 export type ContactKind = 'email' | 'phone' | 'location' | 'linkedin' | 'github' | 'link';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-// +90 533 198 38 53, (555) 123-4567, 05331983853. At least six digits, nothing but
-// dial punctuation around them, so a house number in an address does not qualify.
+
 const PHONE = /^\+?[\d][\d\s().-]{5,}$/;
 const LINKEDIN = /(^|\/\/|\s)(www\.)?linkedin\.com\//i;
-// `in/gurur-...` is how LinkedIn's own share text writes it, and it is what people paste.
+
 const LINKEDIN_SHORT = /^in\/[\w-]+$/i;
 const GITHUB = /(^|\/\/|\s)(www\.)?github\.(com|io)\b/i;
 const URLISH = /^(https?:\/\/|www\.)|^[\w-]+(\.[\w-]+)+(\/|$)/i;
 
-/** Best guess for a contact string, or null when nothing fits. */
 export function detectContactKind(value: string): ContactKind | null {
   const v = value.trim();
   if (!v) return null;
@@ -31,16 +17,11 @@ export function detectContactKind(value: string): ContactKind | null {
   if (GITHUB.test(v)) return 'github';
   if (PHONE.test(v)) return 'phone';
   if (URLISH.test(v)) return 'link';
-  // "Bornova, İzmir, Turkey" / "San Francisco, CA": words and separators, no digits. A
-  // bare single word is left alone - it is as likely to be a handle as a city.
+
   if (/^[^\d@]+,[^\d@]+$/.test(v)) return 'location';
   return null;
 }
 
-/**
- * 16x16 viewBox, `currentColor`, stroke 1.6. Sized in em by .cv-contact-ico so the icon
- * follows the contact line's font size at every zoom and every template.
- */
 export function ContactIcon({ kind }: { kind: ContactKind }) {
   return (
     <svg className="cv-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
@@ -59,8 +40,7 @@ export function ContactIcon({ kind }: { kind: ContactKind }) {
           <circle cx="8" cy="6.5" r="1.8" />
         </>
       )}
-      {/* Brand marks drawn as plain geometry: the "in" is two strokes inside the badge
-          rather than type, so no font is involved and nothing reaches the text layer. */}
+
       {kind === 'linkedin' && (
         <>
           <rect x="1.8" y="1.8" width="12.4" height="12.4" rx="2" />
@@ -69,8 +49,7 @@ export function ContactIcon({ kind }: { kind: ContactKind }) {
           <path d="M8 11.2V6.9m0 1.5a2 2 0 0 1 3.4 1.4v1.4" />
         </>
       )}
-      {/* Git branch, not the octocat: a recognisable mark for a code host that survives
-          being drawn at ~8px, which a silhouette does not. */}
+
       {kind === 'github' && (
         <>
           <circle cx="4.6" cy="3.6" r="1.8" />

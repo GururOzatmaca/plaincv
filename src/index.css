@@ -1,124 +1,68 @@
 @import 'tailwindcss';
 @import './print/print.css';
 
-/* App + document design tokens (single source; drives editor paper and print) */
 :root {
   --bg: #e6e8ea;
   --surface: #ffffff;
   --surface-2: #f5f7f9;
   --ink: #141a1f;
   --muted: #5c6771;
-  /* was #98a2ac (~2.6:1 on white, fails AA for functional text), then #6b7682, which
-     cleared white (4.63:1) but not --surface-2 (4.31:1) - and .imp-hint / .sc-sound /
-     the scrollbar thumb all sit on the tinted surface. One value that clears both. */
+
   --faint: #68727e;
   --line: #e6e9ee;
   --line-2: #d7dde2;
-  /* Two tiers, because a divider and a control boundary are not the same job.
-     --line / --line-2 are DECORATIVE (1.22:1 and 1.37:1 on white) and stay that way.
-     --line-ctl bounds anything you can click whose fill matches the surface behind it,
-     where the hairline is the only thing saying "control": 3.23:1 on --surface and
-     3.01:1 on --surface-2, so WCAG 1.4.11 clears on both.
-     It does NOT clear 3:1 on --bg (2.63:1). The only element that would need that is
-     .design-panel, and a container is not a component whose state must be perceivable;
-     its edge is carried by elevation instead. */
-  --line-ctl: #88909a;
-  /* Disabled is a colour, never `opacity`. Opacity dims the border and the glyph by
-     the same factor, which is how .zm-btn:disabled lost its outline completely
-     (--line-2 at 35% = 1.11:1) and stopped reading as a button at all. The border
-     stays --line-2 so enabled-vs-disabled is still a visible step (3.23 -> 1.37). */
-  --disabled-ink: #88909a;
-  /* Accent family. Every value below the first is DERIVED and is overwritten by
-     writeAccentVars() on mount and on every theme change; the literals here are the
-     default cyan's real derived values, so the first paint matches what JS produces.
-     (--accent-2 used to be #06b6d4 here and #68b0c8 at runtime, i.e. a saturated cyan
-     that turned pale the moment the theme effect ran.) */
-  --accent: #0891b2;
-  --accent-2: #68b0c8; /* pale variant; the logo gradient */
-  --accent-weak: #e0eef4; /* tinted surface */
-  --accent-ink: #056880; /* accent TEXT on --accent-weak, >=4.5:1 */
-  --accent-strong: #056880; /* solid fill carrying WHITE text, >=4.5:1 */
 
-  /* Motion scale. Before this there were 11 distinct durations and 7 easing curves
-     picked per component, which is what made the app feel unfinished rather than slow.
-     Three durations by role, two curves, and nothing the user AIMS at overshoots:
-     an overshooting control is a control you have to wait to settle before clicking. */
-  --dur-1: 90ms; /* hover, focus, colour: must feel instant */
-  --dur-2: 160ms; /* reveals, panels, dialogs: perceptible but not waited on */
-  --dur-3: 260ms; /* zoom and layout: large travel, needs to be followable */
-  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1); /* default; decelerates into place */
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1); /* only when something both leaves and arrives */
-  /* Overshoot, reserved for the ONE celebratory moment (the import success tick).
-     Deliberately not used on any control, which is why --bounce was deleted: it had
-     zero consumers and existed only to tempt. */
+  --line-ctl: #88909a;
+
+  --disabled-ink: #88909a;
+
+  --accent: #0891b2;
+  --accent-2: #68b0c8;
+  --accent-weak: #e0eef4;
+  --accent-ink: #056880;
+  --accent-strong: #056880;
+
+  --dur-1: 90ms;
+  --dur-2: 160ms;
+  --dur-3: 260ms;
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
   --squish: cubic-bezier(0.34, 1.56, 0.64, 1);
-  /* The accent dock's magnify. Overshoots slightly, which the interaction curves
-     deliberately do not: the chips are a strip you sweep across, not a target you
-     aim at and click while it is still settling. */
+
   --ease-dock: cubic-bezier(0.175, 0.885, 0.32, 1.1);
-  /* Ambient pulses are a fourth role the three interaction durations do not cover:
-     they are not reacting to anything, so they are not judged by "did that feel
-     instant". One value for the two that exist (the saving dot, the coachmark ring),
-     which were 1s and 1.6s picked independently. */
+
   --dur-pulse: 1400ms;
 
-  /* One height for every control on the app toolbar, and one radius scale for the
-     whole of the chrome. There were 10 distinct radii, including the near-duplicate
-     pairs 7/7.2px and 9/9.6px, which is the kind of drift you cannot see one at a
-     time and can see all at once. */
   --ctl-h: 32px;
   --r-sm: 6px;
   --r-md: 8px;
   --r-lg: 10px;
 
-  /* live document tokens (theme-controlled) */
   --paper-font: 'LibSerif', Georgia, serif;
   --paper-size: 10.5pt;
   --paper-lh: 1.4;
-  /* Classic's preset. hscale is the section heading's own multiplier on --paper-size
-     since v7; nscale is the name's. Both are plain ratios, so the rendered pt reads
-     straight off the value. */
+
   --paper-hscale: 1.22;
   --paper-nscale: 1.96;
   --paper-rscale: 1.08;
   --paper-tscale: 0.571;
   --paper-density: 1;
-  /* One line of body text. Every vertical gap on the paper is a multiple of THIS, not
-     an absolute pt value, so the rhythm follows the type instead of drifting against
-     it. Measured before the change: an identical 12pt section gap was 0.82 of a line
-     in Classic (14.7pt leading) and 0.96 in Dense (12.5pt), i.e. Dense - the template
-     whose whole job is fitting the most - had the loosest spacing of the seven, while
-     its Density pin still read 100%. */
+
   --paper-lead: calc(var(--paper-size) * var(--paper-lh));
   --paper-margin: 46pt;
   --paper-accent: #0891b2;
-  /* Secondary ink: date, organisation, skill label, contacts, education note.
-     #565c63 measured 6.76:1 on white = 70% of the body ink's darkness in L*, i.e. the
-     light end of the conventional 65-75% band for secondary text. It passed every
-     threshold and still read washed next to a 17.33:1 body, because the page has only
-     two ink levels and that is a 2.6x step. #474e55 is 8.44:1 = 74%, one step darker:
-     still unmistakably secondary, and it survives a photocopy, which a printed CV has
-     to. Note this is legibility only - ink colour has ZERO effect on the extracted
-     text layer, which is why there is no control for it. */
+
   --paper-muted: #474e55;
 }
 
-/* range sliders: accent-filled left side + grey right, accent thumb.
-   Filled portion driven by --pct (set per slider) using var(--accent) explicitly,
-   so light accents never trigger the browser dark-track quirk. */
-/* 24px, not 16: the element box IS the grab target, and these four sliders shape the
-   whole document. The track and thumb are unchanged - Chrome centres the runnable
-   track in the content box, so growing the box only grows the reachable strip. */
 input[type='range'] {
-  -webkit-appearance: none;
   appearance: none;
   width: 100%;
   height: 24px;
   background: transparent;
   cursor: pointer;
-  /* Every slider here is horizontal, so a vertical drag on one is a scroll, not an
-     edit. Without this a touch that starts on a slider is swallowed and the page
-     will not move - and the panel is mostly sliders. */
+
   touch-action: pan-y;
 }
 input[type='range']::-webkit-slider-runnable-track {
@@ -155,15 +99,6 @@ input[type='range']::-moz-range-thumb {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
-/* Baseline keyboard focus. Several components set `outline: none` with nothing in
-   its place, which left keyboard users with no idea where they were. This is a
-   pseudo-class selector so it outranks a bare class rule that clears the outline.
-
-   --accent-strong, not --accent: clampAccent() only caps luminance at 0.30, i.e. it
-   guarantees ~3.0:1 on WHITE and nothing at all on a tinted surface. A legal bright
-   accent (#ffde59 clamps to #a9943b) measured 2.80:1 against --surface-2, which is
-   exactly where the .radio-inputs ring lands. --accent-strong is derived per accent
-   to clear 4.5:1 on white, so the ring clears 3:1 on every surface in the app. */
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
@@ -187,25 +122,11 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Held while the saved document loads out of IndexedDB (see App.tsx). Body --bg, so
-   the wait reads as the app's own background rather than as a missing page. */
 .app-boot {
   height: 100%;
   background: var(--bg);
 }
 
-/* Center the paper, but fall back to start when it's wider than the stage (zoomed
-   in) so the left edge stays reachable by scroll. Plain center clips the overflow
-   start. `stage-just-safe` = row main-axis; `stage-align-safe` = column cross-axis. */
-.stage-just-safe {
-  justify-content: safe center;
-}
-.stage-align-safe {
-  align-items: safe center;
-}
-
-/* Bounded editor shell. `safe` keeps the left edge reachable by scroll when the
-   paper is zoomed wider than the stage; plain center would clip the overflow start. */
 .editor-shell {
   display: flex;
   align-items: flex-start;
@@ -213,8 +134,7 @@ body {
   margin-inline: auto;
   width: 100%;
 }
-/* Single column: grow to the zoomed page instead of overflowing, so the shell's own
-   side padding stays inside the scrollable area on both edges. */
+
 .editor-shell-narrow {
   flex-direction: column;
   align-items: safe center;
@@ -222,9 +142,6 @@ body {
   min-width: 100%;
 }
 
-/* Everything below the page edge, marked as dropped from the PDF (screen only).
-   z-index 0 keeps it behind .print-paper, whose background stops at the page edge,
-   so the spilled text reads on top of the tint instead of being covered by it. */
 .cv-cut {
   position: absolute;
   left: 0;
@@ -249,12 +166,10 @@ body {
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  /* full strength: at 0.75 this composited to #c1544d over --bg = 3.68:1, and it is
-     the label that tells you content is being dropped from the PDF */
+
   color: #b42318;
 }
 
-/* overflow warning pill, pinned to the page edge (screen only; never printed) */
 .cv-overflow-badge {
   position: absolute;
   z-index: 2;
@@ -294,9 +209,6 @@ body {
   transform: scale(0.94);
 }
 
-/* ---- App header ----
-   A real application toolbar: fixed height, one hairline separating it from the
-   editor, three explicit zones (identity+history / zoom / status+actions). */
 .app-header {
   display: flex;
   flex-wrap: wrap;
@@ -353,20 +265,13 @@ body {
   }
 }
 
-/* Tablet and small laptop: two rows.
-   1  logo + undo/redo .................... Saved  ?
-   2  zoom .......... View options  Fill with AI  Download PDF
-   Grid, not flex-wrap: wrapping cannot be told WHERE to break, so the zoom cluster
-   ended up squeezed between the two groups. `display: contents` dissolves the
-   desktop right-hand wrapper so its two groups can be placed independently. */
 @media (max-width: 1024px) {
   .app-header {
     display: grid;
     grid-template-columns: 1fr auto;
     align-items: center;
     gap: 10px 12px;
-    /* min-height alone centred a single row; with two rows it left none, so the top
-       row sat against the top edge and the bottom row against the hairline. */
+
     padding: 9px 20px;
   }
   .hdr-side-end {
@@ -389,11 +294,6 @@ body {
   }
 }
 
-/* Phone: three rows. 620, not 780: a 768px tablet has room for the two-row layout
-   above, and the user reads that one as the better fit.
-   1  logo + undo/redo ....... Saved  ?
-   2  [ View options ][ Fill with AI ][ Download PDF ]   <- equal thirds, full width
-   3  ............ zoom ............ */
 @media (max-width: 620px) {
   .app-header {
     gap: 8px 10px;
@@ -401,13 +301,10 @@ body {
   }
   .hdr-actions {
     grid-area: 2 / 1 / 3 / 3;
-    /* stretch, not the `end` inherited from the tablet block above: `end` sizes the
-       row to its content and pins it right, which is what made the buttons small and
-       bunched into the right half. */
+
     justify-self: stretch;
     display: grid;
-    /* minmax(0,·), not 1fr: a bare 1fr floors at the track's content width, so the
-       three buttons came out 98/112/120 instead of equal thirds. */
+
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
   }
@@ -415,8 +312,7 @@ body {
     grid-area: 3 / 1 / 4 / 3;
     justify-self: center;
   }
-  /* two classes: the per-button rules below carry one each and would otherwise win
-     on source order */
+
   .app-header .hdr-actions > * {
     padding: 8px 2px;
     font-size: 12px;
@@ -424,14 +320,6 @@ body {
   }
 }
 
-/* Very narrow. Undo/redo leave the identity row, where they were competing with the
-   CV name for a strip about 250px wide, and take the third row with the zoom:
-   1  logo  CV switcher .................... Saved  ?
-   2  [ View options ][ Fill with AI ][ Download PDF ]
-   3  zoom ............................... undo redo
-   `display: contents` dissolves the left-hand flex wrapper so its children can be
-   placed individually; a third column gives the logo and the switcher a cell each
-   instead of stacking them in one. */
 @media (max-width: 449px) {
   .app-header {
     grid-template-columns: auto 1fr auto;
@@ -460,18 +348,13 @@ body {
     grid-area: 3 / 1 / 4 / 3;
     justify-self: start;
   }
-  /* the undo/redo pair, which is the only .hdr-group inside the identity wrapper */
+
   .app-header > .hdr-side > .hdr-group {
     grid-area: 3 / 3;
     justify-self: end;
   }
 }
 
-/* --- action hierarchy: primary > secondary > tertiary > icon ---
-   One height for every control on the toolbar row. They used to be six different
-   ones (18 / 28 / 30 / 30.8 / 33.5 / 35.5 / 37.5px) sharing a centre line, which read
-   as inconsistent pills rather than a set. --ctl-h is the row's single measurement;
-   the border on .hdr-ai is inside it, so it no longer comes out 2px taller. */
 .hdr-dl,
 .hdr-ai,
 .hdr-ghost {
@@ -485,11 +368,7 @@ body {
   white-space: nowrap;
   cursor: pointer;
 }
-/* The export CTA: a solid accent pill whose fill DRAINS to a strip along the bottom on
-   hover, leaving the outline and dark text behind. The fill is a ::before rather than a
-   background on the button, because a background cannot be animated from full height to
-   a sliver. It is inset -5px on three sides so its own edges never show inside the
-   radius while it travels; overflow: hidden is what clips it back to the pill. */
+
 .hdr-dl {
   position: relative;
   overflow: hidden;
@@ -506,9 +385,7 @@ body {
   left: -5px;
   right: -5px;
   bottom: -5px;
-  /* calc, not the 111% the effect is usually written with: a percentage resolves
-     against the PADDING box, and with the fill pinned 5px BELOW it, 111% of 28.4px
-     stopped 1.9px short of the top and left a white band across the button. */
+
   height: calc(100% + 10px);
   background: var(--accent-strong);
   transition: height var(--dur-2) var(--ease-out);
@@ -540,9 +417,7 @@ body {
   background: var(--accent-weak);
   color: var(--accent-ink);
 }
-/* ---- Document switcher ----
-   Sits beside the wordmark because it names what you are looking at; putting it
-   with the actions would have read as another verb. */
+
 .doc-switch {
   position: relative;
   min-width: 0;
@@ -609,7 +484,7 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  /* keeps the delete off the menu's right edge, where it read as clipped */
+
   padding-right: 7px;
   border-radius: 8px;
 }
@@ -665,8 +540,7 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* 24px floor: at `padding: 5px 7px` on an 11.5px glyph this measured ~22 x 23.5,
-     and it is a DESTRUCTIVE control (delete a CV) that is not undoable. */
+
   min-width: 24px;
   min-height: 24px;
   border: none;
@@ -729,7 +603,7 @@ body {
 .hdr-ai:hover {
   background: var(--surface-2);
 }
-/* 11%, so a band of accent stays under the label and the button never reads as empty */
+
 .hdr-dl:hover::before {
   height: 11%;
 }
@@ -741,7 +615,6 @@ body {
   transform: scale(0.97);
 }
 
-/* undo / redo */
 .hdr-btn {
   display: grid;
   place-items: center;
@@ -758,14 +631,12 @@ body {
   background: var(--surface-2);
   color: var(--ink);
 }
-/* Undo and redo are BOTH disabled on every page load, so this is the first thing in
-   the toolbar anyone sees. At opacity .3 it composited to #ced1d4 = 1.53:1. */
+
 .hdr-btn:disabled {
   color: var(--disabled-ink);
   cursor: not-allowed;
 }
 
-/* --- zoom: neutral chrome, accent reserved for selection and the export CTA --- */
 .zm-btn {
   display: grid;
   place-items: center;
@@ -781,9 +652,7 @@ body {
 .zm-btn:hover:not(:disabled) {
   background: var(--surface-2);
 }
-/* The glyph AND the border step down together, so the button still reads as a button
-   (1.37:1 border is faint but present) while clearly reading as unavailable. The old
-   `opacity: .35` took the border to 1.11:1, i.e. gone. */
+
 .zm-btn:disabled {
   border-color: var(--line-2);
   color: var(--disabled-ink);
@@ -816,7 +685,7 @@ body {
   color: #5c6771;
   white-space: nowrap;
 }
-/* --accent measures 3.68:1 on white at 12px; --accent-strong is derived to clear 4.5:1 */
+
 .hdr-save.busy {
   color: var(--accent-strong);
 }
@@ -832,8 +701,6 @@ body {
   50% { opacity: 1; }
 }
 
-
-/* storage-recovery bar (screen only) */
 .rec-bar {
   display: flex;
   flex-wrap: wrap;
@@ -841,9 +708,7 @@ body {
   gap: 10px;
   margin: 0 28px 12px;
   padding: 10px 14px;
-  /* one red boundary for the whole bar: 3.02:1 on --bg, 3.42:1 on the bar's own
-     #fef3f2. The old pair (#f0c6c2 / #e3b5b0) measured 1.26:1 and 1.68:1, and the
-     bar's fill is only 1.13:1 against --bg, so nothing bounded it at all. */
+
   border: 1px solid #b8726a;
   border-radius: 12px;
   background: #fef3f2;
@@ -874,19 +739,6 @@ body {
   color: #fff;
 }
 
-
-/* ---- Reduced motion, globally ----
-   This replaces five per-file allowlists that each enumerated specific selectors, so
-   anything added later opted out of reduced motion silently. (The cvparticles burst
-   had already escaped that way: the old rule named .name, but the animation runs on
-   its ::before/::after.)
-
-   0.01ms rather than `none` is deliberate: the animation still runs and still fires
-   its completion, so a `forwards` fill lands on its END state. `animation: none` would
-   leave the import tick permanently undrawn instead of instantly drawn.
-
-   !important is required, not decorative: the zoom transition is an inline style on
-   .print-paper, and nothing without !important can override that. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -894,42 +746,12 @@ body {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-    /* animation-delay has to go too, or reduced motion removes the MOTION and leaves
-       the dead time. The import splash is choreographed against itself (tick at 0.7s,
-       check at 0.6s, heading at 0.75s, close at 1.6s), so without this the user sat
-       through 1.6s of a static screen - a worse experience than the animation, not a
-       calmer one.
 
-       transition-delay is deliberately NOT reset. The only one in the app is the
-       0.3s hide-delay on a row's delete (paper.css), which exists so the button
-       stays lit while the pointer crosses the gap to reach it. That is a targeting
-       aid, not decoration, and reduced motion has no reason to remove it. */
     animation-delay: 0s !important;
     scroll-behavior: auto !important;
   }
 }
 
-/* ---- Scrolling ----
-   scroll-behavior affects PROGRAMMATIC and anchor scrolling only; it does nothing to
-   the wheel or trackpad, and that is deliberate. Intercepting the wheel to "smooth"
-   it fights the OS's own inertia, breaks find-in-page and keyboard scrolling, and is
-   the single most complained-about pattern on the web. Native scrolling stays native.
-
-   One scrollbar treatment for every scroller in the app: the seven containers used to
-   be a mix of styled, unstyled, and whole-rounded-card-scrolls. A default scrollbar
-   also paints a square-cornered track against a rounded edge, which visually cancels
-   the radius (this is what the Help dialog was rebuilt to avoid). */
-html {
-  scroll-behavior: smooth;
-}
-/* ONE spec, used by every scroller including the Design panel, which used to run its
-   own near-copy (8px rail, 2px inset, --line thumb, --faint hover) against this one's
-   10px / 3px / --line-2 / --muted. Two treatments a few px apart is exactly the kind
-   of difference you cannot name but can feel when you move between them.
-
-   4px of visible thumb inside an 8px rail: the inset keeps the thumb off the card's
-   rounded corner, so a scrollbar never squares off a 20px radius, and it is light
-   enough not to compete with the content it sits beside. */
 .app-scroll,
 .panel-scroll {
   scrollbar-width: thin;
@@ -956,16 +778,12 @@ html {
   background: var(--faint);
   background-clip: content-box;
 }
-/* Overlays must not hand their scroll to the page behind them once they hit the end.
-   .panel-scroll is not an overlay but belongs here for the same reason: it sits beside
-   the stage, and without contain, reaching either end of the Design panel handed the
-   wheel straight to the CV page behind it (measured: 414px of stage travel from a
-   panel that was already at its stop). That hand-off is what read as the panel
-   scrolling "harder" than the help sheet, which has had contain all along. */
+
+/* No scroll chaining: without this, hitting the end of any of these hands the wheel
+   straight to the CV page behind it. */
 .doc-list,
 .fp-menu,
-.cv-addsec-menu,
-.imp-card,
+.imp-body,
 .err-wrap,
 .panel-scroll {
   overscroll-behavior: contain;

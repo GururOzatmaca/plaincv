@@ -1,12 +1,3 @@
-/* Minimal: quiet. No rules, no colour, muted headings set in air rather than in small
-   type, hollow bullets, borderless skills. Distinctness must survive the Design
-   panel's "Divider lines" toggle, so it comes from typography here, not only from
-   dividers being off by default in the registry.
-   GUARDRAIL: template CSS must NEVER set position / display / overflow / max-height
-   on .cv-section/.cv-secH/.cv-entry/.cv-li/.cv-etop; those drive the drag hit-zones
-   and the collapse-to-zero add/reorder affordances. Structure belongs to paper.css.
-   Enforced by `npm run guardrail` (scripts/check-guardrail.mjs), which also requires
-   every selector here to be scoped to this file's own data-template id. */
 [data-template='minimal'] .cv-h1 {
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -18,37 +9,25 @@
 [data-template='minimal'] .cv-rule {
   border-bottom: 0.5pt solid #dfe3e7;
 }
-/* Minimal used to be the quiet template because its headings were 0.78x the body.
-   A heading may no longer print smaller than its body (see .cv-secH in paper.css),
-   so the quiet now comes from AIR: 18pt above a section against the base 12pt, and
-   nothing at all under it. 0.18em of tracking is also gone - past ~0.11em a
-   geometry-based extractor calls every letter gap a word break and EDUCATION came
-   out as "E D U C AT I O N". Colour, the absent rule and the absent accent are what
-   carry this template now. */
+
 [data-template='minimal'] .cv-secH {
   color: var(--paper-muted);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   border-bottom: none;
-  /* density-scaled like paper.css's base 12/6pt, or the Density slider would move
-     every template's section rhythm except this one */
+
   margin: calc(var(--paper-lead) * 1.18 * var(--paper-block)) 0 calc(var(--paper-lead) * 0.33 * var(--paper-block));
   padding-bottom: 0;
 }
-/* was `content: '–  '`. The en-dash was Minimal's marker identity and it IS inside
-   the bundled subset, so it cost no extra font - but it still prefixed every
-   extracted bullet with an en-dash. `circle` is the lightest marker Blink will
-   paint, which is the same gesture without entering the text layer. Not to be
-   confused with the chip ::before middot below: that one separates borderless skill
-   chips, is the only thing between one skill and the next, and stays. */
+
 [data-template='minimal'] .cv-ul {
   list-style-type: circle;
 }
 [data-template='minimal'] .cv-li::marker {
   color: var(--paper-muted);
 }
-[data-template='minimal'] .cv-chip {
+[data-template='minimal'] .cv-chip:not(.cv-chip-add) {
   background: transparent;
   border: none;
   border-radius: 0;
@@ -56,9 +35,7 @@
   padding-right: 0;
   color: var(--paper-muted);
 }
-/* borderless chips need their own separator or they run together */
-/* was #b6bec6, measured 1.88:1 on white. This dot is the ONLY thing separating one
-   borderless skill from the next, so it has to be legible, not decorative. */
+
 [data-template='minimal'] .cv-chip:not(.cv-chip-add) + .cv-chip:not(.cv-chip-add)::before {
   content: '·';
   margin: 0 7pt 0 2pt;
