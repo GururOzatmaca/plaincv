@@ -15,7 +15,7 @@ export const DEFAULT_THEME: Theme = {
   headerLayout: 'left',
   entryLayout: 'date-right',
   headingLayout: 'rule',
-  skillStyle: 'badge',
+  skillStyle: 'plain',
   basePt: 10.5,
   // matches Classic's defaultTheme, so the slider's "recommended" pin sits under the
   // thumb on a fresh document instead of one notch off

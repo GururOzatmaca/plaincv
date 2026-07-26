@@ -10,7 +10,15 @@ export const STORE_KEY = 'cv-generator/doc';
 // v4: skills items became {id, label?, values[]} (were string[]); retired template
 // ids remapped. normalizePersistedDoc backfills all of it and is idempotent.
 // v5: one document became a library - {doc} -> {library: {<id>: doc}, activeId}.
-export const PERSIST_VERSION = 5;
+// v6: theme.skillStyle 'badge' -> 'plain'. A badge chip carries 9pt of horizontal
+// padding, so two adjacent skills sit ~2.2 em-widths apart - well past the gap at
+// which a geometry-based PDF extractor calls a column boundary, and the skills
+// section came out read DOWN the rows instead of along them in 6 of 7 templates.
+// It cannot be tuned away; a pill needs its padding. Changing the zod default
+// reaches only NEW documents, because every document saved before this carries
+// 'badge' explicitly, so this is the only place the fix can reach a library that
+// already exists.
+export const PERSIST_VERSION = 6;
 
 /**
  * Every document plus which one is being edited.
@@ -96,6 +104,19 @@ function readLibrary(raw: unknown): { lib: Library; dropped: number } | null {
 const seedLibrary = (): Library => ({ library: { [sampleResume.id]: sampleResume }, activeId: sampleResume.id });
 
 /**
+ * v6. One-time and version-gated. Deliberately NOT in normalizePersistedDoc: that
+ * runs on every load, so putting it there would silently undo a user who later picks
+ * Badges on purpose. A migration may overrule a stored choice once; it may not keep
+ * doing it. Safe to mutate: readDoc hands back a fresh object from zod, never the
+ * persisted payload.
+ */
+function applyV6(lib: Library): void {
+  for (const doc of Object.values(lib.library)) {
+    if (doc.theme.skillStyle === 'badge') doc.theme.skillStyle = 'plain';
+  }
+}
+
+/**
  * Version chain. Older payloads fall through to the same reader, which validates.
  * Never returns the seed without first backing up what was there, so a bad
  * migration is recoverable instead of fatal.
@@ -103,6 +124,9 @@ const seedLibrary = (): Library => ({ library: { [sampleResume.id]: sampleResume
 export function migratePersisted(persisted: unknown, fromVersion: number): Library {
   const key = backup(`v${fromVersion}`, persisted);
   const read = readLibrary(persisted);
+  // Before the dropped-document branch, so a partially unreadable library still gets
+  // the fix on the documents that DID survive.
+  if (read && fromVersion < 6) applyV6(read.lib);
   if (read && !read.dropped) return read.lib;
   recovery = { kind: 'unreadable', backupKey: key };
   return read ? read.lib : seedLibrary();

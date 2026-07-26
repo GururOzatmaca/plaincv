@@ -23,8 +23,18 @@ const BARREL = 'templates.css';
 const GUARDED = ['cv-section', 'cv-secH', 'cv-entry', 'cv-li', 'cv-etop'];
 const BANNED = 'position|display|overflow(?:-x|-y)?|max-height';
 
+// Tracking cap on section headings. letter-spacing widens the gap between GLYPHS, and
+// past roughly 0.11em a geometry-based PDF extractor starts calling every one of those
+// gaps a word break: EDUCATION came out of three templates as "E D U C AT I O N", which
+// to an ATS is worse than having no heading at all, because the section boundary is
+// gone. Measured in Chrome + pdftotext: 0.08 / 0.09 / 0.10em clean, 0.12 / 0.14 / 0.18em
+// broken. `npm run ats-check` catches it against a real render; this catches it in 40ms.
+const TRACK_MAX = 0.08;
+
 const guardedRe = new RegExp(`\\.(?:${GUARDED.join('|')})(?![\\w-])`);
 const bannedRe = new RegExp(`(?:^|[;{])\\s*(${BANNED})\\s*:`, 'gi');
+const secHRe = /\.cv-secH(?![\w-])/;
+const trackRe = /letter-spacing\s*:\s*(-?[\d.]+)em/gi;
 const ruleRe = /([^{}]+)\{([^{}]*)\}/g;
 const scopeRe = /\[data-template=['"]?([\w-]+)['"]?\]/;
 
@@ -59,7 +69,21 @@ for (const file of files) {
       errors.push(`${path}:${line}  selector scoped to '${scope[1]}' but lives in ${file} - a template may only style its own id`);
     }
 
-    // 2. Structure: banned properties on the five load-bearing selectors.
+    // 2. Tracking: a section heading may not be tracked so wide that it extracts as
+    //    separated letters. See TRACK_MAX above.
+    if (secHRe.test(selector)) {
+      trackRe.lastIndex = 0;
+      for (const m of body.matchAll(trackRe)) {
+        if (parseFloat(m[1]) > TRACK_MAX) {
+          const declLine = lineAt(css, rule.index + rawSelector.length + 1 + m.index);
+          errors.push(
+            `${path}:${declLine}  letter-spacing ${m[1]}em on \`${selector}\` exceeds ${TRACK_MAX}em - the heading will extract as separated letters`,
+          );
+        }
+      }
+    }
+
+    // 3. Structure: banned properties on the five load-bearing selectors.
     if (!guardedRe.test(selector)) continue;
     bannedRe.lastIndex = 0;
     for (const decl of body.matchAll(bannedRe)) {
@@ -72,10 +96,17 @@ for (const file of files) {
 if (errors.length) {
   console.error(`Guardrail violations (${errors.length}):\n`);
   for (const e of errors) console.error(`  ${e}`);
-  console.error(`\nGuarded selectors: ${GUARDED.map((g) => `.${g}`).join(', ')}`);
-  console.error(`Banned properties: position, display, overflow, overflow-x, overflow-y, max-height`);
-  console.error(`\nThese belong in src/components/paper.css, which owns structure. If a layout`);
-  console.error(`genuinely needs one, add a data-* axis there instead of a template override.`);
+  if (errors.some((e) => e.includes('structural property') || e.includes('unscoped') || e.includes('scoped to'))) {
+    console.error(`\nGuarded selectors: ${GUARDED.map((g) => `.${g}`).join(', ')}`);
+    console.error(`Banned properties: position, display, overflow, overflow-x, overflow-y, max-height`);
+    console.error(`\nThese belong in src/components/paper.css, which owns structure. If a layout`);
+    console.error(`genuinely needs one, add a data-* axis there instead of a template override.`);
+  }
+  if (errors.some((e) => e.includes('letter-spacing'))) {
+    console.error(`\nTracking: a section heading may be tracked up to ${TRACK_MAX}em. Above that a PDF text`);
+    console.error(`extractor reads the letter gaps as word breaks and EDUCATION comes out "E D U C AT I O N",`);
+    console.error(`which loses the section boundary entirely. Verify a change with \`npm run ats-check\`.`);
+  }
   process.exit(1);
 }
 

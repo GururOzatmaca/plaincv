@@ -24,7 +24,7 @@
   color: #1a1e21;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.06em;
   border-bottom: 0.75pt solid #2a2f34;
 }
 [data-template='harvard'] .cv-li::marker {

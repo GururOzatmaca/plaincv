@@ -66,7 +66,14 @@ body.coach-tour:not(.coach-bare) .cv-rule-x {
   padding-bottom: 0;
 }
 .cv-secH {
-  font-size: calc(var(--paper-size) * var(--paper-hscale) * 0.6);
+  /* A section heading may never print SMALLER than the body it labels: below body
+     size a parser stops reading it as a heading, and three templates had drifted to
+     0.78-0.87x (Minimal was 8.19pt against a 10.5pt body). The floor lives here and
+     not in the template registry because --paper-hscale also drives .cv-h1 at 1.15x,
+     so raising Harvard's headingScale far enough to clear the floor would have taken
+     its NAME from 18.3pt to 21.5pt. Side effect worth knowing: the Heading scale
+     slider stops moving section headings below hscale 1.667 (it still drives the name). */
+  font-size: max(calc(var(--paper-size) * var(--paper-hscale) * 0.6), var(--paper-size));
   margin: 12pt 0 6pt;
   padding-bottom: 2pt;
 }
@@ -360,8 +367,8 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
 }
 .cv-li .cv-x,
 .cv-chip-x .cv-x {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
 }
 .cv-drag svg {
   width: 8px;
@@ -631,8 +638,11 @@ body.coach-tour:not(.coach-bare) .cv-addsec-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 15px;
-  height: 15px;
+  /* 13, not 15: on a skill this is a badge sitting over the word's own corner, so it
+     has to be lighter than the row-level deletes. The clickable area is unchanged,
+     being driven by --hit rather than by this box. */
+  width: 13px;
+  height: 13px;
   margin-left: 4px;
   border: none;
   border-radius: 50%;
@@ -647,7 +657,9 @@ body.coach-tour:not(.coach-bare) .cv-addsec-btn {
 }
 /* skills delete floats at the chip's corner (absolute, no reserved space) so the
    skill text stays centered and hovering never reflows the row. Contacts keep the
-   inline X above. */
+   inline X above.
+   -6px is calibrated to the BADGE pill, whose 12px of right padding is what the
+   button overhangs; see the padding-less styles below for the other two. */
 .cv-chip > .cv-chip-x {
   position: absolute;
   top: -4px;
@@ -726,12 +738,22 @@ body.coach-tour:not(.coach-bare) .cv-chip-x {
 .cv-ul {
   margin: 4pt 0 0;
   padding-left: 13pt;
+  /* Load-bearing, NOT a restatement of the UA default: Tailwind's preflight sets
+     `ol, ul, menu { list-style: none }`, so without this every bullet on the page
+     loses its marker. It lives on .cv-ul rather than on .cv-li so a template can
+     override the SHAPE from the parent (a value specified on .cv-li would win over
+     any `[data-template] .cv-ul` rule and pin every template to the same marker). */
+  list-style-type: disc;
 }
 .cv-li {
   margin-bottom: 2.5pt;
-  list-style: disc;
 }
-/* marker colour/glyph is a template decision (see src/templates/) */
+/* Marker colour and SHAPE are a template decision (see src/templates/). Only
+   disc / circle / square may be used: Blink PAINTS those as vector shapes, so they
+   never enter the PDF's text layer. A `::marker { content: '...' }` string does - it
+   landed at the head of every extracted bullet - and any glyph outside the bundled
+   latin + latin-ext subset (see scripts/build-fonts.mjs) also makes Chrome embed an
+   entire extra fallback font for that one character. */
 
 /* Hovering a section outlines it, so the page reads as an editor rather than a
    preview sitting next to a settings form. `outline` is used deliberately: it does
@@ -798,7 +820,14 @@ body.coach-tour:not(.coach-bare) .cv-chip-x {
   position: relative; /* containing block for the row's delete hit-zone */
   display: flex;
   align-items: baseline;
-  gap: 8pt;
+  /* Relative, and small. This gap resolves against the ROW's font-size but the values
+     next to it render at 0.88x that (see .cv-chip), so the old fixed 8pt was 0.96
+     em-widths of the value font at Dense's 9.5pt body against 0.87 at Classic's 10.5pt
+     - and past roughly 0.9 a geometry-based PDF extractor calls it a column boundary.
+     Dense's labels split into a column of their own and the three rows stopped reading
+     across. A pt value could also be pushed back over the line by the font-size
+     slider; an em one cannot. */
+  gap: 0.2em;
   margin-bottom: 3pt;
 }
 .cv-skillrow:last-of-type {
@@ -890,12 +919,35 @@ body.coach-tour:not(.coach-bare) .cv-skilllabel-empty,
 }
 .print-paper[data-skills='plain'] .cv-chip:not(.cv-chip-add) + .cv-chip:not(.cv-chip-add)::before {
   content: '·';
-  margin: 0 6pt;
+  /* em, not pt, for the same reason as .cv-skillrow's gap: 6pt was 0.72 em-widths at
+     Dense's body size and would cross the extractor's column threshold if the
+     font-size slider went any lower. */
+  margin: 0 0.45em;
   color: var(--paper-muted);
 }
 /* gap:0 in plain glues the "+" to the last skill; give it breathing room */
 .print-paper[data-skills='plain'] .cv-chip-add {
   margin-left: 8pt;
+}
+/* Plain and Bullets strip the pill's padding, and the delete's -6px overhang was
+   measured against that padding: with it gone the 15px button landed 9px INSIDE the
+   word and covered 59% of it ("Go" read as "G").
+   Lifted to a true corner badge rather than just pushed right. Plain packs skills
+   about 14px apart, so a button moved only sideways cleared its own word and landed
+   on the NEXT one instead (measured: 8 of them). Swept top/right together; this is
+   the only pair that collides with neither the next skill nor the row above, and it
+   leaves the badge grazing the ascender line the way it overlaps the pill's corner in
+   Badge. Nothing here touches layout or extraction: the button is absolutely
+   positioned and .no-print. */
+.print-paper[data-skills='plain'] .cv-chip:not(.cv-chip-add) > .cv-chip-x,
+.print-paper[data-skills='bullets'] .cv-chip:not(.cv-chip-add) > .cv-chip-x {
+  right: -13px;
+}
+/* Only Plain needs the lift. Its skills sit ~14px apart on one line, so sideways
+   alone put the badge on the next word; Bullets is a grid with an 18pt column gap and
+   2.5pt between rows, where lifting would reach the row ABOVE instead (measured: 6). */
+.print-paper[data-skills='plain'] .cv-chip:not(.cv-chip-add) > .cv-chip-x {
+  top: -10px;
 }
 /* Bullets: a fixed 3-column grid (grid, not CSS columns, so it is always 3 and does
    not collapse to one with few items). Items fill left-to-right, so the "+" naturally
@@ -991,19 +1043,40 @@ body.coach-tour:not(.coach-bare) .cv-skilllabel-empty,
    clear it. row-reverse (not a grid on .cv-entry) is deliberate - .cv-etop keeps a
    real box, so `.cv-entry:has(> .cv-etop:hover)` still reveals the entry's delete. */
 .print-paper[data-entry='date-rail'] {
-  --entry-rail: 68pt;
+  /* Sized for WRAP, not for the gap - the gap is fixed by .cv-date's padding-right
+     below and no longer depends on this. 68pt held a bare year but wrapped a real
+     month range: "Sep 2019 - Mar 2022" broke after "Mar", and the orphan "2022"
+     extracted as a line of its own with the role stranded on the line above. Swept
+     with `npm run ats-check -- --only rail --sweep entry-rail=...`: 86 and 88pt still
+     wrap, 90pt is the first clean value, 92pt is that plus one character of headroom.
+     A longer range than this will wrap again; the harness is what catches it. */
+  --entry-rail: 92pt;
 }
 .print-paper[data-entry='date-rail'] .cv-etop {
   flex-direction: row-reverse;
   justify-content: flex-end;
   gap: 0;
+  /* .cv-date renders at 0.9x the body size, so under the flex default (stretch) its
+     first baseline sat ~0.10em ABOVE the role's. That is enough for a geometry-based
+     PDF extractor to call them two separate lines, which is why "2022 - Present" came
+     out on a line of its own with nothing tying it to the role underneath. The
+     horizontal gap was the obvious suspect and was not the cause. */
+  align-items: baseline;
 }
 /* The base .cv-date is nowrap, which is right when it floats at the page edge but
    here would spill a long range ("Sep 2023 - Present") straight into the role text.
    In the rail the column width is the alignment, so the date wraps inside it. */
 .print-paper[data-entry='date-rail'] .cv-date {
   flex: 0 0 var(--entry-rail);
-  padding-right: 8pt;
+  /* Right-aligned inside the rail so the distance from the end of the date to the
+     start of the role is ALWAYS this padding, instead of "the rail width minus
+     however long this particular date happens to be" - which was 41pt (3.9 em-widths)
+     for a bare year and read as a column boundary, putting the date on its own
+     extracted line. The rail's WIDTH still decides where the role starts, so the
+     column alignment the layout exists for is unchanged; only the ragged edge moves
+     from the right side to the left. */
+  text-align: right;
+  padding-right: 6pt;
   white-space: normal;
 }
 .print-paper[data-entry='date-rail'] .cv-ul,

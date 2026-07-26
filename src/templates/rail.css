@@ -20,7 +20,7 @@
   color: var(--accent-ink);
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   border-bottom: 0.5pt solid #dfe3e7;
 }
 /* the identity of this template: the rail is the only coloured thing on the page */

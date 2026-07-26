@@ -1,5 +1,5 @@
-/* Minimal: quiet. No rules, no colour, headings demoted to small wide-tracked muted
-   labels, en-dash bullets, borderless skills. Distinctness must survive the Design
+/* Minimal: quiet. No rules, no colour, muted headings set in air rather than in small
+   type, hollow bullets, borderless skills. Distinctness must survive the Design
    panel's "Divider lines" toggle, so it comes from typography here, not only from
    dividers being off by default in the registry.
    GUARDRAIL: template CSS must NEVER set position / display / overflow / max-height
@@ -18,17 +18,32 @@
 [data-template='minimal'] .cv-rule {
   border-bottom: 0.5pt solid #dfe3e7;
 }
+/* Minimal used to be the quiet template because its headings were 0.78x the body.
+   A heading may no longer print smaller than its body (see .cv-secH in paper.css),
+   so the quiet now comes from AIR: 18pt above a section against the base 12pt, and
+   nothing at all under it. 0.18em of tracking is also gone - past ~0.11em a
+   geometry-based extractor calls every letter gap a word break and EDUCATION came
+   out as "E D U C AT I O N". Colour, the absent rule and the absent accent are what
+   carry this template now. */
 [data-template='minimal'] .cv-secH {
   color: var(--paper-muted);
-  font-size: calc(var(--paper-size) * 0.78);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.08em;
   border-bottom: none;
+  margin: 18pt 0 5pt;
   padding-bottom: 0;
 }
+/* was `content: '–  '`. The en-dash was Minimal's marker identity and it IS inside
+   the bundled subset, so it cost no extra font - but it still prefixed every
+   extracted bullet with an en-dash. `circle` is the lightest marker Blink will
+   paint, which is the same gesture without entering the text layer. Not to be
+   confused with the chip ::before middot below: that one separates borderless skill
+   chips, is the only thing between one skill and the next, and stays. */
+[data-template='minimal'] .cv-ul {
+  list-style-type: circle;
+}
 [data-template='minimal'] .cv-li::marker {
-  content: '–  ';
   color: var(--paper-muted);
 }
 [data-template='minimal'] .cv-chip {

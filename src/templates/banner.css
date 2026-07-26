@@ -23,9 +23,11 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
-/* --accent-ink: the raw accent measured 3.68:1 on white and a marker is text */
+/* was `content: '▸  '` - same two costs as Sharp's ▪: it entered the text layer, and
+   U+25B8 is outside the bundled subset so it embedded a fallback font too. Banner's
+   identity is its filled heading bands, not its marker glyph.
+   --accent-ink: the raw accent measured 3.68:1 on white and a marker is text */
 [data-template='banner'] .cv-li::marker {
-  content: '▸  ';
   color: var(--accent-ink);
 }
 [data-template='banner'] .cv-chip {

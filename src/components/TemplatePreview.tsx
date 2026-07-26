@@ -24,7 +24,7 @@ import type { Theme } from '@/schema/resume';
  */
 export const TemplatePreview = memo(function TemplatePreview({
   id,
-  skillStyle = 'badge',
+  skillStyle = 'plain',
 }: {
   id: string;
   skillStyle?: Theme['skillStyle'];

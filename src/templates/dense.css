@@ -17,17 +17,24 @@
 [data-template='dense'] .cv-rule {
   border-bottom: 1pt solid var(--paper-accent);
 }
+/* The 0.82x font-size is gone (a heading may not print smaller than its body; see
+   .cv-secH in paper.css) and so is 0.14em of tracking, which made EDUCATION extract
+   as "E D U C AT I O N". */
 [data-template='dense'] .cv-secH {
   color: #1a1e21;
-  font-size: calc(var(--paper-size) * 0.82);
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   border-bottom: 0.5pt solid #cfd5db;
+}
+/* was `content: '·  '`. The middot is inside the bundled subset so it cost no extra
+   font, but it still headed every extracted bullet. `circle` keeps the light texture
+   the middot was there for, and Blink paints it instead of emitting text. */
+[data-template='dense'] .cv-ul {
+  list-style-type: circle;
 }
 /* was #77828c, measured 3.92:1 on white */
 [data-template='dense'] .cv-li::marker {
-  content: '·  ';
   color: #667079;
 }
 [data-template='dense'] .cv-chip {

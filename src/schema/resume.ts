@@ -129,7 +129,12 @@ export const ThemeSchema = z.object({
   headerLayout: z.enum(['left', 'centered', 'split']).default('left'),
   entryLayout: z.enum(['date-right', 'date-stacked', 'date-rail']).default('date-right'),
   headingLayout: z.enum(['rule', 'left-rail', 'boxed']).default('rule'),
-  skillStyle: z.enum(['badge', 'plain', 'bullets']).default('badge'), // skills layout
+  // 'plain' and not 'badge': a badge chip carries 9pt of horizontal padding, so two
+  // adjacent skills sit ~2.2 em-widths apart - past the gap at which a geometry-based
+  // PDF extractor calls a column boundary, and the section came out read DOWN the rows
+  // instead of along them. Badge stays available; it is just not what you get by
+  // default. See applyV6 in src/store/migrations.ts for documents saved before this.
+  skillStyle: z.enum(['badge', 'plain', 'bullets']).default('plain'), // skills layout
 
   basePt: z.number(),
   lineHeight: z.number(),

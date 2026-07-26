@@ -314,7 +314,7 @@ export const STEPS: Step[] = [
       axisPhase('headerLayout', 1, 'data-header', 'centered', 'Header: watch it move to Centred, and the name and contacts move with it.'),
       axisPhase('entryLayout', 2, 'data-entry', 'date-rail', 'Dates: switching to Left rail puts every date in a column of its own.'),
       axisPhase('headingLayout', 2, 'data-heading', 'boxed', 'Headings: Boxed turns every section heading into a filled block.'),
-      axisPhase('skillStyle', 2, 'data-skills', 'bullets', 'Skills: Bullets drops the badges for a plain bulleted grid.'),
+      axisPhase('skillStyle', 2, 'data-skills', 'bullets', 'Skills: Bullets lays the same list out as a bulleted grid.'),
       {
         sel: ['.cv-palette'],
         body: 'And the colour. Shuffle picks a whole combination you would not have tried. Nothing you just saw was saved; the page goes back as it was.',

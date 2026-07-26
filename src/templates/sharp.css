@@ -20,15 +20,23 @@
 }
 /* The accent bar is not here: it is theme.headingLayout='left-rail' (see the
    registry), which also suppresses the underline so the two never stack. */
+/* 0.12em of tracking made EDUCATION extract as "E D U C AT I O N"; measured, the
+   break sits somewhere in (0.10em, 0.12em]. 0.08em keeps the wide-tracked look. */
 [data-template='sharp'] .cv-secH {
   color: var(--accent-ink);
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
+}
+/* was `content: '▪  '`, which had two costs: a literal ▪ at the head of every
+   extracted bullet, and - U+25AA being outside the bundled latin + latin-ext subset -
+   a whole fourth font embedded in the PDF just to draw it (pdffonts showed
+   LiberationSans alongside three Lato faces). `square` is the same shape, painted. */
+[data-template='sharp'] .cv-ul {
+  list-style-type: square;
 }
 /* --accent-ink: the raw accent measured 3.68:1 on white and a marker is text */
 [data-template='sharp'] .cv-li::marker {
-  content: '▪  ';
   color: var(--accent-ink);
 }
 [data-template='sharp'] .cv-chip {

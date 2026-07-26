@@ -34,7 +34,7 @@ function mergeTheme(t?: ImportDto['theme']): Theme {
     headerLayout: oneOf(m.headerLayout, ['left', 'centered', 'split'] as const, 'left'),
     entryLayout: oneOf(m.entryLayout, ['date-right', 'date-stacked', 'date-rail'] as const, 'date-right'),
     headingLayout: oneOf(m.headingLayout, ['rule', 'left-rail', 'boxed'] as const, 'rule'),
-    skillStyle: m.skillStyle === 'plain' || m.skillStyle === 'bullets' ? m.skillStyle : 'badge',
+    skillStyle: oneOf(m.skillStyle, ['badge', 'plain', 'bullets'] as const, 'plain'),
     basePt: clamp(m.basePt, 8, 13),
     lineHeight: clamp(m.lineHeight, 1.1, 1.8),
     headingScale: clamp(m.headingScale, 1.2, 2.2),

@@ -816,11 +816,17 @@ html {
   background: var(--muted);
   background-clip: content-box;
 }
-/* Overlays must not hand their scroll to the page behind them once they hit the end. */
+/* Overlays must not hand their scroll to the page behind them once they hit the end.
+   .panel-scroll is not an overlay but belongs here for the same reason: it sits beside
+   the stage, and without contain, reaching either end of the Design panel handed the
+   wheel straight to the CV page behind it (measured: 414px of stage travel from a
+   panel that was already at its stop). That hand-off is what read as the panel
+   scrolling "harder" than the help sheet, which has had contain all along. */
 .doc-list,
 .fp-menu,
 .cv-addsec-menu,
 .imp-card,
-.err-wrap {
+.err-wrap,
+.panel-scroll {
   overscroll-behavior: contain;
 }

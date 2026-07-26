@@ -83,7 +83,10 @@ export const TEMPLATES: Record<string, TemplateDef> = {
     label: 'Dense',
     blurb: 'Small type · fits the most',
     defaultTheme: {
-      fontFamily: 'sans', dividers: true, basePt: 9.5, lineHeight: 1.25, headingScale: 1.4, marginPt: 36,
+      // 10pt, not 9.5: career services put the floor for body text at 10pt, and Dense
+      // was the only template under it. It still fits the most; that now comes from the
+      // tight line height and the 36pt margins rather than from unreadable type.
+      fontFamily: 'sans', dividers: true, basePt: 10, lineHeight: 1.25, headingScale: 1.4, marginPt: 36,
       headerLayout: 'split', entryLayout: 'date-stacked', headingLayout: 'rule',
     },
   },

@@ -12,13 +12,20 @@ import type { Theme } from '@/schema/resume';
  *
  * It touches DESIGN ONLY. Sections, entries, bullets and text are never sampled:
  * a button that silently rewrites content is data loss wearing a dice icon.
+ *
+ * skillStyle is NOT sampled, which is why it is absent below. Two of its three values
+ * put enough whitespace between skills that a geometry-based PDF extractor reads them
+ * as columns and the section comes out scrambled, and a dice roll may not spend the
+ * user's machine-readability for them. It is a preference rather than a layout in any
+ * case: switching template already preserves it (see applyTemplate in DesignPanel) and
+ * so does the registry's `Omit<Theme, 'accent' | 'skillStyle'>`. Leaving it out here
+ * makes that true with no exceptions.
  */
-export type ShuffleAxes = Pick<Theme, 'headerLayout' | 'entryLayout' | 'headingLayout' | 'skillStyle' | 'dividers'>;
+export type ShuffleAxes = Pick<Theme, 'headerLayout' | 'entryLayout' | 'headingLayout' | 'dividers'>;
 
 const HEADER: Theme['headerLayout'][] = ['left', 'centered', 'split'];
 const ENTRY: Theme['entryLayout'][] = ['date-right', 'date-stacked', 'date-rail'];
 const HEADING: Theme['headingLayout'][] = ['rule', 'left-rail', 'boxed'];
-const SKILLS: Theme['skillStyle'][] = ['badge', 'plain', 'bullets'];
 
 /** Why a pairing is rejected. Kept as prose so the table stays arguable, not magic. */
 const REJECT: Array<{ when: (a: ShuffleAxes) => boolean; why: string }> = [
@@ -46,13 +53,11 @@ const REJECT: Array<{ when: (a: ShuffleAxes) => boolean; why: string }> = [
 
 export const rejectReason = (a: ShuffleAxes): string | null => REJECT.find((r) => r.when(a))?.why ?? null;
 
-/** Every combination worth showing. Small enough (162 raw) to just enumerate. */
+/** Every combination worth showing. Small enough (54 raw) to just enumerate. */
 export const VALID_LOOKS: ShuffleAxes[] = HEADER.flatMap((headerLayout) =>
   ENTRY.flatMap((entryLayout) =>
     HEADING.flatMap((headingLayout) =>
-      SKILLS.flatMap((skillStyle) =>
-        [true, false].map((dividers) => ({ headerLayout, entryLayout, headingLayout, skillStyle, dividers })),
-      ),
+      [true, false].map((dividers) => ({ headerLayout, entryLayout, headingLayout, dividers })),
     ),
   ),
 ).filter((a) => !rejectReason(a));
@@ -74,7 +79,6 @@ export function nextLook(current: ShuffleAxes, rand: () => number = Math.random)
     a.headerLayout === current.headerLayout &&
     a.entryLayout === current.entryLayout &&
     a.headingLayout === current.headingLayout &&
-    a.skillStyle === current.skillStyle &&
     a.dividers === current.dividers;
   const pool = VALID_LOOKS.filter((a) => !same(a));
   return pool[Math.floor(rand() * pool.length)] ?? VALID_LOOKS[0];
