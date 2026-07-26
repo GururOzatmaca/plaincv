@@ -40,6 +40,10 @@ export function Editable({
       contentEditable
       suppressContentEditableWarning
       role="textbox"
+      // The placeholder is drawn by CSS (::before from data-ph), which gives a
+      // screen reader nothing to announce: every field on the page was an unnamed
+      // textbox. Same string, now as a real accessible name.
+      aria-label={placeholder}
       tabIndex={0}
       spellCheck={false}
       data-ph={placeholder}

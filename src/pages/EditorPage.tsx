@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { EditorPaper, A4_W, A4_H } from '@/components/EditorPaper';
 import { DesignPanel } from '@/components/DesignPanel';
 import { MarkToolbar } from '@/components/MarkToolbar';
@@ -19,14 +19,48 @@ const ZOOM_STEP = 0.1;
 // Wheel sensitivity. Multiplicative: one 100px mouse notch is ~11% (exp(0.12)), and a
 // trackpad pinch's small deltas land proportionally rather than snapping a whole step.
 const WHEEL_ZOOM_K = 0.0012;
-// Cap the displayed zoom (= fitScale * zoom, where 100% is true A4 size) at 167%.
-const MAX_EFFECTIVE = 1.67;
+/**
+ * Ceiling on the displayed zoom (= fitScale * zoom, where 100% is true A4 size), by
+ * device class. Not one number, because "as big as it will go" means something
+ * different on each: a phone has to zoom past the page to read it at all, a tablet is
+ * already showing it near full size, and a laptop is trading the panel's position for
+ * every extra percent.
+ */
+const MAX_EFFECTIVE = 1.67; // desktop >=1440, and phones
+const MAX_EFFECTIVE_LAPTOP = 1.2; // 1024-1439, where zooming restacks the panel
+const MAX_EFFECTIVE_TABLET = 0.88; // 621-1023
+// Phones keep the full ceiling: the page is small enough there that zooming in is the
+// only way to read it.
+const PHONE_MAX = 620;
 // Below this viewport width the panel stacks under the paper (see narrow mode).
-// >=1200: paper and panel side by side. Below that the panel stacks under the paper
-// (collapsed), because an A4 page and a 400px rail do not co-exist comfortably in
-// less than that; trying to keep both squeezes the document to nothing.
-const NARROW_MAX = 1199;
-const PANEL_W = 400; // design panel width when docked beside the paper
+// >=1024: paper and panel side by side, which covers every laptop. It used to be
+// 1200, which stacked a 1024 laptop even though the pair fits there comfortably
+// once the rail steps down (see panelWidthFor).
+const NARROW_MAX = 1023;
+// Floor for the height constraint when the panel is stacked and the stage scrolls
+// anyway; without it a landscape phone took the height literally and rendered the
+// page at 19%. Tuned to the scale a DOCKED layout produces at the breakpoint (0.554
+// at 1024x768), so crossing it is a rounding error rather than a jump. It was 0.75,
+// which matched the old 1200px breakpoint and became a 35% jump when that moved.
+const NARROW_MIN_FIT = 0.55;
+/**
+ * Docked rail width. 400 is right on a big screen and greedy on a small one: at 1024
+ * it is 39% of the viewport, and every pixel of it comes straight out of the page.
+ * One step down below ~1280 keeps the template grid two-up and the font picker intact
+ * while giving the paper back 60px.
+ */
+const panelWidthFor = (room: number): number => (room >= 1232 ? 400 : 340);
+/**
+ * At or below this viewport width, zooming past the point where paper and panel fit
+ * side by side restacks the layout rather than stopping the zoom. Above it the zoom is
+ * capped instead, because there is enough room to reach the ceiling without the panel
+ * having to move.
+ *
+ * A media query, not the measured stage width: a vertical scrollbar makes the stage
+ * 10px narrower than the viewport, which put a nominal 1440 screen on the wrong side
+ * of the line.
+ */
+const BREAK_ON_ZOOM_MAX = 1439;
 const PANEL_GAP = 28;
 // Ceiling for the whole editor so the paper + panel stay a single object on a very
 // wide monitor instead of drifting apart to the screen edges.
@@ -79,20 +113,43 @@ export function EditorPage() {
   // max-content so the zoomed page keeps a gutter on both sides, and an uncapped
   // 520px panel would then make the shell wider than the screen on a phone.
   const [usableW, setUsableW] = useState(0);
+  // Stage width minus its gutters, NOT capped by WORKSPACE_MAX. Only the zoom ceiling
+  // uses this; the fit scale still uses the capped one.
+  const [roomW, setRoomW] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [narrow, setNarrow] = useState(false);
+  // A desktop small enough that blocking the zoom would be more annoying than moving
+  // the panel. See BREAK_ON_ZOOM_MAX.
+  const [smallDesk, setSmallDesk] = useState(false);
+  const [phone, setPhone] = useState(false);
   const [showCtl, setShowCtl] = useState(initialShowCtl);
   const [importOpen, setImportOpen] = useState(false);
   const [keysOpen, setKeysOpen] = useState(false);
+  // Which tour step Help asked to replay, or null. Also the tour's only entry point
+  // besides the once-ever first visit.
+  const [tourAt, setTourAt] = useState<number | null>(null);
+  // Stable identity: the tour holds this across steps and must not see a new object
+  // on every render of this page (which zoom alone causes constantly).
+  const coachApi = useMemo(() => ({ setImportOpen }), []);
   const theme = useResumeStore((s) => s.doc.theme);
   usePrintFilename();
 
   useLayoutEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${NARROW_MAX}px)`);
-    const sync = () => setNarrow(mq.matches);
+    const queries = [
+      window.matchMedia(`(max-width: ${NARROW_MAX}px)`),
+      window.matchMedia(`(max-width: ${BREAK_ON_ZOOM_MAX}px)`),
+      window.matchMedia(`(max-width: ${PHONE_MAX}px)`),
+    ];
+    const sync = () => {
+      setNarrow(queries[0].matches);
+      setSmallDesk(queries[1].matches);
+      setPhone(queries[2].matches);
+    };
     sync();
-    mq.addEventListener('change', sync);
-    return () => mq.removeEventListener('change', sync);
+    for (const q of queries) q.addEventListener('change', sync);
+    return () => {
+      for (const q of queries) q.removeEventListener('change', sync);
+    };
   }, []);
 
   // Push theme -> CSS variables on :root. The paper and UI read these; sliders can
@@ -117,14 +174,29 @@ export function EditorPage() {
       // capped so the editor stays one object on a very wide screen.
       const usable = Math.min(el.clientWidth, WORKSPACE_MAX + STAGE_PAD_X * 2) - STAGE_PAD_X * 2;
       setUsableW(usable);
-      const w = narrow ? usable : usable - PANEL_W - PANEL_GAP;
+      // The REAL width, uncapped. WORKSPACE_MAX exists to keep the paper and the panel
+      // one object at the default zoom; it must not also decide how far the paper may
+      // grow, or a 1920 screen behaves as if it were 1180 wide and the paper collides
+      // with the panel at 128% on a monitor with 700px to spare.
+      setRoomW(el.clientWidth - STAGE_PAD_X * 2);
+      const w = narrow ? usable : usable - panelWidthFor(el.clientWidth - STAGE_PAD_X * 2) - PANEL_GAP;
       const widthFit = w > 0 ? w / A4_W : 0;
       const heightFit = h > 0 ? h / A4_H : 0;
-      // Wide: fit BOTH, so the whole page is on screen with no scrollbar by default.
-      // On a short window that costs zoom (an A4 simply cannot be large and complete
-      // at once); the +/- controls and Ctrl+wheel are there for inspecting detail.
-      // Narrow: fit width and let the page scroll, since the panel sits below it.
-      const fit = narrow ? widthFit : Math.min(widthFit, heightFit);
+      // Fit BOTH axes, in every layout, so the whole page is on screen with no
+      // scrollbar by default. On a short window that costs zoom (an A4 simply cannot
+      // be large and complete at once); the +/- controls and Ctrl+wheel are there for
+      // inspecting detail.
+      //
+      // Narrow used to fit WIDTH only, which made the scale jump 0.713 -> 1.438 for
+      // one pixel of window resize across the 1200px breakpoint: the same page, twice
+      // the size, still labelled "Fit page".
+      //
+      // Narrow still takes both constraints, but with a floor under the height one.
+      // Stacked, the panel is below the paper and the stage scrolls anyway, so a SHORT
+      // window has no reason to shrink the page: taking height literally rendered a
+      // landscape phone (844x390) at 19%. The floor keeps that readable while staying
+      // within 5% of the docked scale across the breakpoint.
+      const fit = narrow ? Math.min(widthFit, Math.max(heightFit, NARROW_MIN_FIT)) : Math.min(widthFit, heightFit);
       if (fit > 0) setFitScale(fit);
     };
     compute();
@@ -136,7 +208,44 @@ export function EditorPage() {
   const effective = fitScale * zoom;
   const pct = Math.round(effective * 100);
   const fitPx = A4_H * fitScale;
-  const maxZoom = fitScale > 0 ? MAX_EFFECTIVE / fitScale : MAX_EFFECTIVE;
+  /**
+   * Zoom stops where the paper would reach the design panel, rather than the panel
+   * getting out of the way.
+   *
+   * Two earlier behaviours were both wrong. Letting the paper overflow pushed the
+   * panel off the right edge (measured: 30px past the stage at 128%, 338px at 167%),
+   * reachable only by scrolling sideways. Re-stacking the panel underneath fixed that
+   * but turned a two-column desktop into one column mid-zoom, which is a bigger change
+   * than the zoom the user asked for. Capping the zoom keeps the layout still and
+   * costs nothing, because the ceiling is generous on any real desktop: ~167% at 1920
+   * wide (the absolute ceiling), ~121% at 1440, ~91% at 1200.
+   */
+  // Only while DOCKED. Stacked, the panel is below the paper and the stage is meant
+  // to scroll, so a width ceiling there would pin a phone at its fit scale and remove
+  // zoom entirely on the one layout where zooming in matters most.
+  const panelW = panelWidthFor(roomW);
+  /**
+   * On a laptop the ceiling bites early (100% at 1280, 90% at 1200), and refusing to
+   * zoom is the wrong answer there: wanting a closer look at 110% is a legitimate ask,
+   * and it is the user's call whether the panel moving under the page is worth it. So
+   * below 1440 the zoom runs free and the layout restacks when the pair stops fitting;
+   * at 1440 and up there is room to reach the absolute ceiling without moving anything,
+   * so the layout is held still instead.
+   */
+  const mayRestack = !narrow && smallDesk;
+  const ceiling = narrow
+    ? phone
+      ? MAX_EFFECTIVE
+      : MAX_EFFECTIVE_TABLET
+    : smallDesk
+      ? MAX_EFFECTIVE_LAPTOP
+      : MAX_EFFECTIVE;
+  // A wide desktop is bounded by the room beside the panel instead, since it never
+  // restacks; every other class is bounded by its own ceiling.
+  const roomForPaper = narrow || mayRestack ? 0 : roomW - panelW - PANEL_GAP;
+  const maxEffective = Math.min(ceiling, roomForPaper > 0 ? roomForPaper / A4_W : ceiling);
+  const stacked = narrow || (mayRestack && A4_W * effective + panelW + PANEL_GAP > roomW);
+  const maxZoom = fitScale > 0 ? Math.max(1, maxEffective / fitScale) : MAX_EFFECTIVE;
 
   // One clamp, one step size. These used to be duplicated across the wheel handler,
   // the key handler and the two buttons, with each copy omitting a different bound.
@@ -196,7 +305,14 @@ export function EditorPage() {
       window.removeEventListener('keydown', onKey);
     };
   }, [maxZoom]);
-  const atMax = effective >= MAX_EFFECTIVE - 0.001;
+  const atMax = effective >= maxEffective - 0.001;
+
+  // A resize can lower the ceiling under the zoom the user already had (drag a 1920
+  // window down to 1280 while at 150%). Without this the paper stays too wide and
+  // runs into the panel, which is the exact state this ceiling exists to prevent.
+  useLayoutEffect(() => {
+    setZoom((z) => Math.min(z, maxZoom));
+  }, [maxZoom]);
 
   // Undo/redo. Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z (or Ctrl+Y) redo. Skipped while a
   // field is focused so the browser's native per-character undo works mid-edit;
@@ -230,8 +346,12 @@ export function EditorPage() {
       <header className="no-print app-header">
         <div className="hdr-side">
           <span
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xs font-extrabold text-white"
-            style={{ background: 'linear-gradient(150deg,var(--accent-2),var(--accent))' }}
+            className="hdr-logo grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xs font-extrabold text-white"
+            // Both stops are the AA-guaranteed ink, not --accent-2 -> --accent: white
+            // on the pale stop measured 2.43:1 and on the raw accent 3.68:1, so the
+            // wordmark failed across the whole sweep. --accent-strong clears 4.5:1 and
+            // the mix keeps the gradient readable as a gradient.
+            style={{ background: 'linear-gradient(150deg,var(--accent-strong),color-mix(in oklab, var(--accent-strong) 80%, black))' }}
           >
             cv
           </span>
@@ -322,7 +442,7 @@ export function EditorPage() {
             gutter on the left and none on the right. As the shell's own padding it is
             part of its border box, which the scroll area does include. */}
         <div
-          className={`editor-shell${narrow ? ' editor-shell-narrow' : ''}`}
+          className={`editor-shell${stacked ? ' editor-shell-narrow' : ''}`}
           style={{
             // No cap in single-column mode: the viewport is already below the cap, and
             // capping would re-create the overflow the padding fix exists to avoid.
@@ -341,22 +461,39 @@ export function EditorPage() {
               the two read as one aligned pair top and bottom. (A sticky rail would
               keep the controls on screen, but the mismatched heights looked broken.)
               narrow: full-width block stacked under the paper (collapsible). */}
-          {narrow ? (
+          {stacked ? (
             <div className="no-print w-full" style={{ maxWidth: Math.min(520, usableW || 520) }}>
-              <DesignPanel narrow />
+              {/* `narrow` (the viewport) decides whether it starts collapsed; being
+                  stacked because the user zoomed in does not, or the panel would fold
+                  shut the moment it moved and look like it had gone. */}
+              <DesignPanel narrow startOpen={!narrow} />
             </div>
           ) : (
-            <div className="no-print shrink-0 self-start" style={{ height: fitPx, width: PANEL_W }}>
+            <div className="no-print shrink-0 self-start" style={{ height: fitPx, width: panelW }}>
               <DesignPanel />
             </div>
           )}
         </div>
       </main>
       <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
-      <Shortcuts open={keysOpen} onOpenChange={setKeysOpen} />
+      <Shortcuts
+        open={keysOpen}
+        onOpenChange={setKeysOpen}
+        onShowMe={(step) => {
+          setKeysOpen(false);
+          setTourAt(step);
+        }}
+      />
       <MarkToolbar />
-      {/* last, so it measures a laid-out page; suppressed while a dialog is open */}
-      {!importOpen && !keysOpen && <Coachmarks />}
+      {/* Last, so it measures a laid-out page. Rendered unconditionally: one step
+          OPENS the import dialog and rings the controls inside it, which the old
+          "hide while any dialog is open" guard made impossible. */}
+      <Coachmarks
+        api={coachApi}
+        startAt={tourAt}
+        onConsumed={() => setTourAt(null)}
+        dialogsOpen={importOpen || keysOpen}
+      />
     </div>
   );
 }

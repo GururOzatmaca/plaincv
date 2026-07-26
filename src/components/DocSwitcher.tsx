@@ -98,7 +98,14 @@ export function DocSwitcher() {
                     onBlur={(e) => commitRename(e.currentTarget.value)}
                   />
                 ) : (
-                  <button type="button" className="doc-pick" onClick={() => switchDoc(d.id)}>
+                  <button
+                    type="button"
+                    className="doc-pick"
+                    onClick={() => {
+                      switchDoc(d.id);
+                      setOpen(false); // the menu named the thing you just left open behind it
+                    }}
+                  >
                     <span className="doc-name">{d.name || 'Untitled CV'}</span>
                     <span className="doc-sub">{d.fullName || 'No name yet'}</span>
                   </button>

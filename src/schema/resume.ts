@@ -135,7 +135,11 @@ export const ThemeSchema = z.object({
   lineHeight: z.number(),
   headingScale: z.number(),
   marginPt: z.number(),
-  accent: z.string(), // hex
+  // Strictly a 6-digit hex. This value is written straight into CSS custom
+  // properties, so an unvalidated string let an imported document put arbitrary CSS
+  // (e.g. `url(...)`, which fires a real network request) into --accent and blank
+  // out every surface painted from it.
+  accent: z.string().regex(/^#[0-9a-fA-F]{6}$/),
 });
 export type Theme = z.infer<typeof ThemeSchema>;
 

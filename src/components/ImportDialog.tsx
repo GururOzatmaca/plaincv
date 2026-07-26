@@ -20,6 +20,7 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const [errors, setErrors] = useState<string[]>([]);
   const [okNotes, setOkNotes] = useState<string[] | null>(null);
   const [copied, setCopied] = useState<'' | 'prompt' | 'json'>('');
+  const [copyFailed, setCopyFailed] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const cardRef = useDialog(open, () => close());
@@ -74,18 +75,29 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
   };
   // the prompt carries the live page measurement, so the model is told the actual
   // one-page budget (and how much to cut) rather than being left to guess
+  // Clipboard access is refused outright in an insecure context and can reject at
+  // any time (permission, unfocused document). Unhandled, that rejection reaches
+  // ErrorBoundary and replaces the whole app with the crash screen, so every path
+  // ends in a caught failure that only flips the button's label.
+  const copy = (text: string, which: 'prompt' | 'json') => {
+    const p = navigator.clipboard?.writeText(text);
+    if (!p) return setCopyFailed(true); // no clipboard API at all (insecure context)
+    p.then(() => {
+      setCopyFailed(false);
+      flashCopy(which);
+    }).catch(() => setCopyFailed(true));
+  };
   const copyPrompt = () =>
-    navigator.clipboard
-      .writeText(
-        buildAiPrompt({
-          basePt: doc.theme.basePt,
-          overflowPx: getOverflowPx(),
-          pageHeightPx: A4_H,
-          sections: doc.sections.map((s) => s.title).filter(Boolean),
-        }),
-      )
-      .then(() => flashCopy('prompt'));
-  const copyJson = () => navigator.clipboard.writeText(exportJson(doc)).then(() => flashCopy('json'));
+    copy(
+      buildAiPrompt({
+        basePt: doc.theme.basePt,
+        overflowPx: getOverflowPx(),
+        pageHeightPx: A4_H,
+        sections: doc.sections.map((s) => s.title).filter(Boolean),
+      }),
+      'prompt',
+    );
+  const copyJson = () => copy(exportJson(doc), 'json');
   const saveJson = () => downloadText(`${slugify(doc.name)}.json`, exportJson(doc));
 
   const load = () => {
@@ -151,7 +163,11 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
                 {copied === 'prompt' ? 'Copied ✓' : 'Copy prompt'}
               </button>
             </div>
-            <p className="imp-hint">Paste it into ChatGPT, add your details, hit enter.</p>
+            <p className="imp-hint">
+              {copyFailed
+                ? 'Your browser blocked the clipboard. Click the page once, then try Copy prompt again.'
+                : 'Paste it into ChatGPT, add your details, hit enter.'}
+            </p>
           </li>
           <li>
             <div className="imp-step-h">

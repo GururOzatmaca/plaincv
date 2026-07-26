@@ -29,7 +29,8 @@ function AxisRow<K extends AxisKey>(props: {
   const { label, axis, value, options, onChange } = props;
   const labelId = useId();
   return (
-    <div className="pnl-axis">
+    // data-axis is the coachmark's handle on a specific row (see STEPS in Coachmarks)
+    <div className="pnl-axis" data-axis={axis}>
       <span className="pnl-axis-label" id={labelId}>
         {label}
       </span>
@@ -127,7 +128,7 @@ function LiveSlider(props: {
   );
 }
 
-export function DesignPanel({ narrow = false }: { narrow?: boolean }) {
+export function DesignPanel({ narrow = false, startOpen }: { narrow?: boolean; startOpen?: boolean }) {
   const theme = useResumeStore((s) => s.doc.theme);
   const templateId = useResumeStore((s) => s.doc.templateId);
   const update = useResumeStore((s) => s.update);
@@ -163,9 +164,11 @@ export function DesignPanel({ narrow = false }: { narrow?: boolean }) {
     // one update() = one undo step, so Ctrl+Z puts the old design back whole
     update((d) => void Object.assign(d.theme, look));
   };
-  // Collapsed by default when stacked under the paper; always open when docked.
-  const [open, setOpen] = useState(!narrow);
-  useEffect(() => setOpen(!narrow), [narrow]);
+  // Collapsed by default on a narrow screen; open when it is stacked only because the
+  // page is zoomed in, where folding it shut would read as it vanishing.
+  const initial = startOpen ?? !narrow;
+  const [open, setOpen] = useState(initial);
+  useEffect(() => setOpen(initial), [initial]);
 
   const set = <K extends keyof Theme>(k: K, v: Theme[K]) =>
     update((d) => {

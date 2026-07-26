@@ -37,6 +37,15 @@
      zero consumers and existed only to tempt. */
   --squish: cubic-bezier(0.34, 1.56, 0.64, 1);
 
+  /* One height for every control on the app toolbar, and one radius scale for the
+     whole of the chrome. There were 10 distinct radii, including the near-duplicate
+     pairs 7/7.2px and 9/9.6px, which is the kind of drift you cannot see one at a
+     time and can see all at once. */
+  --ctl-h: 32px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 10px;
+
   /* live document tokens (theme-controlled) */
   --paper-font: 'LibSerif', Georgia, serif;
   --paper-size: 10.5pt;
@@ -344,41 +353,87 @@ body {
   }
 }
 
-/* --- action hierarchy: primary > secondary > tertiary > icon --- */
-.hdr-dl {
-  border: none;
-  border-radius: 9px;
-  padding: 8px 15px;
-  background: var(--accent-strong);
-  color: #fff;
+/* Very narrow. Undo/redo leave the identity row, where they were competing with the
+   CV name for a strip about 250px wide, and take the third row with the zoom:
+   1  logo  CV switcher .................... Saved  ?
+   2  [ View options ][ Fill with AI ][ Download PDF ]
+   3  zoom ............................... undo redo
+   `display: contents` dissolves the left-hand flex wrapper so its children can be
+   placed individually; a third column gives the logo and the switcher a cell each
+   instead of stacking them in one. */
+@media (max-width: 449px) {
+  .app-header {
+    grid-template-columns: auto 1fr auto;
+  }
+  .app-header > .hdr-side:not(.hdr-side-end) {
+    display: contents;
+  }
+  .app-header > .hdr-side > .hdr-rule {
+    display: none;
+  }
+  .hdr-logo {
+    grid-area: 1 / 1;
+  }
+  .doc-switch {
+    grid-area: 1 / 2;
+    justify-self: start;
+  }
+  .hdr-status {
+    grid-area: 1 / 3;
+    justify-self: end;
+  }
+  .hdr-actions {
+    grid-area: 2 / 1 / 3 / 4;
+  }
+  .hdr-zoom {
+    grid-area: 3 / 1 / 4 / 3;
+    justify-self: start;
+  }
+  /* the undo/redo pair, which is the only .hdr-group inside the identity wrapper */
+  .app-header > .hdr-side > .hdr-group {
+    grid-area: 3 / 3;
+    justify-self: end;
+  }
+}
+
+/* --- action hierarchy: primary > secondary > tertiary > icon ---
+   One height for every control on the toolbar row. They used to be six different
+   ones (18 / 28 / 30 / 30.8 / 33.5 / 35.5 / 37.5px) sharing a centre line, which read
+   as inconsistent pills rather than a set. --ctl-h is the row's single measurement;
+   the border on .hdr-ai is inside it, so it no longer comes out 2px taller. */
+.hdr-dl,
+.hdr-ai,
+.hdr-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--ctl-h);
+  padding: 0 14px;
+  border-radius: 8px;
   font-size: 13px;
-  font-weight: 650;
   white-space: nowrap;
   cursor: pointer;
+}
+.hdr-dl {
+  border: none;
+  background: var(--accent-strong);
+  color: #fff;
+  font-weight: 650;
   transition: filter var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out);
 }
 .hdr-ai {
   border: 1px solid var(--line-2);
-  border-radius: 9px;
-  padding: 8px 13px;
   background: var(--surface);
   color: var(--ink);
-  font-size: 13px;
   font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
   transition: background var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out);
 }
 .hdr-ghost {
   border: none;
-  border-radius: 8px;
-  padding: 7px 10px;
+  padding: 0 10px;
   background: transparent;
   color: var(--muted);
-  font-size: 13px;
   font-weight: 550;
-  white-space: nowrap;
-  cursor: pointer;
   transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .hdr-ghost:hover {
@@ -499,7 +554,7 @@ body {
   min-width: 0;
   margin: 4px 6px;
   border: 1px solid var(--accent);
-  border-radius: 7px;
+  border-radius: var(--r-md);
   padding: 6px 8px;
   font-size: 13px;
   font-weight: 600;
@@ -512,7 +567,7 @@ body {
 .doc-x {
   flex: 0 0 auto;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--r-md);
   padding: 5px 7px;
   background: transparent;
   color: var(--muted);
@@ -537,7 +592,7 @@ body {
 .doc-tool {
   flex: 1 1 0;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--r-md);
   padding: 7px 6px;
   background: transparent;
   color: var(--muted);
@@ -648,8 +703,9 @@ body {
   color: #5c6771;
   white-space: nowrap;
 }
+/* --accent measures 3.68:1 on white at 12px; --accent-strong is derived to clear 4.5:1 */
 .hdr-save.busy {
-  color: var(--accent);
+  color: var(--accent-strong);
 }
 .hdr-save-dot {
   width: 7px;

@@ -20,7 +20,14 @@ function ErrorScreen({ text }: { text: string }) {
     'cv-generator error',
   )}&body=${encodeURIComponent(`Hi, I hit this error in the app:\n\n${text}`)}`;
 
-  const copy = () => navigator.clipboard.writeText(text).then(() => setCopied(true));
+  // Never let the crash screen crash: the clipboard is exactly as likely to be
+  // refused here as it was in the app that just died.
+  const copy = () => {
+    navigator.clipboard
+      ?.writeText(text)
+      .then(() => setCopied(true))
+      .catch(() => setCopied(false));
+  };
 
   return (
     <div className="err-wrap">

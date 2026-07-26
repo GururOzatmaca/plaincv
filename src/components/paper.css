@@ -45,7 +45,8 @@
   transition: opacity var(--dur-1) var(--ease-out);
 }
 .cv-rule:hover .cv-rule-x,
-.show-ctl .cv-rule-x {
+.show-ctl .cv-rule-x,
+body.coach-tour .cv-rule-x {
   opacity: 1;
 }
 .cv-rule-x:hover {
@@ -170,7 +171,11 @@
    hit-zone still runs ~31px past the paper edge (it was ~37px), which is fine: the
    zone is transparent and the stage reserves side padding for exactly this. */
 .cv-hz-eye {
-  right: -74px;
+  /* -80, not -74: at -74 the button straddled the page edge (measured: it spanned
+     -4px to +12px relative to the paper's right edge, so 4px of it sat ON the page
+     and read as misaligned). Six more px put it wholly in the channel between the
+     paper and the design panel, with ~3px of air off the edge. */
+  right: -80px;
   top: -13px;
   /* The eye and delete zones are both 44px and only 26px apart, so they overlap by
      ~18px and whichever renders later swallowed the other's clicks. Rather than fight
@@ -193,6 +198,12 @@
   transition: opacity var(--dur-1) var(--ease-out);
 }
 .cv-hz:hover > * {
+  opacity: 1;
+}
+/* Keyboard users get no hover, so a Tab landing on a control that is still at
+   opacity 0 focuses something invisible. */
+.cv-hz > *:focus-visible,
+.cv-hz:focus-within > * {
   opacity: 1;
 }
 /* Findability: hovering a bullet reveals its OWN delete; hovering an entry's top
@@ -221,11 +232,15 @@
 }
 /* "show controls" toggle: reveal every affordance at once */
 .show-ctl .cv-hz > *,
-.show-ctl .cv-chip-x {
+body.coach-tour .cv-hz > *,
+.show-ctl .cv-chip-x,
+body.coach-tour .cv-chip-x {
   opacity: 1;
 }
 .show-ctl .cv-contact-add,
-.show-ctl .cv-chip-add {
+body.coach-tour .cv-contact-add,
+.show-ctl .cv-chip-add,
+body.coach-tour .cv-chip-add {
   display: grid;
 }
 /* bullet controls both on the LEFT: drag outermost, delete just inside; aligned to
@@ -241,41 +256,72 @@
   top: -12px;
 }
 
-/* The visible chip is 20px, which at fit zoom (~0.69) is under 14 SCREEN px, and the
-   hover feedback keys on the chip itself; the transparent zone around it revealed the
-   control but was not clickable. So the target lit up and then clicks next to it
-   missed. This grows the CLICK area to 26px without changing anything you can see.
-   26 and not the full 44px zone: on a section header the eye sits 6px from the
-   delete, and a full-zone target would make the two overlap and steal each other's
-   clicks. Bullets are excluded - their zones sit tight against the text, and a wider
-   target there would swallow clicks meant for the bullet itself. */
-.cv-secH > .cv-hz > .cv-del,
-.cv-secH > .cv-hz > .cv-eye,
-.cv-secH > .cv-hz > .cv-drag,
-.cv-entry > .cv-hz > .cv-del,
-.cv-entry > .cv-hz > .cv-drag,
-.cv-skillrow > .cv-hz > .cv-del {
+/* ---- Hit areas ----
+   Every control in here is painted through .print-paper's scale(), so its LOCAL size
+   is not its real one: the 15px chip delete measured 10.3 screen px at fit zoom and
+   6.5 on a 390px phone, against a 24px floor. --zoom is published as a custom
+   property next to the transform (EditorPaper), so the invisible target can be sized
+   in inverse scale and stay ~24 SCREEN px at any zoom.
+
+   Clamped at both ends on purpose: the lower bound keeps it at least as big as the
+   glyph, and the upper bound stops a zoomed-out page from growing a target so far
+   past its own control that it swallows the neighbouring one. */
+/* :where() so this carries ZERO specificity. Several of these controls are already
+   `position: absolute` from rules ABOVE (.cv-rule-x pins itself to the divider,
+   .cv-chip > .cv-chip-x floats at the chip corner); a plain class selector here beat
+   those on source order and dropped them back into normal flow. The pseudo-element
+   only needs its parent to be positioned SOMEHOW, so absolute is equally fine. */
+:where(.cv-drag, .cv-del, .cv-eye, .cv-chip-x, .cv-chip-add, .cv-contact-add, .cv-rule-x, .cv-plus) {
   position: relative;
 }
-.cv-secH > .cv-hz > .cv-del::after,
-.cv-secH > .cv-hz > .cv-eye::after,
-.cv-secH > .cv-hz > .cv-drag::after,
-.cv-entry > .cv-hz > .cv-del::after,
-.cv-entry > .cv-hz > .cv-drag::after,
-.cv-skillrow > .cv-hz > .cv-del::after {
+.cv-drag,
+.cv-del,
+.cv-eye,
+.cv-chip-x,
+.cv-chip-add,
+.cv-contact-add,
+.cv-rule-x,
+.cv-plus {
+  --hit: clamp(16px, calc(24px / var(--zoom, 1)), 36px);
+}
+.cv-drag::after,
+.cv-del::after,
+.cv-eye::after,
+.cv-chip-x::after,
+.cv-chip-add::after,
+.cv-contact-add::after,
+.cv-rule-x::after,
+.cv-plus::after {
   content: '';
   position: absolute;
-  inset: -4px; /* 20px chip -> 28px target, in every direction */
+  left: 50%;
+  top: 50%;
+  width: var(--hit);
+  height: var(--hit);
+  transform: translate(-50%, -50%);
 }
-/* On a section header the eye and the delete are only 6px apart, so growing both
-   symmetrically made the delete swallow the eye's left half (its reachable area fell
-   to under 3px). Each grows AWAY from the other instead: 3px toward its neighbour,
-   which is exactly half the gap, so the two meet and neither steals. */
+/* On a section header the eye and the delete are only 6px apart, so a symmetric
+   target makes the delete swallow the eye. Each is held back to half the gap on the
+   side that faces its neighbour and grows freely on the other three. */
+.cv-secH > .cv-hz-r > .cv-del::after,
+.cv-secH > .cv-hz-eye > .cv-eye::after {
+  left: auto;
+  top: 50%;
+  width: auto;
+  height: var(--hit);
+  transform: translateY(-50%);
+}
+/* The eye sits OUTBOARD of the delete (right: -80px vs -50px), so the delete may not
+   grow right and the eye may not grow left. Each is held to half the gap on the side
+   that faces the other and grows freely away from it. The subtracted constants are
+   each control's own width, so the ::after grows by exactly the shortfall. */
 .cv-secH > .cv-hz-r > .cv-del::after {
-  inset: -4px -3px -4px -6px;
+  right: -3px;
+  left: calc(-1 * (var(--hit) - 20px));
 }
 .cv-secH > .cv-hz-eye > .cv-eye::after {
-  inset: -4px -6px -4px -3px;
+  left: -3px;
+  right: calc(-1 * (var(--hit) - 14px));
 }
 
 /* Controls are fully coloured the moment they're revealed (no hover needed).
@@ -403,7 +449,8 @@
    always travel onto it to click); suppressed only while hovering a drag handle. */
 .cv-entry:hover:not(:has(.cv-hz-l:hover)) .cv-addbul,
 .cv-addbul:hover,
-.show-ctl .cv-addbul {
+.show-ctl .cv-addbul,
+body.coach-tour .cv-addbul {
   max-height: 60px;
   opacity: 1;
   margin-top: 2pt;
@@ -454,7 +501,8 @@
    suppressed while hovering any drag handle. */
 .cv-section:hover:not(:has(.cv-hz-l:hover)) .cv-secadd-wrap,
 .cv-secadd-wrap:hover,
-.show-ctl .cv-secadd-wrap {
+.show-ctl .cv-secadd-wrap,
+body.coach-tour .cv-secadd-wrap {
   max-height: 60px;
   margin-top: 2pt;
 }
@@ -512,7 +560,8 @@
 .print-paper:has(.cv-section:last-of-type:hover) .cv-addsec-btn,
 .cv-addsec:hover .cv-addsec-btn,
 .cv-addsec-open .cv-addsec-btn,
-.show-ctl .cv-addsec-btn {
+.show-ctl .cv-addsec-btn,
+body.coach-tour .cv-addsec-btn {
   max-height: 40px;
   opacity: 1;
   margin-top: 4pt;
@@ -608,7 +657,8 @@
 }
 .cv-chip:hover .cv-chip-x,
 .cv-contact-item:hover .cv-chip-x,
-.show-ctl .cv-chip-x {
+.show-ctl .cv-chip-x,
+body.coach-tour .cv-chip-x {
   opacity: 1;
 }
 .cv-chip-x:hover {
@@ -704,8 +754,10 @@
 
 /* Hidden section: still editable on screen (dimmed, with a strike on the heading)
    so it can be brought back; gone from the PDF. */
+/* 0.38 dropped the text under 2:1 against the page while it is still editable.
+   0.6 keeps body ink at ~4.7:1 and the strike-through below still carries the state. */
 .cv-hidden {
-  opacity: 0.38;
+  opacity: 0.6;
 }
 .cv-hidden .cv-secH {
   text-decoration: line-through;
@@ -718,14 +770,21 @@
 .cv-eye {
   display: grid;
   place-items: center;
-  width: 16px;
-  height: 16px;
+  /* a touch smaller than the delete beside it: hiding a section is the quieter of
+     the two actions, and it sits outboard where it needs less weight */
+  width: 14px;
+  height: 14px;
   padding: 0;
   border: none;
   border-radius: 4px;
   background: var(--surface-2);
   color: var(--muted);
   cursor: pointer;
+}
+/* the icon carries 11px width/height attributes; scale to the smaller button */
+.cv-eye svg {
+  width: 10px;
+  height: 10px;
 }
 .cv-eye:hover {
   background: var(--accent-weak);
@@ -759,6 +818,7 @@
 }
 .cv-section:hover .cv-skilllabel-empty,
 .show-ctl .cv-skilllabel-empty,
+body.coach-tour .cv-skilllabel-empty,
 .cv-skilllabel-empty:focus {
   max-width: 34%;
   overflow: visible;
@@ -794,6 +854,9 @@
    carries both .cv-chip and .cv-chip-add. */
 .cv-chip-add {
   display: grid; /* always visible + stable, so it never appears/resizes on nearby hover */
+  /* above the preceding chip's delete (z-index 2), whose enlarged hit area otherwise
+     covers this button completely */
+  z-index: 3;
   width: 15px;
   height: 15px;
   padding: 0;

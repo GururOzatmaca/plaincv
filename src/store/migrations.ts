@@ -50,6 +50,15 @@ function backup(suffix: string, payload: unknown): string {
   return key;
 }
 
+/**
+ * The stored text could not even be JSON-parsed, so hydration never reaches
+ * mergePersisted and nothing else would ever warn. Back the bytes up and flag the
+ * recovery banner before the app quietly shows the sample CV instead.
+ */
+export function noteUnreadable(raw: string): void {
+  recovery = { kind: 'unreadable', backupKey: backup('unparseable', raw) };
+}
+
 const readDoc = (raw: unknown): Resume | null => {
   const parsed = ResumeSchema.safeParse(normalizePersistedDoc(raw));
   return parsed.success ? parsed.data : null;

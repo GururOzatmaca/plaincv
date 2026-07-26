@@ -28,8 +28,9 @@
   color: var(--accent-ink);
   font-weight: 600;
 }
+/* was #9aa4ad, measured 2.53:1 on white - the worst marker in the set */
 [data-template='rail'] .cv-li::marker {
-  color: #9aa4ad;
+  color: #6b7580;
 }
 [data-template='rail'] .cv-chip {
   background: transparent;

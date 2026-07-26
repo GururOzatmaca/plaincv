@@ -3,7 +3,7 @@
   position: relative;
   display: flex;
   flex-wrap: wrap;
-  border-radius: 0.6rem;
+  border-radius: var(--r-lg);
   background: var(--surface-2);
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06);
   padding: 0.25rem;
@@ -36,9 +36,9 @@
   cursor: pointer;
   align-items: center;
   justify-content: center;
-  border-radius: 0.45rem;
+  border-radius: var(--r-sm);
   border: none;
-  padding: 0.42rem 0;
+  padding: 6px 0;
   color: var(--muted);
   /* was `all`, which also transitioned font-weight and padding: both reflow, and
      tweening a font-weight is visibly mushy. Only the three that actually change. */
@@ -166,7 +166,7 @@
   width: 26px;
   height: 26px;
   flex: 0 0 auto;
-  border-radius: 7px;
+  border-radius: var(--r-md);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
 }
 .cp-hex-label {
@@ -330,7 +330,7 @@ input[type='range'].cp-range::-moz-range-thumb {
 }
 .pnl-shuffle {
   border: 1px solid var(--line-2);
-  border-radius: 7px;
+  border-radius: var(--r-md);
   padding: 4px 9px;
   background: transparent;
   color: var(--muted);
@@ -409,7 +409,7 @@ input[type='range'].cp-range::-moz-range-thumb {
   color: var(--ink);
 }
 .tpl-blurb {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--muted);
   max-width: 100%;
   overflow: hidden;
@@ -507,7 +507,7 @@ input[type='range'].cp-range::-moz-range-thumb {
   gap: 8px;
   width: 100%;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--r-md);
   padding: 6px 8px;
   background: transparent;
   cursor: pointer;
@@ -530,7 +530,7 @@ input[type='range'].cp-range::-moz-range-thumb {
 }
 .fp-note {
   margin-left: auto;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -591,9 +591,12 @@ input[type='range'].cp-range::-moz-range-thumb {
 .seg-btn:hover:not(.on) {
   color: var(--ink);
 }
+/* --accent-strong, not --accent: the raw accent measures 3.68:1 on white at 11.5px,
+   which fails AA. --accent-strong is derived to clear 4.5:1 on white for exactly
+   this (see deriveAccents in src/lib/color.ts) and is visually the same hue. */
 .seg-btn.on {
   background: var(--surface);
-  color: var(--accent);
+  color: var(--accent-strong);
   box-shadow: 0 1px 2px rgba(15, 23, 32, 0.12);
 }
 /* ---- Design panel scroll: thin, subtle, unobtrusive ---- */

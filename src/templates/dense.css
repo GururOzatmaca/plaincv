@@ -25,9 +25,10 @@
   letter-spacing: 0.14em;
   border-bottom: 0.5pt solid #cfd5db;
 }
+/* was #77828c, measured 3.92:1 on white */
 [data-template='dense'] .cv-li::marker {
   content: '·  ';
-  color: #77828c;
+  color: #667079;
 }
 [data-template='dense'] .cv-chip {
   background: transparent;

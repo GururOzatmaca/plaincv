@@ -79,6 +79,54 @@
   font-size: 12.5px;
   line-height: 1.5;
 }
+/* Replay the first-run tour. Sits above the questions because it answers most of
+   them at once, and because a tour you can only see once is a tour most people
+   dismiss before they need it. */
+.sc-tour {
+  display: block;
+  width: 100%;
+  margin: 0 0 12px;
+  border: 1px solid var(--accent-weak);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--accent) 5%, white);
+  color: var(--accent-ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-out);
+}
+.sc-tour:hover {
+  background: var(--accent-weak);
+}
+.sc-tour-sub {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+/* Per-answer replay. A <p> wrapper so it inherits the answer's own indent. */
+.sc-showme-row {
+  margin: 0 0 8px;
+  padding: 0 10px 0 24px;
+}
+.sc-showme {
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  padding: 5px 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-out);
+}
+.sc-showme:hover {
+  background: var(--surface-2);
+}
+
 .sc-list {
   margin: 0;
 }

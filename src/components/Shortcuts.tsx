@@ -10,7 +10,7 @@ const KEYS: { keys: string[]; what: string }[] = [
   { keys: ['Ctrl', 'B'], what: 'Bold the selection' },
   { keys: ['Ctrl', 'I'], what: 'Italicise the selection' },
   { keys: ['Ctrl', 'Z'], what: 'Undo' },
-  { keys: ['Ctrl', 'Shift', 'Z'], what: 'Redo' },
+  { keys: ['Ctrl', 'Y'], what: 'Redo' },
   { keys: ['Ctrl', '+'], what: 'Zoom in' },
   { keys: ['Ctrl', '−'], what: 'Zoom out' },
   { keys: ['Ctrl', '0'], what: 'Reset zoom' },
@@ -25,7 +25,13 @@ const KEYS: { keys: string[]; what: string }[] = [
  * is searchable with the browser's own find, and it cannot go stale silently
  * because it sits in the same file as the shortcut list it documents.
  */
-const HOWTO: { q: string; a: string }[] = [
+/**
+ * `step` points at the matching tour step (see STEPS in Coachmarks). The answer then
+ * gets a "Show me" button that closes this dialog and rings the real control on the
+ * real page. Deliberately not screenshots: an image of a control goes stale the
+ * moment the control moves or the accent changes, and it cannot point at YOUR page.
+ */
+const HOWTO: { q: string; a: string; step?: number }[] = [
   {
     q: 'How do I edit anything?',
     a: 'Click the text on the page and type. There is no form; the page you see is the PDF you get.',
@@ -33,6 +39,7 @@ const HOWTO: { q: string; a: string }[] = [
   {
     q: 'Where are the add and delete buttons?',
     a: 'They appear when your pointer gets near the thing they act on. "View options" in the header pins them all open, which is how it starts on your first visit.',
+    step: 3,
   },
   {
     q: 'Why is some of my CV below a red dashed line?',
@@ -41,22 +48,32 @@ const HOWTO: { q: string; a: string }[] = [
   {
     q: 'Can I drop a section for one application without losing it?',
     a: 'Yes. The eye toggle beside a section heading hides it from the PDF but keeps it in your CV. Hidden sections do not count toward the one-page limit.',
+    step: 2,
+  },
+  {
+    q: 'How do I reorder sections, entries or bullets?',
+    a: 'Drag the handle on the left of any row. Or focus that handle with Tab and use the up and down arrow keys, which does the same thing without a mouse.',
+    step: 1,
   },
   {
     q: 'How do I tailor my CV per job?',
     a: 'Use the CV switcher next to the logo: Duplicate, then cut the copy down. Each CV is saved separately. Undo does not cross between them.',
+    step: 0,
   },
   {
     q: 'What is the difference between a template and the Layout controls?',
     a: 'A template is a preset over four layout axes (Header, Dates, Headings, Skills) plus a colour. Changing an axis moves you off the preset. Shuffle picks a combination that is known to hold together.',
+    step: 9,
   },
   {
     q: 'Where is my data stored?',
     a: 'Only in this browser, in IndexedDB. There is no account and no server. Use "Fill with AI" → "Back up" to download a JSON copy before clearing browser data.',
+    step: 7,
   },
   {
     q: 'How do I get a PDF?',
     a: 'Download PDF opens your browser\'s print dialog; choose "Save as PDF". Links in the CV stay clickable and the filename comes from your name.',
+    step: 8,
   },
 ];
 
@@ -71,7 +88,16 @@ const inTextField = (el: Element | null): boolean =>
  * Opens on "?" (ignored while typing, or the character could never be typed) and
  * from the header button, since a keyboard-only hint is not discoverable.
  */
-export function Shortcuts({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function Shortcuts({
+  open,
+  onOpenChange,
+  onShowMe,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  /** Close this dialog and replay one tour step on the live page. */
+  onShowMe: (step: number) => void;
+}) {
   const [mac, setMac] = useState(false);
   const [muted, setMutedState] = useState(false);
   useEffect(() => {
@@ -101,11 +127,22 @@ export function Shortcuts({ open, onOpenChange }: { open: boolean; onOpenChange:
         <h2 className="sc-title" id="sc-title">
           Help
         </h2>
+        <button type="button" className="sc-tour" onClick={() => onShowMe(0)}>
+          Take the tour
+          <span className="sc-tour-sub">Points at every control on your own page, in order</span>
+        </button>
         <div className="sc-howto">
           {HOWTO.map((h) => (
             <details className="sc-q" key={h.q}>
               <summary>{h.q}</summary>
               <p>{h.a}</p>
+              {h.step != null && (
+                <p className="sc-showme-row">
+                  <button type="button" className="sc-showme" onClick={() => onShowMe(h.step as number)}>
+                    Show me on the page
+                  </button>
+                </p>
+              )}
             </details>
           ))}
         </div>

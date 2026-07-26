@@ -64,7 +64,11 @@ export function playSuccess(): void {
     if (fadeOutAt) clearTimeout(fadeOutAt);
     el.currentTime = 0;
     el.volume = 0;
-    void el.play();
+    // play() rejects asynchronously (autoplay policy, missing or corrupt asset), which
+    // the try/catch around this block cannot see. Unhandled, it reaches
+    // ErrorBoundary's `unhandledrejection` listener and turns a missing chime into a
+    // full-screen crash right after a SUCCESSFUL import.
+    void el.play().catch(() => {});
     // fade in so the attack is not a click
     rampTo(el, PEAK, FADE_IN_MS);
     fadeOutAt = setTimeout(() => {

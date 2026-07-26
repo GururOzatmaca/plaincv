@@ -206,10 +206,16 @@ export function writeAccentVars(style: CSSStyleDeclaration, accent: string): voi
   style.setProperty('--accent-strong', a.strong);
 }
 
+/** Fallback when an accent is not a usable colour at all. Matches DEFAULT_THEME. */
+const SAFE_ACCENT = '#0891b2';
+
 /** Darken a hex accent toward black until its luminance is within the cap. */
 export function clampAccent(hex: string): string {
   const m = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
-  if (!m) return hex;
+  // Anything that is not a hex colour is REPLACED, never echoed: the return value
+  // is written into CSS custom properties, so passing input through let imported
+  // JSON inject arbitrary CSS.
+  if (!m) return SAFE_ACCENT;
   const n = parseInt(m[1], 16);
   let r = (n >> 16) & 255;
   let g = (n >> 8) & 255;

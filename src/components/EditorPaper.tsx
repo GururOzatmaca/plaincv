@@ -76,15 +76,45 @@ const useIsDragging = () => useSyncExternalStore(subscribeDrag, () => dragActive
 
 type DragControls = ReturnType<typeof useDragControls>;
 
+/** New id order with `id` moved by `dir`, or null when it cannot move that way. */
+const moveId = (ids: string[], id: string, dir: number): string[] | null => {
+  const i = ids.indexOf(id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= ids.length) return null;
+  const next = ids.slice();
+  next.splice(j, 0, next.splice(i, 1)[0]);
+  return next;
+};
+
 // Drag handle (left). Pointer-down starts a framer drag on the owning Reorder.Item;
 // preventDefault stops the browser from starting a text selection from the grip.
-function DragHandle({ controls }: { controls: DragControls }) {
+//
+// A real <button>, not a <span>: as a span it was unfocusable, so reordering was
+// pointer-only and 45 consecutive Tab presses never reached a single handle. The
+// arrow keys move the row without any pointer at all.
+function DragHandle({
+  controls,
+  what,
+  onMove,
+  onCancel,
+}: {
+  controls: DragControls;
+  what: string;
+  onMove?: (dir: number) => void;
+  onCancel?: () => void;
+}) {
   return (
     <span className="cv-hz cv-hz-l no-print" contentEditable={false}>
-      <span
+      <button
+        type="button"
         className="cv-drag"
-        title="Drag to reorder"
-        aria-label="Drag to reorder"
+        title={`Drag to reorder this ${what}, or focus it and press the up/down arrows`}
+        aria-label={`Reorder ${what}. Press the up or down arrow key to move it.`}
+        onKeyDown={(e) => {
+          if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+          e.preventDefault();
+          onMove?.(e.key === 'ArrowUp' ? -1 : 1);
+        }}
         onPointerDown={(e) => {
           e.preventDefault();
           controls.start(e);
@@ -98,9 +128,20 @@ function DragHandle({ controls }: { controls: DragControls }) {
             setDragActive(false);
             window.removeEventListener('pointerup', end);
             window.removeEventListener('pointercancel', end);
+            window.removeEventListener('keydown', onKey, true);
+          };
+          // Escape abandons the drag: the transient order is dropped, framer snaps
+          // the row home, and the pointerup that follows commits nothing.
+          const onKey = (ev: KeyboardEvent) => {
+            if (ev.key !== 'Escape') return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            onCancel?.();
+            end();
           };
           window.addEventListener('pointerup', end);
           window.addEventListener('pointercancel', end);
+          window.addEventListener('keydown', onKey, true);
         }}
       >
         <svg viewBox="0 0 8 12" fill="currentColor" aria-hidden="true">
@@ -111,7 +152,7 @@ function DragHandle({ controls }: { controls: DragControls }) {
           <circle cx="2" cy="10" r="1.1" />
           <circle cx="6" cy="10" r="1.1" />
         </svg>
-      </span>
+      </button>
     </span>
   );
 }
@@ -126,6 +167,9 @@ function Row({
   className,
   canReorder,
   onCommit,
+  onMove,
+  onCancel,
+  what,
   layoutKey,
   children,
 }: {
@@ -134,6 +178,9 @@ function Row({
   className: string;
   canReorder: boolean;
   onCommit: () => void;
+  onMove?: (dir: number) => void;
+  onCancel?: () => void;
+  what: string;
   layoutKey: string;
   children: (handle: ReactNode) => ReactNode;
 }) {
@@ -155,7 +202,7 @@ function Row({
       dragControls={controls}
       onDragEnd={onCommit}
     >
-      {children(canReorder ? <DragHandle controls={controls} /> : null)}
+      {children(canReorder ? <DragHandle controls={controls} what={what} onMove={onMove} onCancel={onCancel} /> : null)}
     </Reorder.Item>
   );
 }
@@ -200,10 +247,40 @@ function EyeOffIcon() {
     </svg>
   );
 }
+/**
+ * Rows re-flow the instant one is deleted, so the second click of a double-click
+ * lands on whatever moved under the cursor: a 3-click burst measured at 20ms
+ * intervals removed two different bullets.
+ *
+ * Guarded by POSITION as well as time, and deliberately not per-button: the second
+ * click is on a different button by then, so a per-button ref would never see it.
+ * Two deliberate deletes on different rows are at different points and both go
+ * through; only a repeat click that has not moved is dropped.
+ */
+let lastDeleteAt = 0;
+let lastDeleteX = 0;
+let lastDeleteY = 0;
+const DELETE_GAP_MS = 350;
+const DELETE_GAP_PX = 24;
+
 function Del({ onClick }: { onClick: () => void }) {
   return (
     <span className="cv-hz cv-hz-r no-print" contentEditable={false}>
-      <button className="cv-del" type="button" title="Delete" aria-label="Delete" onClick={onClick}>
+      <button
+        className="cv-del"
+        type="button"
+        title="Delete"
+        aria-label="Delete"
+        onClick={(e) => {
+          const now = performance.now();
+          const moved = Math.hypot(e.clientX - lastDeleteX, e.clientY - lastDeleteY) > DELETE_GAP_PX;
+          if (!moved && now - lastDeleteAt < DELETE_GAP_MS) return;
+          lastDeleteAt = now;
+          lastDeleteX = e.clientX;
+          lastDeleteY = e.clientY;
+          onClick();
+        }}
+      >
         <XIcon />
       </button>
     </span>
@@ -409,7 +486,21 @@ function BulletList({
     <>
       <Reorder.Group as="ul" axis="y" className="cv-ul" values={orderKey.split(',')} onReorder={setDragIds}>
         {ordered.map((b) => (
-          <Row key={b.id} id={b.id} as="li" className="cv-li" canReorder={bullets.length > 1} onCommit={commit} layoutKey={orderKey}>
+          <Row
+            key={b.id}
+            id={b.id}
+            as="li"
+            className="cv-li"
+            what="bullet"
+            canReorder={bullets.length > 1}
+            onCommit={commit}
+            onCancel={() => setDragIds(null)}
+            onMove={(dir) => {
+              const next = moveId(ordered.map((x) => x.id), b.id, dir);
+              if (next) reorderBullets(itemId, next);
+            }}
+            layoutKey={orderKey}
+          >
             {(handle) => (
               <>
                 {handle}
@@ -444,6 +535,8 @@ function SectionView({
   canReorderSection,
   onDeleteSection,
   onSectionCommit,
+  onMoveSection,
+  onCancelSectionDrag,
   layoutKey,
 }: {
   section: Section;
@@ -452,6 +545,8 @@ function SectionView({
   canReorderSection: boolean;
   onDeleteSection: () => void;
   onSectionCommit: () => void;
+  onMoveSection: (dir: number) => void;
+  onCancelSectionDrag: () => void;
   layoutKey: string;
 }) {
   const controls = useDragControls();
@@ -468,6 +563,11 @@ function SectionView({
       if (ids) editSection((s) => 'items' in s && sortByIds(s.items as Array<{ id: string }>, ids));
       return null;
     });
+  /** Keyboard equivalent of a drag: commit a one-step move straight to the store. */
+  const moveItemById = (ids: string[], id: string, dir: number) => {
+    const next = moveId(ids, id, dir);
+    if (next) editSection((s) => 'items' in s && sortByIds(s.items as Array<{ id: string }>, next));
+  };
 
   const editSection = (apply: (s: Section) => void) =>
     update((d) => {
@@ -573,7 +673,18 @@ function SectionView({
     return (
       <Reorder.Group as="div" axis="y" values={ordered.map((i) => i.id)} onReorder={setItemDragIds}>
         {ordered.map((it) => (
-          <Row key={it.id} id={it.id} as="div" className="cv-entry" canReorder={items.length > 1} onCommit={commitItems} layoutKey={orderKey}>
+          <Row
+            key={it.id}
+            id={it.id}
+            as="div"
+            className="cv-entry"
+            what="entry"
+            canReorder={items.length > 1}
+            onCommit={commitItems}
+            onCancel={() => setItemDragIds(null)}
+            onMove={(dir) => moveItemById(ordered.map((i) => i.id), it.id, dir)}
+            layoutKey={orderKey}
+          >
             {(handle) => render(it, handle)}
           </Row>
         ))}
@@ -594,8 +705,15 @@ function SectionView({
       dragControls={controls}
       onDragEnd={onSectionCommit}
     >
+      {/* Deliberately NOT role="heading". It reads like one, but the box holds the
+          drag handle, the hide toggle, the delete and an editable textbox, and
+          `heading` is not a composite role: announcing it as a heading flattens the
+          controls inside it, and the title itself is a field you type in, not a
+          label. A wrong role is worse than a missing one. */}
       <div className="cv-secH">
-        {canReorderSection && <DragHandle controls={controls} />}
+        {canReorderSection && (
+          <DragHandle controls={controls} what="section" onMove={onMoveSection} onCancel={onCancelSectionDrag} />
+        )}
         <span className="cv-hz cv-hz-eye no-print" contentEditable={false}>
           <button
             className="cv-eye"
@@ -720,7 +838,18 @@ function SectionView({
         <>
           <Reorder.Group as="ul" axis="y" className="cv-ul" values={certOrderKey.split(',')} onReorder={setItemDragIds}>
             {applyOrder(section.items, itemDragIds).map((it) => (
-              <Row key={it.id} id={it.id} as="li" className="cv-entry" canReorder={section.items.length > 1} onCommit={commitItems} layoutKey={certOrderKey}>
+              <Row
+                key={it.id}
+                id={it.id}
+                as="li"
+                className="cv-entry"
+                what="certification"
+                canReorder={section.items.length > 1}
+                onCommit={commitItems}
+                onCancel={() => setItemDragIds(null)}
+                onMove={(dir) => moveItemById(certOrderKey.split(','), it.id, dir)}
+                layoutKey={certOrderKey}
+              >
                 {(handle) => (
                   <>
                     {handle}
@@ -906,7 +1035,10 @@ export function EditorPaper({ scale }: { scale: number }) {
   // Printed height of the content. Drives how far the "cut" strip extends below the
   // page edge on screen; print still clips at exactly one page.
   const [contentH, setContentH] = useState(A4_H);
-  const [fitFailed, setFitFailed] = useState(false);
+  // Printed height at which "Fit to page" gave up, or null. Height, not a boolean,
+  // so the verdict expires as soon as the content actually changes (see check()).
+  const [fitFailedAt, setFitFailedAt] = useState<number | null>(null);
+  const fitFailed = fitFailedAt !== null;
 
   // Section order while dragging (ids); null when idle. Commit to the store once, on
   // release, so a whole section drag is a single undo step.
@@ -918,6 +1050,12 @@ export function EditorPaper({ scale }: { scale: number }) {
       if (ids) update((d) => sortByIds(d.sections, ids));
       return null;
     });
+
+  /** Keyboard equivalent of a section drag. */
+  const moveSection = (id: string, dir: number) => {
+    const next = moveId(orderedSections.map((s) => s.id), id, dir);
+    if (next) update((d) => sortByIds(d.sections, next));
+  };
 
   const removeSectionById = (id: string) =>
     update((d) => {
@@ -995,6 +1133,11 @@ export function EditorPaper({ scale }: { scale: number }) {
       setContentH((prev) => (prev === h ? prev : h));
       setOverflow(h > el.clientHeight + 1);
       setOverflowPx(h - el.clientHeight);
+      // A "cannot fit" verdict only holds for the content it was measured on. It
+      // used to be cleared solely by a SUCCESSFUL fit, which a failure makes
+      // unreachable (it removes the button), so the message and the missing button
+      // survived deleting content all the way back down to a fittable page.
+      setFitFailedAt((prev) => (prev === null || prev === h ? prev : null));
       raf = requestAnimationFrame(() => ro.observe(el));
     };
 
@@ -1050,11 +1193,11 @@ export function EditorPaper({ scale }: { scale: number }) {
       root.setProperty('--paper-lh', String(doc.theme.lineHeight));
       root.setProperty('--paper-margin', `${doc.theme.marginPt}pt`);
       root.setProperty('--paper-size', `${doc.theme.basePt}pt`);
-      setFitFailed(true);
+      setFitFailedAt(measure()); // remember WHICH page could not be fitted
       return;
     }
 
-    setFitFailed(false);
+    setFitFailedAt(null);
     update((d) => {
       d.theme.lineHeight = t.lineHeight;
       d.theme.marginPt = t.marginPt;
@@ -1102,6 +1245,10 @@ export function EditorPaper({ scale }: { scale: number }) {
         style={{
           width: `${A4_W}px`,
           height: `${A4_H}px`,
+          // Published so CSS can size hit areas in INVERSE scale: everything in here
+          // is painted through scale(), so a 20px control is ~14 screen px at fit
+          // zoom and ~9 on a phone. See the --hit rules in paper.css.
+          ['--zoom' as string]: String(scale),
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
           // above .cv-cut, so overflowing content paints over the tint, not under it
@@ -1155,6 +1302,8 @@ export function EditorPaper({ scale }: { scale: number }) {
             <button
               type="button"
               className="cv-contact-add no-print"
+              title="Add contact"
+              aria-label="Add contact"
               onClick={() => {
                 const id = uid();
                 update((d) => d.header.contacts.push({ id, value: '' }));
@@ -1187,6 +1336,8 @@ export function EditorPaper({ scale }: { scale: number }) {
               canReorderSection={doc.sections.length > 1}
               onDeleteSection={() => removeSectionById(section.id)}
               onSectionCommit={commitSections}
+              onMoveSection={(dir) => moveSection(section.id, dir)}
+              onCancelSectionDrag={() => setSecDragIds(null)}
               layoutKey={sectionOrderKey}
             />
           ))}

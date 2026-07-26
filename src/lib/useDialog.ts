@@ -11,6 +11,15 @@ const FOCUSABLE =
 export function useDialog(open: boolean, onClose: () => void): MutableRefObject<HTMLDivElement | null> {
   const ref = useRef<HTMLDivElement | null>(null);
   const restoreTo = useRef<HTMLElement | null>(null);
+  /**
+   * Held in a ref, and deliberately NOT a dependency below. Callers pass an inline
+   * arrow, so `onClose` is a new function on every render; with it in the dep array
+   * the effect re-ran per render and re-focused the dialog's first control. In the
+   * import dialog that made typing impossible: the first keystroke re-rendered,
+   * focus jumped to the close button, and every later character was dropped.
+   */
+  const close = useRef(onClose);
+  close.current = onClose;
 
   useEffect(() => {
     if (!open) return;
@@ -22,7 +31,7 @@ export function useDialog(open: boolean, onClose: () => void): MutableRefObject<
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose();
+        close.current();
         return;
       }
       if (e.key !== 'Tab' || !ref.current) return;
@@ -47,7 +56,7 @@ export function useDialog(open: boolean, onClose: () => void): MutableRefObject<
       document.removeEventListener('keydown', onKey, true);
       restoreTo.current?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return ref;
 }

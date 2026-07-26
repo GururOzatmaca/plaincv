@@ -6,22 +6,111 @@ import { get, set, del } from 'idb-keyval';
 import { ResumeSchema, type Resume } from '@/schema/resume';
 import { sampleResume } from '@/schema/sample';
 import { blankResume, uid } from '@/schema/factory';
-import { STORE_KEY, PERSIST_VERSION, migratePersisted, mergePersisted, type Library } from './migrations';
+import { STORE_KEY, PERSIST_VERSION, migratePersisted, mergePersisted, noteUnreadable, type Library } from './migrations';
 
 // IndexedDB-backed storage for zustand/persist (local-first, no backend).
 // Writes are debounced so rapid changes (slider/color drags) don't thrash IndexedDB.
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let pending: { name: string; value: string } | null = null;
+
+/**
+ * Documents this tab deleted. A write merges the stored library back in (see
+ * mergeIntoStored), so without a tombstone a delete would be resurrected by the
+ * very next save.
+ */
+const tombstones = new Set<string>();
+export const markDeleted = (id: string): void => void tombstones.add(id);
+
+/**
+ * Synchronous crash pad. IndexedDB writes cannot complete while the page is
+ * unloading (measured: an edit followed by a reload inside 300ms was lost even
+ * with the pagehide flush), so the pending value is also dropped into
+ * localStorage, which IS synchronous. Read back and cleared on the next load.
+ */
+const PAD_KEY = `${STORE_KEY}.pad`;
+const writePad = (value: string) => {
+  try {
+    localStorage.setItem(PAD_KEY, value);
+  } catch {
+    // private mode / quota: the pad is best-effort by definition
+  }
+};
+const readPad = (): string | null => {
+  try {
+    const v = localStorage.getItem(PAD_KEY);
+    if (v !== null) localStorage.removeItem(PAD_KEY);
+    return v;
+  } catch {
+    return null;
+  }
+};
+/**
+ * The pad exists ONLY to cover a write that did not reach IndexedDB. The moment one
+ * does, it is stale and must go: it is written on every visibilitychange->hidden,
+ * i.e. every tab switch, and getItem prefers it unconditionally. Leaving it behind
+ * meant switching tabs once and then editing for half an hour ended with the reload
+ * restoring the half-hour-old snapshot (measured: three later edits reached
+ * IndexedDB, the pad still won, all three were lost).
+ */
+const clearPad = () => {
+  try {
+    localStorage.removeItem(PAD_KEY);
+  } catch {
+    // private mode: there was nothing to clear
+  }
+};
+
+/** Other tabs write the same single key; tell them to re-read after we save. */
+const channel: BroadcastChannel | null =
+  typeof BroadcastChannel === 'function' ? new BroadcastChannel(STORE_KEY) : null;
+const TAB_ID = uid();
+
+/**
+ * Fold our document into whatever is CURRENTLY stored rather than over the top of
+ * it. Two tabs each hold their own copy of the whole library, so a blind write from
+ * the older tab reverted the newer tab's edits (measured: tab 1's name change was
+ * silently rolled back by tab 2's next save).
+ */
+async function mergeIntoStored(name: string, value: string): Promise<string> {
+  try {
+    const next = JSON.parse(value) as { state?: { library?: Record<string, unknown>; activeId?: string } };
+    const prevRaw = await get(name);
+    if (typeof prevRaw !== 'string' || !next.state?.library) return value;
+    const prev = JSON.parse(prevRaw) as { state?: { library?: Record<string, unknown> } };
+    if (!prev.state?.library) return value;
+    const merged: Record<string, unknown> = { ...prev.state.library, ...next.state.library };
+    for (const id of tombstones) delete merged[id];
+    next.state.library = merged;
+    return JSON.stringify(next);
+  } catch {
+    return value; // unreadable previous payload: our own write is the better copy
+  }
+}
+
+const persistNow = async (name: string, value: string) => {
+  try {
+    await set(name, await mergeIntoStored(name, value));
+    clearPad(); // the write landed, so any crash pad for it is now stale
+    channel?.postMessage({ from: TAB_ID });
+  } catch {
+    // quota exceeded / storage evicted / private mode. Swallowed on purpose: an
+    // unhandled rejection here reaches ErrorBoundary's `unhandledrejection`
+    // listener and replaces the whole editor with the crash screen on the user's
+    // FIRST edit. The pad below is what actually keeps their work.
+    writePad(value);
+  }
+};
+
 // Flush the pending debounced write immediately so an edit followed by a reload/
-// close within the 300ms window is not lost. Fire-and-forget: the browser lets the
-// IndexedDB write proceed as the page unloads.
+// close within the 300ms window is not lost.
 const flushSave = () => {
   if (saveTimer) {
     clearTimeout(saveTimer);
     saveTimer = undefined;
   }
   if (pending) {
-    void set(pending.name, pending.value);
+    writePad(pending.value); // synchronous, so it survives the unload
+    void persistNow(pending.name, pending.value);
     pending = null;
   }
 };
@@ -32,18 +121,44 @@ if (typeof window !== 'undefined') {
   });
 }
 const idbStorage: StateStorage = {
-  getItem: async (name) => (await get(name)) ?? null,
+  getItem: async (name) => {
+    // The pad is only ever written with a value that had not reached IndexedDB, so
+    // when it exists it is the newer of the two.
+    const pad = readPad();
+    if (pad !== null) return pad;
+    let raw: unknown;
+    try {
+      raw = await get(name);
+    } catch {
+      return null;
+    }
+    if (raw == null) return null;
+    if (typeof raw !== 'string') return null;
+    // createJSONStorage parses this; a throw there aborts hydration before merge()
+    // runs, so the corrupt payload would be replaced with no warning and no backup.
+    try {
+      JSON.parse(raw);
+    } catch {
+      noteUnreadable(raw);
+      return null;
+    }
+    return raw;
+  },
   setItem: (name, value) => {
     pending = { name, value };
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       saveTimer = undefined;
       pending = null;
-      void set(name, value);
+      void persistNow(name, value);
     }, 300);
   },
   removeItem: async (name) => {
-    await del(name);
+    try {
+      await del(name);
+    } catch {
+      // nothing useful to do; never let this crash the app
+    }
   },
 };
 
@@ -90,6 +205,22 @@ const clearHistory = () => useResumeStore.temporal.getState().clear();
 
 const withFreshId = (doc: Resume, name: string): Resume => ({ ...doc, id: uid(), name });
 
+/**
+ * Replace the live document IN PLACE, keeping `activeId` and the library key equal
+ * to `doc.id`.
+ *
+ * Import and "start over" used to assign `doc` alone. The library key then still
+ * named the old id while the switcher listed rows by `doc.id`, so the document you
+ * had just imported could not be selected (`library[row.id]` was undefined) and its
+ * delete was a silent no-op: an orphan you could neither open nor remove.
+ */
+function adoptDoc(state: { doc: Resume; library: Record<string, Resume>; activeId: string }, doc: Resume): void {
+  delete state.library[state.activeId];
+  state.library[doc.id] = doc;
+  state.doc = doc;
+  state.activeId = doc.id;
+}
+
 export const useResumeStore = create<ResumeStore>()(
   persist(
     temporal(
@@ -100,13 +231,14 @@ export const useResumeStore = create<ResumeStore>()(
 
         setDoc: (doc) => {
           const parsed = ResumeSchema.safeParse(doc);
-          if (parsed.success) setState({ doc: parsed.data });
+          if (parsed.success) setState((state) => void adoptDoc(state, parsed.data));
         },
         update: (recipe) =>
           setState((state) => {
             recipe(state.doc);
           }),
-        reset: (kind) => setState({ doc: kind === 'blank' ? blankResume() : sampleResume }),
+        reset: (kind) =>
+          setState((state) => void adoptDoc(state, kind === 'blank' ? blankResume() : withFreshId(sampleResume, 'Sample CV'))),
 
         switchDoc: (id) => {
           const s = getState();
@@ -155,6 +287,7 @@ export const useResumeStore = create<ResumeStore>()(
         deleteDoc: (id) => {
           const s = getState();
           if (!s.library[id]) return;
+          markDeleted(id); // else the cross-tab merge on the next save resurrects it
           const wasActive = id === s.activeId;
           setState((state) => {
             if (!wasActive) state.library[state.activeId] = state.doc;
@@ -193,6 +326,20 @@ export const useResumeStore = create<ResumeStore>()(
     },
   ),
 );
+
+/**
+ * Another tab saved. Re-read so the two views converge instead of silently
+ * diverging until one of them overwrites the other. Skipped while a field is being
+ * edited here, because re-hydrating would rewrite the contentEditable under the
+ * caret; the next save from this tab merges rather than clobbers, so nothing is lost
+ * by waiting.
+ */
+channel?.addEventListener('message', (e: MessageEvent<{ from?: string }>) => {
+  if (e.data?.from === TAB_ID) return;
+  const el = document.activeElement as HTMLElement | null;
+  if (el?.isContentEditable || el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA') return;
+  void useResumeStore.persist.rehydrate();
+});
 
 /**
  * Switcher rows, insertion-ordered so the list does not jump as names change.

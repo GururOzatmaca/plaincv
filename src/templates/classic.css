@@ -14,8 +14,11 @@
   font-weight: 700;
   border-bottom: 1pt solid var(--paper-accent);
 }
+/* --accent-ink, not --paper-accent: a raw accent marker measured 3.68:1 on white
+   (2.53-3.92:1 across the templates), and a list marker is text. --accent-ink is
+   derived to clear 4.5:1 and keeps the template's colour. */
 [data-template='classic'] .cv-li::marker {
-  color: var(--paper-accent);
+  color: var(--accent-ink);
 }
 [data-template='classic'] .cv-chip {
   background: transparent;

@@ -136,6 +136,8 @@ export function RichEditable({
       contentEditable
       suppressContentEditableWarning
       role="textbox"
+      // see Editable: the CSS placeholder is not an accessible name
+      aria-label={placeholder}
       tabIndex={0}
       // Rich fields are free prose (bullets, profile, notes), where a typo is
       // expensive. Plain fields stay unchecked: names, employers and schools are

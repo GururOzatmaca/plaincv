@@ -35,7 +35,7 @@ export function UndoRedo() {
       <button
         className="hdr-btn"
         type="button"
-        title="Redo (Ctrl+Shift+Z)"
+        title="Redo (Ctrl+Y)"
         aria-label="Redo"
         disabled={future === 0}
         onMouseDown={(e) => {

@@ -26,9 +26,10 @@
   text-transform: uppercase;
   letter-spacing: 0.12em;
 }
+/* --accent-ink: the raw accent measured 3.68:1 on white and a marker is text */
 [data-template='sharp'] .cv-li::marker {
   content: '▪  ';
-  color: var(--paper-accent);
+  color: var(--accent-ink);
 }
 [data-template='sharp'] .cv-chip {
   border-radius: 3pt;
