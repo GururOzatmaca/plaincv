@@ -26,6 +26,8 @@ const DONE_KEY = 'cv-generator/coach-done';
 /** The small surface a step is allowed to drive. */
 export interface CoachApi {
   setImportOpen: (v: boolean) => void;
+  /** Preview only: the raw setter, so a demo never writes the saved preference. */
+  setShowCtl: (v: boolean) => void;
 }
 
 /**
@@ -57,6 +59,8 @@ interface Phase {
 }
 
 interface Step {
+  /** Stable handle for Help's "Show me". Reordering the tour must not move a link. */
+  id: string;
   sel: string[];
   title: string;
   body: string;
@@ -115,6 +119,29 @@ function previewRadio(axis: string, index: number): void {
   savedRadios ??= [];
   for (const input of inputs) savedRadios.push({ input, checked: input.checked });
   inputs.forEach((el, i) => (el.checked = i === index));
+}
+
+/**
+ * The controls toggle, previewed rather than set.
+ *
+ * Read back off the root class instead of being handed the value, so the tour needs
+ * no live copy of EditorPage's state, and put back by the step's cleanup. It drives
+ * the raw setter, which does NOT write the saved preference: a demonstration must not
+ * change what the user sees on their next visit.
+ */
+let savedShowCtl: boolean | null = null;
+function previewShowCtl(api: CoachApi, on: boolean): void {
+  if (savedShowCtl === null) savedShowCtl = !!document.querySelector('.app-root.show-ctl');
+  // `body.coach-tour` force-reveals every control so later steps can ring them with
+  // View options switched off. That is exactly what this step needs suppressed: with
+  // it on, "watch them disappear" disappeared nothing.
+  document.body.classList.toggle('coach-bare', !on);
+  api.setShowCtl(on);
+}
+function restoreShowCtl(api: CoachApi): void {
+  document.body.classList.remove('coach-bare');
+  if (savedShowCtl !== null) api.setShowCtl(savedShowCtl);
+  savedShowCtl = null;
 }
 
 /** Same idea for the accent strip: move the selected swatch, not only the colour. */
@@ -182,22 +209,50 @@ const axisPhase = (
 });
 
 export const STEPS: Step[] = [
+  /**
+   * First, and the only step that demonstrates itself rather than describing.
+   *
+   * Everything else on this page is revealed by proximity, so a new visitor is
+   * looking at what appears to be a read-only document. This one switches the
+   * controls off, then presses the button and lets them all appear: that single
+   * before/after answers "where is everything?" better than any of the steps that
+   * follow, which is why it goes first.
+   */
   {
+    id: 'view-options',
+    sel: ['.hdr-ghost'],
+    title: 'Start here: where the controls are',
+    body: 'Watch the page: every add, delete and drag control has just gone. They are only hidden, and they come back whenever your pointer is near one.',
+    phases: [
+      { run: (api) => previewShowCtl(api, false) },
+      {
+        press: '.hdr-ghost',
+        body: 'View options pins all of them open at once, which is how the page starts on your first visit. Press it again whenever the page feels busy.',
+        run: (api) => previewShowCtl(api, true),
+      },
+    ],
+    cleanup: restoreShowCtl,
+  },
+  {
+    id: 'switcher',
     sel: ['.doc-trigger'],
     title: 'Keep more than one CV',
     body: 'Duplicate this one and cut the copy down for a specific job. The original stays untouched. Undo never crosses between them.',
   },
   {
+    id: 'reorder',
     sel: ['.cv-section .cv-secH .cv-hz-l'],
     title: 'Drag to reorder',
     body: 'This handle moves the whole section; entries and bullets have their own. Focus a handle and the up and down arrows do the same thing without a mouse.',
   },
   {
+    id: 'hide',
     sel: ['.cv-section .cv-secH .cv-hz-eye'],
     title: 'Hide without deleting',
     body: 'Keeps the section in your CV but out of the PDF, so you can drop it for one application and put it back after. Hidden sections do not count toward the one-page limit.',
   },
   {
+    id: 'add',
     sel: ['.cv-addbul', '.cv-plus', '.cv-chip-add', '.cv-contact-add'],
     title: 'Everything you can add',
     body: 'Every + adds one more of the thing beside it: a bullet, an entry, a skill, a contact. In a bullet, Enter starts the next one.',
@@ -205,6 +260,7 @@ export const STEPS: Step[] = [
   {
     // One example of each KIND, not every delete on the page. Ringing all of them
     // put 34 rings up at once, which reads as an alarm rather than an explanation.
+    id: 'delete',
     sel: [
       '.cv-secH > .cv-hz-r > .cv-del',
       '.cv-entry > .cv-hz-r > .cv-del',
@@ -217,16 +273,13 @@ export const STEPS: Step[] = [
     body: 'A section, an entry, a bullet, a skill, a contact: each x removes the row it sits on, and every one of them looks like these. Nothing here is final; Ctrl+Z puts any of it back.',
   },
   {
+    id: 'add-section',
     sel: ['.cv-addsec-btn'],
     title: 'Add a section',
     body: 'Profile, projects, certifications and anything custom. Sections you add work exactly like these.',
   },
   {
-    sel: ['.hdr-ghost'],
-    title: 'Show every control at once',
-    body: 'Controls stay out of the way until your pointer is near them. View options pins them all open, which is how this page started.',
-  },
-  {
+    id: 'ai',
     sel: ['.hdr-icon', '.hdr-ai'],
     title: 'Let an AI fill it in',
     body: 'Fill with AI hands you a prompt for ChatGPT and takes the answer back. The ? beside it reopens this help at any time.',
@@ -242,11 +295,13 @@ export const STEPS: Step[] = [
     cleanup: (api) => api.setImportOpen(false),
   },
   {
+    id: 'export',
     sel: ['.hdr-dl'],
     title: 'Download the PDF',
     body: 'This prints the page you are looking at, so the PDF is exactly what you see, clipped to one A4. Pick "Save as PDF" in the dialog your browser opens.',
   },
   {
+    id: 'layout',
     sel: ['.design-panel .pnl-sec'],
     title: 'A template is a starting point, not a cage',
     body: 'Watch the page while these change.',
@@ -290,6 +345,13 @@ const phasesOf = (s: Step): Phase[] => s.phases ?? [{}];
  * looks like Next did nothing.
  */
 const SCREEN_COUNT = STEPS.reduce((n, s) => n + phasesOf(s).length, 0);
+
+/**
+ * Resolve a step id to its position. Help links by id, so reordering the tour cannot
+ * silently point a question at the wrong control; an unknown id starts at the top
+ * rather than throwing.
+ */
+export const stepIndex = (id: string): number => Math.max(0, STEPS.findIndex((s) => s.id === id));
 const screenIndex = (step: number, phase: number): number =>
   STEPS.slice(0, step).reduce((n, s) => n + phasesOf(s).length, 0) + phase + 1;
 
@@ -428,7 +490,7 @@ export function Coachmarks({
   useEffect(() => {
     if (step == null) return;
     document.body.classList.add('coach-tour');
-    return () => document.body.classList.remove('coach-tour');
+    return () => document.body.classList.remove('coach-tour', 'coach-bare');
   }, [step != null]);
 
   // Per-STEP teardown. Runs on Next, Skip, Escape and unmount alike, so a step that

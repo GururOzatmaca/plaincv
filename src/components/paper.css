@@ -46,7 +46,7 @@
 }
 .cv-rule:hover .cv-rule-x,
 .show-ctl .cv-rule-x,
-body.coach-tour .cv-rule-x {
+body.coach-tour:not(.coach-bare) .cv-rule-x {
   opacity: 1;
 }
 .cv-rule-x:hover {
@@ -232,15 +232,15 @@ body.coach-tour .cv-rule-x {
 }
 /* "show controls" toggle: reveal every affordance at once */
 .show-ctl .cv-hz > *,
-body.coach-tour .cv-hz > *,
+body.coach-tour:not(.coach-bare) .cv-hz > *,
 .show-ctl .cv-chip-x,
-body.coach-tour .cv-chip-x {
+body.coach-tour:not(.coach-bare) .cv-chip-x {
   opacity: 1;
 }
 .show-ctl .cv-contact-add,
-body.coach-tour .cv-contact-add,
+body.coach-tour:not(.coach-bare) .cv-contact-add,
 .show-ctl .cv-chip-add,
-body.coach-tour .cv-chip-add {
+body.coach-tour:not(.coach-bare) .cv-chip-add {
   display: grid;
 }
 /* bullet controls both on the LEFT: drag outermost, delete just inside; aligned to
@@ -450,7 +450,7 @@ body.coach-tour .cv-chip-add {
 .cv-entry:hover:not(:has(.cv-hz-l:hover)) .cv-addbul,
 .cv-addbul:hover,
 .show-ctl .cv-addbul,
-body.coach-tour .cv-addbul {
+body.coach-tour:not(.coach-bare) .cv-addbul {
   max-height: 60px;
   opacity: 1;
   margin-top: 2pt;
@@ -502,7 +502,7 @@ body.coach-tour .cv-addbul {
 .cv-section:hover:not(:has(.cv-hz-l:hover)) .cv-secadd-wrap,
 .cv-secadd-wrap:hover,
 .show-ctl .cv-secadd-wrap,
-body.coach-tour .cv-secadd-wrap {
+body.coach-tour:not(.coach-bare) .cv-secadd-wrap {
   max-height: 60px;
   margin-top: 2pt;
 }
@@ -561,7 +561,7 @@ body.coach-tour .cv-secadd-wrap {
 .cv-addsec:hover .cv-addsec-btn,
 .cv-addsec-open .cv-addsec-btn,
 .show-ctl .cv-addsec-btn,
-body.coach-tour .cv-addsec-btn {
+body.coach-tour:not(.coach-bare) .cv-addsec-btn {
   max-height: 40px;
   opacity: 1;
   margin-top: 4pt;
@@ -658,7 +658,7 @@ body.coach-tour .cv-addsec-btn {
 .cv-chip:hover .cv-chip-x,
 .cv-contact-item:hover .cv-chip-x,
 .show-ctl .cv-chip-x,
-body.coach-tour .cv-chip-x {
+body.coach-tour:not(.coach-bare) .cv-chip-x {
   opacity: 1;
 }
 .cv-chip-x:hover {
@@ -818,7 +818,7 @@ body.coach-tour .cv-chip-x {
 }
 .cv-section:hover .cv-skilllabel-empty,
 .show-ctl .cv-skilllabel-empty,
-body.coach-tour .cv-skilllabel-empty,
+body.coach-tour:not(.coach-bare) .cv-skilllabel-empty,
 .cv-skilllabel-empty:focus {
   max-width: 34%;
   overflow: visible;

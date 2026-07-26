@@ -129,8 +129,10 @@ export function EditorPage() {
   // besides the once-ever first visit.
   const [tourAt, setTourAt] = useState<number | null>(null);
   // Stable identity: the tour holds this across steps and must not see a new object
-  // on every render of this page (which zoom alone causes constantly).
-  const coachApi = useMemo(() => ({ setImportOpen }), []);
+  // on every render of this page (which zoom alone causes constantly). setShowCtl is
+  // the raw setter on purpose, so the tour's demonstration never writes the saved
+  // preference the way the header button does.
+  const coachApi = useMemo(() => ({ setImportOpen, setShowCtl }), []);
   const theme = useResumeStore((s) => s.doc.theme);
   usePrintFilename();
 

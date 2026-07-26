@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { isMuted, setMuted } from '@/lib/sound';
+import { stepIndex } from './Coachmarks';
 import { useDialog } from '@/lib/useDialog';
 import './shortcuts.css';
 
@@ -31,7 +32,7 @@ const KEYS: { keys: string[]; what: string }[] = [
  * real page. Deliberately not screenshots: an image of a control goes stale the
  * moment the control moves or the accent changes, and it cannot point at YOUR page.
  */
-const HOWTO: { q: string; a: string; step?: number }[] = [
+const HOWTO: { q: string; a: string; step?: string }[] = [
   {
     q: 'How do I edit anything?',
     a: 'Click the text on the page and type. There is no form; the page you see is the PDF you get.',
@@ -39,7 +40,7 @@ const HOWTO: { q: string; a: string; step?: number }[] = [
   {
     q: 'Where are the add and delete buttons?',
     a: 'They appear when your pointer gets near the thing they act on. "View options" in the header pins them all open, which is how it starts on your first visit.',
-    step: 3,
+    step: 'view-options',
   },
   {
     q: 'Why is some of my CV below a red dashed line?',
@@ -48,32 +49,32 @@ const HOWTO: { q: string; a: string; step?: number }[] = [
   {
     q: 'Can I drop a section for one application without losing it?',
     a: 'Yes. The eye toggle beside a section heading hides it from the PDF but keeps it in your CV. Hidden sections do not count toward the one-page limit.',
-    step: 2,
+    step: 'hide',
   },
   {
     q: 'How do I reorder sections, entries or bullets?',
     a: 'Drag the handle on the left of any row. Or focus that handle with Tab and use the up and down arrow keys, which does the same thing without a mouse.',
-    step: 1,
+    step: 'reorder',
   },
   {
     q: 'How do I tailor my CV per job?',
     a: 'Use the CV switcher next to the logo: Duplicate, then cut the copy down. Each CV is saved separately. Undo does not cross between them.',
-    step: 0,
+    step: 'switcher',
   },
   {
     q: 'What is the difference between a template and the Layout controls?',
     a: 'A template is a preset over four layout axes (Header, Dates, Headings, Skills) plus a colour. Changing an axis moves you off the preset. Shuffle picks a combination that is known to hold together.',
-    step: 9,
+    step: 'layout',
   },
   {
     q: 'Where is my data stored?',
     a: 'Only in this browser, in IndexedDB. There is no account and no server. Use "Fill with AI" → "Back up" to download a JSON copy before clearing browser data.',
-    step: 7,
+    step: 'ai',
   },
   {
     q: 'How do I get a PDF?',
     a: 'Download PDF opens your browser\'s print dialog; choose "Save as PDF". Links in the CV stay clickable and the filename comes from your name.',
-    step: 8,
+    step: 'export',
   },
 ];
 
@@ -138,7 +139,7 @@ export function Shortcuts({
               <p>{h.a}</p>
               {h.step != null && (
                 <p className="sc-showme-row">
-                  <button type="button" className="sc-showme" onClick={() => onShowMe(h.step as number)}>
+                  <button type="button" className="sc-showme" onClick={() => onShowMe(stepIndex(h.step as string))}>
                     Show me on the page
                   </button>
                 </p>
