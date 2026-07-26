@@ -121,7 +121,12 @@ function LiveSlider(props: {
           onChange={(e) => apply(Number(e.target.value))}
           onPointerUp={done}
           onBlur={done}
-          onKeyUp={() => commit(latest.current)}
+          // Keyboard has to raise the same `active` flag a pointer does. Without it the
+          // value-sync effect treats every commit mid-sequence as an external change and
+          // resets the thumb to the store, so held or fast arrow presses walk backwards
+          // and the last commit can be a value the user already stepped past.
+          onKeyDown={() => (active.current = true)}
+          onKeyUp={done}
         />
       </div>
     </div>
@@ -146,7 +151,17 @@ export function DesignPanel({ narrow = false, startOpen }: { narrow?: boolean; s
       d.theme.basePt = t.basePt;
       d.theme.lineHeight = t.lineHeight;
       d.theme.headingScale = t.headingScale;
+      d.theme.nameScale = t.nameScale;
+      d.theme.roleScale = t.roleScale;
+      d.theme.titleScale = t.titleScale;
+      d.theme.density = t.density;
+      d.theme.blockSpacing = t.blockSpacing;
+      d.theme.rowSpacing = t.rowSpacing;
       d.theme.marginPt = t.marginPt;
+      // Cleared, not skipped: no preset sets an asymmetric side margin, so leaving a
+      // custom one behind would leak it across every template the way skillStyle is
+      // deliberately allowed to (that one is a preference; this one is a measurement).
+      d.theme.marginXPt = t.marginXPt;
       d.theme.headerLayout = t.headerLayout;
       d.theme.entryLayout = t.entryLayout;
       d.theme.headingLayout = t.headingLayout;
@@ -215,7 +230,10 @@ export function DesignPanel({ narrow = false, startOpen }: { narrow?: boolean; s
 
       {open && (
         <>
-      <div className="panel-scroll app-scroll flex-1 overflow-y-auto">
+      {/* Docked only. Stacked, the panel is height:auto and the STAGE is the scroller,
+          so an inner overflow box has nothing to scroll and just swallows the touch
+          drag that was meant for the page. */}
+      <div className={`panel-scroll app-scroll${narrow ? '' : ' flex-1 overflow-y-auto'}`}>
         {/* Template */}
         <section className="pnl-sec">
           <h3 className="pnl-h">Template</h3>
@@ -247,14 +265,51 @@ export function DesignPanel({ narrow = false, startOpen }: { narrow?: boolean; s
             <FontPicker value={theme.fontFamily} onChange={(id) => set('fontFamily', id)} />
           </div>
           <LiveSlider label="Font size" min={8} max={13} step={0.5} value={theme.basePt} cssVar="--paper-size" unit="pt" format={(v) => `${v.toFixed(1)} pt`} commit={(v) => set('basePt', v)} recommended={rec.basePt} />
-          <LiveSlider label="Heading scale" min={1.2} max={2.2} step={0.05} value={theme.headingScale} cssVar="--paper-hscale" unit="" format={(v) => `${v.toFixed(2)}×`} commit={(v) => set('headingScale', v)} recommended={rec.headingScale} />
-          <LiveSlider label="Line spacing" min={1.1} max={1.8} step={0.02} value={theme.lineHeight} cssVar="--paper-lh" unit="" format={(v) => v.toFixed(2)} commit={(v) => set('lineHeight', v)} recommended={rec.lineHeight} />
+          {/* Two sliders, not one. Until v7 "Heading scale" drove the name at 1.15x and
+              the section heading at 0.6x floored at body size, so below 1.667 it moved
+              the name ONLY - 46.7% of its travel, and the value five of seven presets
+              shipped. Each is now a plain multiplier on Font size, so the label and the
+              printed pt agree: 10.5pt x 1.22 = 12.8pt. */}
+          <LiveSlider label="Name size" min={1.2} max={2.6} step={0.01} value={theme.nameScale} cssVar="--paper-nscale" unit="" format={(v) => `${(v * theme.basePt).toFixed(1)} pt`} commit={(v) => set('nameScale', v)} recommended={rec.nameScale} />
+          {/* Floored at 1.0 by paper.css: a heading printed smaller than the body it
+              labels stops reading as a heading. The bottom of this range IS that floor,
+              so it is a visible choice here rather than an invisible clamp. */}
+          <LiveSlider label="Heading size" min={1} max={1.5} step={0.01} value={theme.headingScale} cssVar="--paper-hscale" unit="" format={(v) => `${(v * theme.basePt).toFixed(1)} pt`} commit={(v) => set('headingScale', v)} recommended={rec.headingScale} />
+          {/* The entry role, which had no size control at all: bold at exactly body
+              size was its whole hierarchy. Capped at 1.3 because the role sits inline
+              with the organisation (.cv-co, body size and italic) and past roughly
+              there the two stop reading as one line. */}
+          <LiveSlider label="Role size" min={1} max={1.3} step={0.01} value={theme.roleScale} cssVar="--paper-rscale" unit="" format={(v) => `${(v * theme.basePt).toFixed(1)} pt`} commit={(v) => set('roleScale', v)} recommended={rec.roleScale} />
+          {/* step 0.01, not 0.02: Minimal (1.45), Banner (1.35) and Dense (1.25) all
+              recommend values that a 0.02 grid starting at 1.1 cannot land on, so the
+              pin marked a setting the thumb could only straddle. The step was the
+              arbitrary number here, not the three templates' typography. */}
+          <LiveSlider label="Line spacing" min={1.1} max={1.8} step={0.01} value={theme.lineHeight} cssVar="--paper-lh" unit="" format={(v) => v.toFixed(2)} commit={(v) => set('lineHeight', v)} recommended={rec.lineHeight} />
         </section>
 
         {/* Spacing */}
         <section className="pnl-sec">
           <h3 className="pnl-h">Spacing</h3>
-          <LiveSlider label="Margin" min={32} max={64} step={2} value={theme.marginPt} cssVar="--paper-margin" unit="pt" format={(v) => `${v} pt`} commit={(v) => set('marginPt', v)} recommended={rec.marginPt} />
+          {/* Split: one slider moved all four sides, so the only way to buy vertical
+              space was to shorten every line as well. min 36pt = 0.5in, the floor Yale
+              OCS publishes ("Margins no smaller than 0.5inch"); it was 32pt = 0.44in.
+              https://ocs.yale.edu/resources/resume-formatting/ */}
+          <LiveSlider label="Margin top / bottom" min={36} max={64} step={2} value={theme.marginPt} cssVar="--paper-margin" unit="pt" format={(v) => `${v} pt`} commit={(v) => set('marginPt', v)} recommended={rec.marginPt} />
+          {/* Undefined means "same as top/bottom" (see marginXPt in the schema), which
+              is what every preset uses and what every pre-split document has, so the
+              displayed value falls back rather than the field being backfilled. */}
+          <LiveSlider label="Margin sides" min={36} max={64} step={2} value={theme.marginXPt ?? theme.marginPt} cssVar="--paper-margin-x" unit="pt" format={(v) => `${v} pt`} commit={(v) => set('marginXPt', v)} recommended={rec.marginXPt ?? rec.marginPt} />
+          {/* The whitespace grid (section 12/6pt, entry 8pt, bullet 2.5pt) was hard pt
+              and did NOT follow Font size: measured identical at 10, 10.5 and 11pt
+              bodies. So shrinking type to win a page left the gaps where they were and
+              paid less and less. This is the knob that was missing. */}
+          {/* v8: one Density became two, and both reach 0. A single multiplier drove
+              section, entry, bullet and skill-row gaps together, so a CV whose skill
+              rows sit at pure line pitch (no row gap at all) was unreachable: density's
+              0.7 floor still left ~1.8pt per row, and lowering it further would have
+              flattened the section rhythm with it. */}
+          <LiveSlider label="Block spacing" min={0} max={1.3} step={0.05} value={theme.blockSpacing} cssVar="--paper-block" unit="" format={(v) => `${Math.round(v * 100)}%`} commit={(v) => set('blockSpacing', v)} recommended={rec.blockSpacing} />
+          <LiveSlider label="Row spacing" min={0} max={1.3} step={0.05} value={theme.rowSpacing} cssVar="--paper-row" unit="" format={(v) => `${Math.round(v * 100)}%`} commit={(v) => set('rowSpacing', v)} recommended={rec.rowSpacing} />
           {/* A pill reading "On" did not look pressable. Both states are now visible
               so it is obvious there is a choice and which side you are on. */}
           <div className="tgl-row">
@@ -328,6 +383,27 @@ export function DesignPanel({ narrow = false, startOpen }: { narrow?: boolean; s
             ]}
             onChange={(v) => set('headingLayout', v)}
           />
+          {/* Not a layout axis, but it belongs with the choices that are one click each:
+              which ink the dates, organisations, skill labels and contacts print in. */}
+          <div className="pnl-axis" data-axis="secondaryInk">
+            <span className="pnl-axis-label" id="secink-label">
+              Secondary text
+            </span>
+            <div className="radio-inputs" role="radiogroup" aria-labelledby="secink-label">
+              {(
+                [
+                  ['grey', 'Grey'],
+                  ['soft', 'Soft black'],
+                  ['black', 'Black'],
+                ] as const
+              ).map(([id, text]) => (
+                <label className="radio" key={id}>
+                  <input type="radio" name="secondaryInk" checked={theme.secondaryInk === id} onChange={() => set('secondaryInk', id)} />
+                  <span className="name">{text}</span>
+                </label>
+              ))}
+            </div>
+          </div>
           <AxisRow
             label="Skills"
             axis="skillStyle"
@@ -339,6 +415,12 @@ export function DesignPanel({ narrow = false, startOpen }: { narrow?: boolean; s
             ]}
             onChange={(v) => set('skillStyle', v)}
           />
+          {/* Says out loud what Bullets does, because the group names disappear from the
+              page and nothing else would explain where they went. They are only hidden;
+              Plain and Badges bring them back. */}
+          {theme.skillStyle === 'bullets' && (
+            <p className="pnl-shuffled">Bullets hides the group names; your groups are kept and come back with Plain or Badges.</p>
+          )}
         </section>
 
         {/* Accent */}

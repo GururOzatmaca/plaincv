@@ -28,6 +28,10 @@ export type Bullet = z.infer<typeof BulletSchema>;
 export const ContactSchema = z.object({
   id: z.string(),
   value: z.string(), // e.g. "london@example.com", "github.com/x"
+  // Which icon prints to its left. Absent = detected from the value (see
+  // detectContactKind); 'none' = the user rejected the guess, so nothing prints. Stored
+  // rather than re-derived so a wrong guess stays fixed.
+  icon: z.enum(['email', 'phone', 'location', 'linkedin', 'github', 'link', 'none']).optional(),
 });
 export type Contact = z.infer<typeof ContactSchema>;
 
@@ -35,6 +39,8 @@ export const HeaderSchema = z.object({
   fullName: z.string(),
   title: z.string(),
   contacts: z.array(ContactSchema),
+  // Same opt-out as a section's `noRule`, for the rule under the contact line.
+  noRule: z.boolean().optional(),
 });
 export type Header = z.infer<typeof HeaderSchema>;
 
@@ -99,7 +105,9 @@ export type SkillGroup = z.infer<typeof SkillGroupSchema>;
 // ---------------------------------------------------------------------------
 // `hidden` keeps a section in the document but out of the PDF. Without it the only
 // way to drop a section for one application is to delete its content outright.
-const base = { id: z.string(), title: z.string(), hidden: z.boolean().optional() };
+// `noRule` drops THIS section's divider while theme.dividers stays on. The X on a rule
+// used to flip theme.dividers, i.e. removing one line removed every line on the page.
+const base = { id: z.string(), title: z.string(), hidden: z.boolean().optional(), noRule: z.boolean().optional() };
 
 export const SectionSchema = z.discriminatedUnion('type', [
   z.object({ ...base, type: z.literal('profile'), text: LineSchema }),
@@ -138,8 +146,57 @@ export const ThemeSchema = z.object({
 
   basePt: z.number(),
   lineHeight: z.number(),
+  // Two scales, not one. Until v7 a single `headingScale` drove BOTH the name
+  // (`* 1.15`) and the section headings (`* 0.6`, floored at body size), so the two
+  // outputs sat 1.9x apart and no single slider range was right for both: below
+  // hscale 1.667 the floor bound and the control moved the NAME only, silently, for
+  // 46.7% of its travel and for five of the seven template presets.
+  //
+  // Both are now plain multipliers on basePt, so the rendered pt is readable straight
+  // off the value: heading = basePt * headingScale, name = basePt * nameScale.
+  // See applyV7 in src/store/migrations.ts for the conversion of saved documents.
   headingScale: z.number(),
+  nameScale: z.number().default(1.96), // Classic's, i.e. the pre-v7 1.7 * 1.15
+  // The entry role (.cv-role: the job title, project name, certification name and
+  // custom heading). It was body size with nothing but bold on it, and it is the line
+  // a recruiter fixates on first - Ladders' 2018 eye-tracking study puts "current
+  // title and company" at the front of the scan and finds top resumes used "bold job
+  // titles supported by bulleted lists". Default 1 reproduces exactly that, so no
+  // migration is needed; the presets are what raise it.
+  // NOT shared with nameScale: separate elements, separate ranges, separate labels.
+  roleScale: z.number().default(1),
+  // The header subtitle (.cv-title), as a fraction of the NAME rather than of the body.
+  // It was a flat 1.12x body and so ignored Name size completely: at nameScale 1.2 the
+  // name printed 12.6pt against an 11.76pt title and the header read as two lines of
+  // the same size, and at 2.6 it was 27.3pt over that same 11.76pt. No slider - the
+  // point is that it follows the name, and a control that has to be kept in sync by
+  // hand is the coupling this release removed. Per-template because each preset's
+  // name/title ratio differs (0.557 Banner to 0.696 Dense/Minimal).
+  titleScale: z.number().default(0.571),
+  // Pre-v8 single spacing multiplier. No longer read by the CSS; applyV8 copies it
+  // into blockSpacing/rowSpacing, and it stays in the schema so an older payload (or
+  // an older exported JSON) still parses and still lands on the same rhythm.
+  density: z.number().default(1),
+  // v8 split density in two, because ONE multiplier could not reproduce a real CV:
+  // every gap it drove was `lead * factor * density`, so the only way to close the
+  // ~1.8pt between skill rows was to flatten the section rhythm with it. Both bottom
+  // out at 0, which is what a zero-gap block needs and what density's 0.7 floor could
+  // never reach.
+  //   block = between blocks: header rule, section headings, entries
+  //   row   = inside a block: bullets, skill rows, the education note
+  blockSpacing: z.number().default(1),
+  rowSpacing: z.number().default(1),
+  // Secondary ink (dates, organisation, skill labels, contacts, education note). It was
+  // pinned to one grey on the argument that ink colour cannot reach the extracted text
+  // layer - true, and irrelevant to someone matching an existing CV that simply prints
+  // those parts black. 'grey' is the previous value, so no migration.
+  secondaryInk: z.enum(['grey', 'soft', 'black']).default('grey'),
   marginPt: z.number(),
+  // Side margin. Optional so a document saved before the split renders identically:
+  // the CSS reads `var(--paper-margin-x, var(--paper-margin))`, so absent means "same
+  // as top/bottom" and no migration is needed. Split because the only way to buy
+  // vertical space used to be shortening every line as well.
+  marginXPt: z.number().optional(),
   // Strictly a 6-digit hex. This value is written straight into CSS custom
   // properties, so an unvalidated string let an imported document put arbitrary CSS
   // (e.g. `url(...)`, which fires a real network request) into --accent and blank

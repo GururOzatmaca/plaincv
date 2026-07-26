@@ -34,11 +34,20 @@
   overflow-y: auto;
   padding: 0 26px;
 }
+/* The bare glyph was ~13px wide - a 13px close button on a modal. Negative margins
+   cancel the padding so the "x" stays optically where it was; only the target grows. */
 .imp-x {
   position: absolute;
   top: 14px;
   right: 16px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: -2px -2px 0 0;
+  padding: 0;
   border: none;
+  border-radius: var(--r-md);
   background: transparent;
   font-size: 24px;
   line-height: 1;
@@ -113,8 +122,12 @@
 .imp-btn.primary:active {
   transform: scale(0.96);
 }
+/* An explicit grey pair, not `opacity: .4`, which dimmed the fill and the label by
+   the same factor and left white-on-accent at 1.26:1 - a button with no readable
+   word on it. This is 5.38:1 and still unmistakably inactive. */
 .imp-btn:disabled {
-  opacity: 0.4;
+  background: var(--surface-2);
+  color: var(--muted);
   cursor: not-allowed;
   transform: none;
   filter: none;
@@ -123,7 +136,7 @@
   width: 100%;
   min-height: 120px;
   resize: vertical;
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--line-ctl);
   border-radius: 12px;
   padding: 11px 13px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -132,9 +145,11 @@
   color: var(--ink);
   background: var(--surface-2);
 }
+/* --accent-weak is 1.19:1 on white: as a focus ring it was decoration, not a signal */
 .imp-textarea:focus {
-  outline: 2px solid var(--accent-weak);
-  border-color: var(--accent);
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 1px;
+  border-color: var(--accent-strong);
 }
 .imp-errors {
   margin: 10px 0 0;
@@ -201,16 +216,12 @@
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.06); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .imp-tick,
-  .imp-tick-c,
-  .imp-tick-p,
-  .imp-ok-h {
-    animation: none;
-    stroke-dashoffset: 0;
-    opacity: 1;
-  }
-}
+/* No per-file reduced-motion allowlist here. The global rule in src/index.css already
+   lands all four of these on their end state, because each uses `forwards` and the
+   global rule shortens the duration rather than setting `animation: none` - which is
+   exactly why it was written that way. A second mechanism for the same job is how
+   things silently drift out of sync, and re-enumerating selectors per file is the
+   pattern that let the cvparticles burst escape reduced motion in the first place. */
 .imp-foot {
   flex: 0 0 auto;
   padding: 14px 26px 20px;

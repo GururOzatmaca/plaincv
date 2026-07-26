@@ -13,7 +13,30 @@ import { useResumeStore } from '@/store/resumeStore';
 import { fontStack, ensureFont } from '@/lib/fonts/registry';
 import { writeAccentVars } from '@/lib/color';
 
-const MIN_ZOOM = 0.5;
+/**
+ * Floor on the DISPLAYED zoom, not on the multiplier. It used to be a flat
+ * `MIN_ZOOM = 0.5` applied to `zoom`, which is a ratio against fit, so the real floor
+ * moved with the window: at a 0.71 fit that was 36% of A4 - a page no one can read,
+ * and one where the paper's editing controls fall to ~13 screen px because the --hit
+ * counter-scale in paper.css is capped at 44px of local size.
+ *
+ * 0.55 is that cap's break-even (44 * 0.55 = 24.2 screen px), and it is also about
+ * where an A4 page stops being legible. Fit is always reachable even when fit itself
+ * is smaller than this - see minZoom below.
+ */
+/**
+ * Secondary ink options for --paper-muted. 'grey' is index.css's own #474e55 (8.44:1 on
+ * white, 74% of the body ink in L*); 'soft' is a single step off the body so the
+ * hierarchy survives on a CV that wants near-black secondaries; 'black' is the body ink
+ * itself (--ink), which is what a CV with no grey at all prints.
+ */
+const MUTED_INK: Record<'grey' | 'soft' | 'black', string> = {
+  grey: '#474e55',
+  soft: '#2b3238',
+  black: '#141a1f',
+};
+
+const MIN_EFFECTIVE = 0.55;
 // Discrete zoom step, shared by the buttons and Ctrl +/-.
 const ZOOM_STEP = 0.1;
 // Wheel sensitivity. Multiplicative: one 100px mouse notch is ~11% (exp(0.12)), and a
@@ -108,6 +131,9 @@ const PlusIcon = () => (
 // The main page: editor paper + design settings. Only the paper survives into the printed PDF.
 export function EditorPage() {
   const stageRef = useRef<HTMLDivElement>(null);
+  // TEMP DEBUG - see the matching block in EditorPaper. Remove before shipping.
+  const dbgN = useRef(0);
+  const dbgPrev = useRef<Record<string, unknown> | null>(null);
   const [fitScale, setFitScale] = useState(0.7);
   // Stage width minus its gutters. Used to cap the stacked panel: the shell sizes to
   // max-content so the zoomed page keeps a gutter on both sides, and an uncapped
@@ -136,6 +162,19 @@ export function EditorPage() {
   const theme = useResumeStore((s) => s.doc.theme);
   usePrintFilename();
 
+  // TEMP DEBUG - which piece of EditorPage state actually caused this render.
+  {
+    dbgN.current += 1;
+    const now: Record<string, unknown> = {
+      fitScale, usableW, roomW, zoom, narrow, smallDesk, phone, showCtl, importOpen, keysOpen, tourAt, theme,
+    };
+    const p = dbgPrev.current;
+    const changed = p ? Object.keys(now).filter((k) => now[k] !== p[k]) : [];
+    // eslint-disable-next-line no-console
+    console.log(`[page] EditorPage render #${dbgN.current} | changed: ${p ? (changed.join(',') || 'NOTHING (parent/store)') : 'mount'}`);
+    dbgPrev.current = now;
+  }
+
   useLayoutEffect(() => {
     const queries = [
       window.matchMedia(`(max-width: ${NARROW_MAX}px)`),
@@ -163,7 +202,21 @@ export function EditorPage() {
     r.setProperty('--paper-size', `${theme.basePt}pt`);
     r.setProperty('--paper-lh', String(theme.lineHeight));
     r.setProperty('--paper-hscale', String(theme.headingScale));
+    r.setProperty('--paper-nscale', String(theme.nameScale));
+    r.setProperty('--paper-rscale', String(theme.roleScale));
+    r.setProperty('--paper-tscale', String(theme.titleScale));
+    // v8: one density became two. --paper-density is no longer read by any stylesheet.
+    r.setProperty('--paper-block', String(theme.blockSpacing));
+    r.setProperty('--paper-row', String(theme.rowSpacing));
+    // 'grey' is index.css's #474e55 (8.44:1). 'soft' is one step off the body ink for a
+    // CV that wants near-black secondaries; 'black' matches the body exactly.
+    r.setProperty('--paper-muted', MUTED_INK[theme.secondaryInk]);
     r.setProperty('--paper-margin', `${theme.marginPt}pt`);
+    // Absent means "same as top/bottom": the CSS reads
+    // var(--paper-margin-x, var(--paper-margin)), so a document saved before the
+    // margin split needs no migration. Removed rather than left stale when cleared.
+    if (theme.marginXPt == null) r.removeProperty('--paper-margin-x');
+    else r.setProperty('--paper-margin-x', `${theme.marginXPt}pt`);
     writeAccentVars(r, theme.accent);
   }, [theme]);
 
@@ -248,19 +301,71 @@ export function EditorPage() {
   const maxEffective = Math.min(ceiling, roomForPaper > 0 ? roomForPaper / A4_W : ceiling);
   const stacked = narrow || (mayRestack && A4_W * effective + panelW + PANEL_GAP > roomW);
   const maxZoom = fitScale > 0 ? Math.max(1, maxEffective / fitScale) : MAX_EFFECTIVE;
+  // Never above 1, so "zoom out to fit" is always reachable even on a short window
+  // whose fit is already below MIN_EFFECTIVE.
+  const minZoom = fitScale > 0 ? Math.min(1, MIN_EFFECTIVE / fitScale) : 1;
 
   // One clamp, one step size. These used to be duplicated across the wheel handler,
   // the key handler and the two buttons, with each copy omitting a different bound.
-  const clampZoom = (z: number) => Math.min(maxZoom, Math.max(MIN_ZOOM, +z.toFixed(3)));
-  const stepZoom = (d: number) => setZoom((z) => clampZoom(z + d));
-  const resetZoom = () => setZoom(1);
+  const clampZoom = (z: number) => Math.min(maxZoom, Math.max(minZoom, +z.toFixed(3)));
+
+  /**
+   * Zoom anchoring.
+   *
+   * The paper is `transform-origin: top left` inside a shell that re-centres itself,
+   * so scaling moves every point on the page except its top-left corner. Without
+   * compensation the thing you are looking at slides away from you as you zoom, and
+   * the further down the page you are the further it slides.
+   *
+   * So: before the scale changes, record one viewport point that must stay still and
+   * convert it into PAPER space; after layout, put it back by scrolling. The anchor
+   * is the pointer for wheel zoom (you are pointing at what you care about) and the
+   * stage centre for the buttons and the keyboard (there is no pointer to use).
+   */
+  const zoomAnchor = useRef<{ ax: number; ay: number; px: number; py: number } | null>(null);
+  const effectiveRef = useRef(effective);
+  effectiveRef.current = effective;
+
+  const anchorZoom = (ax?: number, ay?: number) => {
+    const stage = stageRef.current;
+    const paper = stage?.querySelector('.print-paper');
+    if (!stage || !paper) return;
+    const sr = stage.getBoundingClientRect();
+    const x = ax ?? sr.left + sr.width / 2;
+    const y = ay ?? sr.top + sr.height / 2;
+    const pr = paper.getBoundingClientRect();
+    const s = effectiveRef.current || 1;
+    zoomAnchor.current = { ax: x, ay: y, px: (x - pr.left) / s, py: (y - pr.top) / s };
+  };
+
+  // Runs after the new scale has been laid out, so the paper's rect is the new one.
+  useLayoutEffect(() => {
+    const a = zoomAnchor.current;
+    if (!a) return;
+    zoomAnchor.current = null;
+    const stage = stageRef.current;
+    const paper = stage?.querySelector('.print-paper');
+    if (!stage || !paper) return;
+    const pr = paper.getBoundingClientRect();
+    stage.scrollLeft += pr.left + a.px * effective - a.ax;
+    stage.scrollTop += pr.top + a.py * effective - a.ay;
+  }, [effective]);
+
+  const stepZoom = (d: number) => {
+    anchorZoom();
+    setZoom((z) => clampZoom(z + d));
+  };
+  const resetZoom = () => {
+    anchorZoom();
+    setZoom(1);
+  };
 
   // Ctrl/Cmd + wheel and Ctrl/Cmd +/-/0 drive the app zoom instead of the
   // browser's page zoom.
   useLayoutEffect(() => {
     const el = stageRef.current;
     if (!el) return;
-    const clamp = (z: number) => Math.min(maxZoom, Math.max(MIN_ZOOM, +z.toFixed(3)));
+    const clamp = (z: number) => Math.min(maxZoom, Math.max(minZoom, +z.toFixed(3)));
 
     // Wheel zoom is continuous. It used to be `Math.sign(deltaY) * 0.1`, which threw
     // away the magnitude entirely: a trackpad pinch fires dozens of small events and
@@ -270,11 +375,16 @@ export function EditorPage() {
     // thing at 50% as at 150%).
     let pending = 0;
     let raf = 0;
+    let px = 0;
+    let py = 0;
     const flush = () => {
       raf = 0;
       const d = pending;
       pending = 0;
       if (!d) return;
+      // anchor on the LAST pointer position of this burst, so a pinch or a long
+      // scroll keeps tracking the finger rather than the point it started from
+      anchorZoom(px, py);
       setZoom((z) => clamp(z * Math.exp(-d * WHEEL_ZOOM_K)));
     };
     const onWheel = (e: WheelEvent) => {
@@ -284,20 +394,24 @@ export function EditorPage() {
       // and a trackpad pinch move by comparable amounts instead of wildly different ones.
       const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
       pending += e.deltaY * unit;
+      px = e.clientX;
+      py = e.clientY;
       if (!raf) raf = requestAnimationFrame(flush);
     };
     const onKey = (e: KeyboardEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       if (e.key === '=' || e.key === '+') {
         e.preventDefault();
+        anchorZoom();
         setZoom((z) => clamp(z + ZOOM_STEP));
       } else if (e.key === '-') {
         e.preventDefault();
+        anchorZoom();
         setZoom((z) => clamp(z - ZOOM_STEP));
-      } else if (e.key === '0') {
-        e.preventDefault();
-        setZoom(1);
       }
+      // No Ctrl+0 / Ctrl+9. Ctrl+0 briefly meant "actual size" and Ctrl+9 "fit", but
+      // the zoom readout button is already a one-click Fit, so the pair bought a
+      // rebound habit for nothing.
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     window.addEventListener('keydown', onKey);
@@ -306,15 +420,17 @@ export function EditorPage() {
       el.removeEventListener('wheel', onWheel);
       window.removeEventListener('keydown', onKey);
     };
-  }, [maxZoom]);
+  }, [maxZoom, minZoom]);
   const atMax = effective >= maxEffective - 0.001;
+  const atMin = zoom <= minZoom + 0.001;
 
   // A resize can lower the ceiling under the zoom the user already had (drag a 1920
   // window down to 1280 while at 150%). Without this the paper stays too wide and
   // runs into the panel, which is the exact state this ceiling exists to prevent.
+  // The floor moves with the window too, so clamp against both.
   useLayoutEffect(() => {
-    setZoom((z) => Math.min(z, maxZoom));
-  }, [maxZoom]);
+    setZoom((z) => Math.min(maxZoom, Math.max(minZoom, z)));
+  }, [maxZoom, minZoom]);
 
   // Undo/redo. Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z (or Ctrl+Y) redo. Skipped while a
   // field is focused so the browser's native per-character undo works mid-edit;
@@ -331,7 +447,16 @@ export function EditorPage() {
       const textInput =
         el?.tagName === 'INPUT' &&
         /^(text|search|url|email|tel|password|number|date|)$/i.test((el as HTMLInputElement).type);
-      if (el && (el.isContentEditable || el.tagName === 'TEXTAREA' || textInput)) return;
+      // ...and only while that field HAS a native stack to undo. A paper field commits
+      // on blur (see Editable), so an untouched one has nothing native to offer and this
+      // handler used to return anyway: clicking a line and pressing Ctrl+Z did nothing,
+      // which reads as undo being broken. data-dirty is set on the first keystroke and
+      // cleared on focus and on blur.
+      const dirty = el?.getAttribute('data-dirty') === '1';
+      if (el && dirty && (el.isContentEditable || el.tagName === 'TEXTAREA' || textInput)) return;
+      // A focused-but-clean field would otherwise keep the caret in a node the undo is
+      // about to rewrite, which leaves the caret in stale text.
+      if (el && (el.isContentEditable || el.tagName === 'TEXTAREA' || textInput)) el.blur();
       e.preventDefault();
       const t = useResumeStore.temporal.getState();
       if (k === 'y' || e.shiftKey) t.redo();
@@ -367,7 +492,7 @@ export function EditorPage() {
         {/* Zoom is a utility, not a product action: neutral chrome so the accent stays
             reserved for selection, the document, and the export CTA. */}
         <div className="hdr-group hdr-zoom">
-          <button className="zm-btn" type="button" aria-label="Zoom out" disabled={zoom <= MIN_ZOOM} onClick={() => stepZoom(-ZOOM_STEP)}>
+          <button className="zm-btn" type="button" aria-label="Zoom out" disabled={atMin} onClick={() => stepZoom(-ZOOM_STEP)}>
             <MinusIcon />
           </button>
           <button
@@ -423,8 +548,10 @@ export function EditorPage() {
           <button className="hdr-ai" type="button" onClick={() => setImportOpen(true)}>
             ✨ Fill with AI
           </button>
+          {/* The label is a span so it can sit above the ::before fill, which covers the
+              whole button at rest; a bare text node cannot take a z-index. */}
           <button className="hdr-dl" type="button" onClick={() => window.print()}>
-            Download PDF
+            <span>Download CV</span>
           </button>
           </div>
         </div>
@@ -435,7 +562,13 @@ export function EditorPage() {
       <main
         ref={stageRef}
         className="print-stage app-scroll min-h-0 flex-1 overflow-auto"
-        style={{ paddingTop: STAGE_PAD_TOP, paddingBottom: STAGE_PAD_BOTTOM }}
+        // Only the TOP padding lives on the scroll container. A scroll container's END
+        // padding is not reliably part of its scrollable area (the same reason the side
+        // gutter moved onto the shell below), so a bottom padding here is space you can
+        // see but cannot scroll to: on a zoomed page in Firefox the last rows of the CV
+        // sat under it and the stage refused to go further. It is the shell's padding
+        // now, i.e. inside the content the stage scrolls.
+        style={{ paddingTop: STAGE_PAD_TOP }}
       >
         {/* Bounded, centred shell: on a wide monitor the paper and the panel stay one
             object in the middle instead of drifting to opposite screen edges.
@@ -456,12 +589,17 @@ export function EditorPage() {
             maxWidth: undefined,
             gap: PANEL_GAP,
             paddingInline: STAGE_PAD_X,
+            paddingBottom: STAGE_PAD_BOTTOM,
           }}
         >
           <EditorPaper scale={effective} />
-          {/* wide: the panel is exactly as tall as the paper and scrolls with it, so
-              the two read as one aligned pair top and bottom. (A sticky rail would
-              keep the controls on screen, but the mismatched heights looked broken.)
+          {/* wide: a sticky rail, one fitted page tall, so it lines up with the paper
+              at rest and then holds its place while a zoomed page scrolls past it -
+              changing a control from the bottom of the page costs no scrolling.
+              top:0, not the stage's top padding: a sticky offset is measured from the
+              scroll container's CONTENT box, which the padding has already inset, so
+              20 there put the rail 20px below the page top and let the containing
+              block's bottom clamp drag it around near the end of the scroll.
               narrow: full-width block stacked under the paper (collapsible). */}
           {stacked ? (
             <div className="no-print w-full" style={{ maxWidth: Math.min(520, usableW || 520) }}>
@@ -471,7 +609,10 @@ export function EditorPage() {
               <DesignPanel narrow startOpen={!narrow} />
             </div>
           ) : (
-            <div className="no-print shrink-0 self-start" style={{ height: fitPx, width: panelW }}>
+            <div
+              className="no-print shrink-0 self-start"
+              style={{ height: fitPx, width: panelW, position: 'sticky', top: 0 }}
+            >
               <DesignPanel />
             </div>
           )}

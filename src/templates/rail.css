@@ -32,9 +32,11 @@
 [data-template='rail'] .cv-li::marker {
   color: #6b7580;
 }
+/* was #c8ced4, measured 1.59:1 on white. A transparent chip's border is the only
+   thing that makes it a chip, so it is a component boundary and owes 3:1. #88909a
+   is 3.23:1 and is the one boundary grey shared with the app chrome (--line-ctl). */
 [data-template='rail'] .cv-chip {
   background: transparent;
-  border: 0.5pt solid #c8ced4;
+  border: 0.5pt solid #88909a;
   border-radius: 2pt;
-  color: #2a2f34;
 }

@@ -32,7 +32,6 @@
 }
 [data-template='harvard'] .cv-chip {
   background: transparent;
-  border: 0.5pt solid #8b959e;
+  border: 0.5pt solid #88909a;
   border-radius: 2pt;
-  color: #2a2f34;
 }

@@ -1,25 +1,58 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { hexToHsl, hslToHex, maxLightness } from '@/lib/color';
 
-// ink, cyan, royal blue, emerald, burgundy
-const ACCENTS = ['#1f2937', '#0891b2', '#1d4ed8', '#047857', '#9f1239'];
+/**
+ * One ramp, not a wheel: hue runs 222 -> 142 (near-black through navy, blue, cyan and
+ * teal, into green) and the luminance arcs up and back down, so the row starts and
+ * ends dark instead of stopping mid-air. A full spin of the wheel put orange next to
+ * fuchsia next to violet, which is a swatch collection, not a gradient.
+ *
+ * Every value is under the luminance cap in lib/color, so the chip shows exactly what
+ * gets applied; a brighter one would be clamped on the way into the store and the
+ * chip would then be lying about the result.
+ */
+const ACCENTS = [
+  '#0f172a',
+  '#172554',
+  '#1e3a8a',
+  '#1e40af',
+  '#1d4ed8',
+  '#2563eb',
+  '#0284c7',
+  '#0891b2',
+  '#0d9488',
+  '#059669',
+  '#16a34a',
+  '#15803d',
+  '#166534',
+];
 // "accent #0891b2" told a screen reader nothing; a name does.
 const ACCENT_NAMES: Record<string, string> = {
-  '#1f2937': 'Ink',
-  '#0891b2': 'Cyan',
+  '#0f172a': 'Ink',
+  '#172554': 'Midnight',
+  '#1e3a8a': 'Navy',
+  '#1e40af': 'Cobalt',
   '#1d4ed8': 'Royal blue',
-  '#047857': 'Emerald',
-  '#9f1239': 'Burgundy',
+  '#2563eb': 'Blue',
+  '#0284c7': 'Sky',
+  '#0891b2': 'Cyan',
+  '#0d9488': 'Teal',
+  '#059669': 'Emerald',
+  '#16a34a': 'Green',
+  '#15803d': 'Forest',
+  '#166534': 'Pine',
 };
 
 /**
  * Accent presets plus an in-app custom picker.
  *
  * The custom picker replaces `<input type="color">`. Chrome anchors that control's
- * popup to the input's box and dismisses it the moment the box moves: the swatch
- * lives in a row that grows on hover (`transition: flex .14s`) and inside the
- * panel's scroll container, so the first click opened and instantly closed it. A
- * popover we own has no such anchor and behaves identically on a phone.
+ * popup to the input's box and dismisses it the moment the box moves, so the first
+ * click opened and instantly closed it inside the panel's scroll container.
+ *
+ * Ours is a popover we own, so nothing repositions it out from under the pointer, and
+ * it exists only while the custom chip is open: the panel itself stays a single row
+ * of presets with no permanent picker section in it.
  *
  * `onChange(hex)` only paints (CSS variables, no React render of the paper);
  * `onChange(hex, true)` also writes the store. Nothing commits mid-drag, so a drag
@@ -93,17 +126,20 @@ export function ColorPicker({
 
   const lower = value.toLowerCase();
 
+  const custom = !ACCENTS.includes(lower);
+
   return (
     <div className="cp-wrap" ref={wrap}>
       <div className="cv-palette">
         {/* real buttons: a div with role="button" and only onClick is not focusable
-            and does not respond to Enter or Space */}
+            and does not respond to Enter or Space. The name is the aria-label only:
+            a chip that grows under the pointer does not also need a caption. */}
         {ACCENTS.map((c) => (
           <button
             key={c}
             type="button"
             className={`cv-color${lower === c ? ' sel' : ''}`}
-            style={{ background: c }}
+            style={{ ['--color' as string]: c }}
             onClick={() => {
               mine.current = c;
               setState({ hsl: hexToHsl(c), hex: c });
@@ -111,24 +147,25 @@ export function ColorPicker({
             }}
             aria-pressed={lower === c}
             aria-label={ACCENT_NAMES[c] ?? c}
-            title={ACCENT_NAMES[c] ?? c}
           />
         ))}
+        {/* Last chip, not a separate row: picking a custom colour is the same kind of
+            act as picking a preset one. It carries the live colour once that colour
+            is not a preset, so the row always shows what the document is using. */}
         <button
           type="button"
-          className={`cv-color custom${open ? ' open' : ''}`}
+          className={`cv-color cv-color-custom${custom ? ' sel' : ''}${open ? ' open' : ''}`}
+          style={custom ? ({ ['--color' as string]: hex } as never) : undefined}
           aria-expanded={open}
           aria-label="Custom colour"
-          title="Custom colour"
           onClick={() => setOpen((o) => !o)}
         />
       </div>
 
       {open && (
         <div className="cp-pop" role="dialog" aria-label="Custom colour">
-          <div className="cp-top">
-            <span className="cp-preview" style={{ background: hex }} aria-hidden="true" />
-            <label className="cp-hex-label" htmlFor={hexId}>
+          <div className="pnl-row cp-hex-row">
+            <label className="pnl-row-label" htmlFor={hexId}>
               Hex
             </label>
             <input
@@ -147,6 +184,7 @@ export function ColorPicker({
             min={0}
             max={359}
             value={hsl.h}
+            format={(v) => `${v}°`}
             gradient="linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)"
             onChange={(h) => push({ ...hsl, h })}
             onDone={commit}
@@ -156,6 +194,7 @@ export function ColorPicker({
             min={0}
             max={100}
             value={hsl.s}
+            format={(v) => `${v}%`}
             gradient={`linear-gradient(to right,${hslToHex(hsl.h, 0, hsl.l)},${hslToHex(hsl.h, 100, hsl.l)})`}
             onChange={(s) => push({ ...hsl, s })}
             onDone={commit}
@@ -168,6 +207,7 @@ export function ColorPicker({
             min={0}
             max={lCap}
             value={hsl.l}
+            format={(v) => `${v}%`}
             gradient={`linear-gradient(to right,#000,${hslToHex(hsl.h, hsl.s, lCap)})`}
             onChange={(l) => push({ ...hsl, l })}
             onDone={commit}
@@ -178,21 +218,28 @@ export function ColorPicker({
   );
 }
 
+// Same shape as the panel's other sliders (see LiveSlider in DesignPanel): label and
+// its current value on one line, full-width track under them.
 function CpSlider(props: {
   label: string;
   min: number;
   max: number;
   value: number;
+  format: (v: number) => string;
   gradient: string;
   onChange: (v: number) => void;
   onDone: () => void;
 }) {
   const id = useId();
+  const shown = Math.min(props.value, props.max);
   return (
-    <div className="cp-row">
-      <label className="cp-label" htmlFor={id}>
-        {props.label}
-      </label>
+    <div className="cp-field">
+      <div className="cp-field-head">
+        <label className="cp-label" htmlFor={id}>
+          {props.label}
+        </label>
+        <span className="cp-val">{props.format(shown)}</span>
+      </div>
       <input
         id={id}
         className="cp-range"
@@ -200,7 +247,7 @@ function CpSlider(props: {
         min={props.min}
         max={props.max}
         step={1}
-        value={Math.min(props.value, props.max)}
+        value={shown}
         style={{ ['--cp-grad' as string]: props.gradient }}
         onChange={(e) => props.onChange(Number(e.target.value))}
         onPointerUp={props.onDone}

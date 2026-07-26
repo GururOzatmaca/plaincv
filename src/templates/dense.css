@@ -37,9 +37,9 @@
 [data-template='dense'] .cv-li::marker {
   color: #667079;
 }
+/* was #cfd5db, measured 1.48:1 on white; see the note in rail.css */
 [data-template='dense'] .cv-chip {
   background: transparent;
-  border: 0.5pt solid #cfd5db;
+  border: 0.5pt solid #88909a;
   border-radius: 1pt;
-  color: #2a2f34;
 }

@@ -48,7 +48,17 @@ export function Editable({
       spellCheck={false}
       data-ph={placeholder}
       data-fid={fid}
-      onBlur={commit}
+      // data-dirty marks "typed since focus", which is the only state in which the
+      // browser's own undo stack has anything in it. The global Ctrl+Z handler reads it:
+      // without the flag it stepped aside for EVERY focused field, so clicking a line
+      // and pressing Ctrl+Z did nothing at all - this commits on blur, so an untouched
+      // field's native stack is empty and the document's history was never reached.
+      onFocus={(e) => e.currentTarget.removeAttribute('data-dirty')}
+      onInput={(e) => e.currentTarget.setAttribute('data-dirty', '1')}
+      onBlur={(e) => {
+        e.currentTarget.removeAttribute('data-dirty');
+        commit();
+      }}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
           e.preventDefault();

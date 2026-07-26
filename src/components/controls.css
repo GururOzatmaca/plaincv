@@ -5,7 +5,10 @@
   flex-wrap: wrap;
   border-radius: var(--r-lg);
   background: var(--surface-2);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06);
+  /* The group ring is the only thing marking where this control starts and stops:
+     --surface-2 is 1.05:1 on white, and an UNSELECTED pill is transparent, so at
+     rgba(0,0,0,.06) (1.23:1) there was no perceivable boundary at all. */
+  box-shadow: 0 0 0 1px var(--line-ctl);
   padding: 0.25rem;
   width: 100%;
   font-size: 13px;
@@ -27,8 +30,11 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+/* --accent-strong: this ring lands on .radio-inputs' --surface-2 fill, where a legal
+   bright accent measured 2.80:1 and failed 1.4.11. See the note on the baseline
+   focus rule in src/index.css. */
 .radio-inputs .radio input:focus-visible + .name {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-strong);
   outline-offset: 1px;
 }
 .radio-inputs .radio .name {
@@ -90,149 +96,237 @@
   100% { opacity: 0; transform: translateX(-50%) translateY(var(--dir)); }
 }
 
-/* ---- Accent color palette (expand on hover, no labels) ---- */
+/* ---- Accent palette: dock ----
+   Separate chips that magnify under the pointer and push their neighbours, with the
+   colour's name riding above the one you are on. The chip is the ::after, drawn
+   larger than its button and scaled, so the row reads as one strip at rest and
+   spreads only on hover. */
+/* The chips divide the row, they are not a fixed size: the palette is as wide as the
+   panel at every panel width, and adding a preset makes each one narrower rather than
+   pushing the last one out of view.
+   Padding is clearance for the hover, not decoration - see the growth rules below. */
+/* The padding is hover clearance, not a gutter: a lifted chip grows up and sideways
+   past its own box, and .panel-scroll's overflow would shave it.
+   The negative margin then takes that reserved band back out of the gap under the
+   heading, so the clearance costs layout nothing until something is actually lifted
+   into it. */
 .cv-palette {
   display: flex;
-  height: 42px;
   width: 100%;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid var(--line);
+  margin-top: -14px;
+  padding: 18px 5px 2px;
 }
+/* No gaps: the swatches butt together into one spectrum strip, and only the chip
+   under the pointer leaves it. */
 .cv-color {
-  flex: 1;
-  cursor: pointer;
   position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 30px;
   border: none;
+  outline: none;
   padding: 0;
-  transition: flex var(--dur-1) var(--ease-out);
+  background: transparent;
+  cursor: pointer;
+  /* Grows UP, never down. The palette is the last thing in the panel, so a centred
+     scale pushed the bottom of the chip past the scroll box and cut it off. */
+  transform-origin: bottom center;
+  transition: transform var(--dur-3) var(--ease-dock), border-radius var(--dur-3) var(--ease-dock);
 }
-.cv-color:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: -3px;
-  z-index: 1;
+.cv-color:first-child {
+  border-radius: var(--r-sm) 0 0 var(--r-sm);
 }
-.cv-color:hover {
-  flex: 1.8;
+.cv-color:last-child {
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
 }
-.cv-color.sel::after {
-  content: '';
+/* The fill lives here, and it bleeds half a pixel to each side so neighbours always
+   overlap. `flex: 1 1 0` over a width that does not divide by the swatch count gives
+   every chip a fractional edge, and while the hover transform runs the two sides of a
+   seam round to different device pixels: a hairline of panel white flickers between
+   them. Overlapping means there is no seam to round. */
+.cv-color::after {
   position: absolute;
-  inset: 0;
-  border: 2.5px solid #fff;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+  content: '';
+  inset: 0 -0.5px;
+  background: var(--color);
+  border-radius: inherit;
+  pointer-events: none;
+  transition: box-shadow var(--dur-1) var(--ease-out);
 }
-.cv-color.custom {
+/* Rounds only while it is out of the strip, so a lifted chip reads as its own object
+   and a seated one keeps the strip continuous. */
+.cv-color:hover,
+.cv-color:focus-visible {
+  border-radius: var(--r-sm);
+}
+/* Lifts the marked chip out of DOM paint order, or its ring loses the right-hand side
+   to the next swatch (they overlap by half a pixel and later siblings paint on top).
+   It sits ABOVE this rule on purpose: the hover levels below carry the same
+   specificity, so whichever comes last wins, and hovering must still be able to raise
+   the selected chip over its neighbours. */
+.cv-color.sel,
+.cv-color-custom.open {
+  z-index: 5;
+}
+/* 1.45, not 1.55: the chips grew to 30px and the gap under the heading shrank, and
+   the old factor lifted them into the word "Colour". */
+.cv-color:hover,
+.cv-color:focus-visible {
+  transform: scale(1.45);
+  z-index: 30;
+}
+.cv-color:active {
+  transform: scale(1.3);
+}
+/* Neighbours fall off either side; that gradient is what makes it read as a dock
+   instead of one chip growing on its own. :has() covers the chips BEFORE the hovered
+   one, which the sibling combinator cannot reach. */
+.cv-color:hover + *,
+.cv-color:has(+ *:hover) {
+  transform: scale(1.25);
+  z-index: 20;
+}
+.cv-color:hover + * + *,
+.cv-color:has(+ * + *:hover) {
+  transform: scale(1.12);
+  z-index: 10;
+}
+/* The marker is its own rounded box AROUND the chip, not a shadow on the fill: the
+   fill has to stay square to keep the strip continuous, and a shadow on a square box
+   is a square marker. Drawn outside, so it is rounded whether or not the chip under
+   it is. z-index because ::after is the fill and would otherwise paint over it
+   (same element, later pseudo).
+   Ring outside rather than inside: an inner ring is invisible on the dark half of the
+   palette (--ink measured 1.19:1 on Ink, 2.19:1 on Burgundy). */
+.cv-color.sel::before,
+.cv-color:focus-visible::before {
+  position: absolute;
+  content: '';
+  inset: -4px;
+  z-index: 1;
+  border: 2px solid var(--ink);
+  border-radius: 9px;
+  box-shadow: inset 0 0 0 2px var(--surface);
+  pointer-events: none;
+}
+.cv-color:focus-visible::before {
+  border-color: var(--accent-strong);
+}
+/* Rainbow only while the accent is one of the presets; once a custom colour is in
+   use this chip carries it, so the row always shows what the document has. */
+.cv-color-custom::after {
   background: conic-gradient(from 0deg, #ff5757, #ffde59, #7ed957, #5ce1e6, #5b8cff, #cb6ce6, #ff5757);
 }
-.cv-color.custom.open {
-  flex: 1.8;
+.cv-color-custom.sel::after {
+  background: var(--color);
 }
-.cv-color.custom.open::after {
-  content: '';
+/* Weaker than the .sel ring on purpose: open means "the dialog is yours", not "this
+   is the accent". Two --ink rings at once left no way to tell which chip the document
+   was actually using. */
+.cv-color-custom.open:not(.sel)::before {
   position: absolute;
-  inset: 0;
-  border: 2.5px solid #fff;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+  content: '';
+  inset: -4px;
+  z-index: 1;
+  border: 2px solid var(--line-ctl);
+  border-radius: 9px;
+  box-shadow: inset 0 0 0 2px var(--surface);
+  pointer-events: none;
 }
 
-/* ---- Custom colour popover ----
-   Anchored to a wrapper OUTSIDE .cv-palette, which is `overflow: hidden` to round
-   the ends of the swatch strip and would clip the popover. */
+/* ---- Custom colour dialog ----
+   Floating, and only while the custom chip is open, so the panel itself stays a row
+   of presets. Anchored to the wrapper and opening UPWARD: Colour is the last section,
+   so there is room above it and none below inside the panel's scroll box. */
 .cp-wrap {
   position: relative;
 }
 .cp-pop {
   position: absolute;
-  z-index: 20;
+  z-index: 40;
   left: 0;
   right: 0;
-  /* opens upward: Colour is the last section, so there is room above it and none
-     below inside the panel's scroll box */
-  bottom: calc(100% + 8px);
+  bottom: calc(100% + 6px);
   padding: 12px;
   border: 1px solid var(--line-2);
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   background: var(--surface);
   box-shadow: 0 1px 2px rgba(15, 23, 32, 0.04), 0 12px 28px rgba(15, 23, 32, 0.16);
 }
-.cp-top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.cp-hex-row {
   margin-bottom: 10px;
 }
-.cp-preview {
-  width: 26px;
-  height: 26px;
-  flex: 0 0 auto;
-  border-radius: var(--r-md);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
-}
-.cp-hex-label {
-  font-size: 12px;
-  color: var(--muted);
-}
 .cp-hex {
-  flex: 1 1 auto;
+  flex: 0 1 128px;
   min-width: 0;
-  padding: 6px 8px;
-  border: 1px solid var(--line-2);
-  border-radius: 8px;
+  padding: 5px 8px;
+  border: 1px solid var(--line-ctl);
+  border-radius: var(--r-md);
   background: var(--surface);
   color: var(--ink);
-  font-size: 13px;
+  font-size: 12.5px;
   font-variant-numeric: tabular-nums;
   text-transform: lowercase;
 }
-.cp-row {
+.cp-field + .cp-field {
+  margin-top: 12px;
+}
+.cp-field-head {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
 }
 .cp-label {
-  flex: 0 0 66px;
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--muted);
+}
+.cp-val {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 /* Track paints the choice itself, so the thumb is neutral and stays visible on any
    colour. Overrides the global range styling (class + element beats element). */
 input[type='range'].cp-range {
-  flex: 1 1 auto;
+  width: 100%;
   min-width: 0;
-  height: 20px;
+  height: 24px;
 }
+/* 6px track and a 16px thumb, i.e. the global slider geometry (index.css), so these
+   three read as the same control as Font size / Margin. Only the paint differs: the
+   track shows the choice, so the thumb is a hollow ring that stays visible on any
+   colour instead of the accent-filled dot. */
 input[type='range'].cp-range::-webkit-slider-runnable-track {
-  height: 10px;
+  height: 6px;
   border-radius: 999px;
   background: var(--cp-grad);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14);
 }
 input[type='range'].cp-range::-webkit-slider-thumb {
   -webkit-appearance: none;
-  margin-top: -4px;
-  width: 18px;
-  height: 18px;
+  margin-top: -5px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: transparent;
   border: 3px solid #fff;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 input[type='range'].cp-range::-moz-range-track {
-  height: 10px;
+  height: 6px;
   border-radius: 999px;
   background: var(--cp-grad);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14);
 }
 input[type='range'].cp-range::-moz-range-progress {
-  height: 10px;
+  height: 6px;
   border-radius: 999px;
   background: transparent;
 }
 input[type='range'].cp-range::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: transparent;
   border: 3px solid #fff;
@@ -250,12 +344,19 @@ input[type='range'].cp-range::-moz-range-thumb {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface);
-  box-shadow: 0 1px 2px rgba(15, 23, 32, 0.04);
+  /* The panel is white on --bg: 1.26:1 of fill, and its --line border is 1.01:1
+     against --bg, so neither said "separate surface". A dark border would fix the
+     number and fight the "support, not hero" intent, so the edge is carried by
+     elevation - the SAME recipe as .print-scale-box, which makes the panel and the
+     paper read as two peer surfaces rather than a card next to a page. */
+  box-shadow: 0 1px 2px rgba(15, 23, 32, 0.04), 0 8px 24px rgba(15, 23, 32, 0.08);
   padding: 16px 4px 8px 12px;
 }
+/* left 10 + .panel-scroll's 4 = 14, against 16 on the right: the docked padding was
+   computed to net 16/16 and the narrow variant was changed without redoing it. */
 .design-panel-narrow {
   height: auto;
-  padding: 12px 4px 8px 10px;
+  padding: 12px 4px 8px 12px;
 }
 .pnl-head {
   padding-right: 12px;
@@ -329,7 +430,7 @@ input[type='range'].cp-range::-moz-range-thumb {
   gap: 10px;
 }
 .pnl-shuffle {
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--line-ctl);
   border-radius: var(--r-md);
   padding: 4px 9px;
   background: transparent;
@@ -417,7 +518,7 @@ input[type='range'].cp-range::-moz-range-thumb {
   white-space: nowrap;
 }
 .tpl-opt:focus-within {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-strong);
   outline-offset: 2px;
 }
 
@@ -464,7 +565,7 @@ input[type='range'].cp-range::-moz-range-thumb {
   gap: 8px;
   width: 100%;
   padding: 7px 10px;
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--line-ctl);
   border-radius: 8px;
   background: var(--surface);
   color: var(--ink);
@@ -569,12 +670,13 @@ input[type='range'].cp-range::-moz-range-thumb {
   font-size: 12.5px;
   color: var(--muted);
 }
+/* same reasoning as .radio-inputs: the ring is the control's only boundary */
 .seg {
   display: inline-flex;
   padding: 2px;
   border-radius: 8px;
   background: var(--surface-2);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 0 0 1px var(--line-ctl);
 }
 .seg-btn {
   min-width: 42px;
@@ -599,25 +701,9 @@ input[type='range'].cp-range::-moz-range-thumb {
   color: var(--accent-strong);
   box-shadow: 0 1px 2px rgba(15, 23, 32, 0.12);
 }
-/* ---- Design panel scroll: thin, subtle, unobtrusive ---- */
+/* The panel's scrollbar is the shared .app-scroll spec (src/index.css); only the
+   gutter is local. `stable` reserves the rail whether or not it is scrolling, so the
+   panel's contents do not jump sideways when a section expands past the fold. */
 .panel-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
   scrollbar-gutter: stable;
-}
-.panel-scroll::-webkit-scrollbar {
-  width: 8px;
-}
-.panel-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-.panel-scroll::-webkit-scrollbar-thumb {
-  background: var(--line);
-  border-radius: 8px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-.panel-scroll::-webkit-scrollbar-thumb:hover {
-  background: var(--faint);
-  background-clip: padding-box;
 }

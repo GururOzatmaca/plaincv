@@ -18,8 +18,21 @@ const ThemeDto = z
     skillStyle: z.enum(['badge', 'plain', 'bullets']).optional(),
     basePt: z.number().optional(),
     lineHeight: z.number().optional(),
+    // v7 split headingScale into headingScale (section headings) + nameScale (the
+    // name); both are plain multipliers on basePt. An import carrying only the old
+    // combined value is converted in mergeTheme, not here, so this stays lenient.
     headingScale: z.number().optional(),
+    nameScale: z.number().optional(),
+    roleScale: z.number().optional(),
+    titleScale: z.number().optional(),
+    density: z.number().optional(), // pre-v8; mergeTheme maps it onto the two below
+    blockSpacing: z.number().optional(),
+    rowSpacing: z.number().optional(),
+    // Plain string, like the layout axes above: a model writing "gray" should fall back
+    // to the default rather than failing the whole import. mergeTheme validates it.
+    secondaryInk: z.string().optional(),
     marginPt: z.number().optional(),
+    marginXPt: z.number().optional(),
     accent: z.string().optional(),
   })
   .optional();
@@ -28,7 +41,13 @@ const HeaderDto = z
   .object({
     fullName: z.string().optional(),
     title: z.string().optional(),
-    contacts: z.array(z.string()).optional(),
+    // Same shape rule as skills: a bare string is the normal case, and the object form
+    // exists only for a contact whose icon the user overrode (including 'none').
+    contacts: z
+      .array(z.union([z.string(), z.object({ value: z.string(), icon: z.string().optional() })]))
+      .optional(),
+    // Design, like `theme`: which single divider lines the document turns off.
+    noRule: z.boolean().optional(),
   })
   .optional();
 
@@ -36,11 +55,13 @@ const SectionDto = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('profile'),
     title: z.string().optional(),
+    noRule: z.boolean().optional(),
     text: z.union([z.string(), z.array(z.string())]).optional(),
   }),
   z.object({
     type: z.literal('experience'),
     title: z.string().optional(),
+    noRule: z.boolean().optional(),
     items: z
       .array(
         z.object({
@@ -56,6 +77,7 @@ const SectionDto = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('education'),
     title: z.string().optional(),
+    noRule: z.boolean().optional(),
     items: z
       .array(
         z.object({
@@ -74,6 +96,7 @@ const SectionDto = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('skills'),
     title: z.string().optional(),
+    noRule: z.boolean().optional(),
     items: z
       .array(
         z.union([
@@ -86,6 +109,7 @@ const SectionDto = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('projects'),
     title: z.string().optional(),
+    noRule: z.boolean().optional(),
     items: z
       .array(z.object({ name: z.string().optional(), link: z.string().optional(), bullets }))
       .optional(),
@@ -93,6 +117,7 @@ const SectionDto = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('certifications'),
     title: z.string().optional(),
+    noRule: z.boolean().optional(),
     items: z
       .array(
         z.object({
@@ -106,6 +131,7 @@ const SectionDto = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('custom'),
     title: z.string().optional(),
+    noRule: z.boolean().optional(),
     items: z.array(z.object({ heading: z.string().optional(), bullets })).optional(),
   }),
 ]);

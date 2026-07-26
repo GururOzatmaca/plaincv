@@ -18,7 +18,19 @@ export const STORE_KEY = 'cv-generator/doc';
 // reaches only NEW documents, because every document saved before this carries
 // 'badge' explicitly, so this is the only place the fix can reach a library that
 // already exists.
-export const PERSIST_VERSION = 6;
+// v7: theme.headingScale split into headingScale + nameScale, both plain multipliers
+// on basePt. Before this one value drove the name at `* 1.15` and the section heading
+// at `max(* 0.6, 1)`, so the heading stopped responding below 1.667 and the control
+// moved only the name. Converted, never reset: applyV7 reproduces each saved
+// document's rendered sizes exactly, so nothing repaints. The zod default for
+// nameScale cannot do this - it would have to read another field - which is why this
+// needs a version bump rather than a schema default like density/marginXPt.
+// v8: theme.density split into blockSpacing (header rule, section headings, entries)
+// and rowSpacing (bullets, skill rows, the education note). Same reason as v7: one
+// value drove gaps whose usable ranges differ, so matching a CV with tight skill rows
+// meant flattening the section rhythm too. Copied, not reset, so every saved document
+// renders identically; a zod default cannot read the old field.
+export const PERSIST_VERSION = 8;
 
 /**
  * Every document plus which one is being edited.
@@ -117,6 +129,41 @@ function applyV6(lib: Library): void {
 }
 
 /**
+ * v7. Same contract as applyV6: one-time, version-gated, never in
+ * normalizePersistedDoc. Deliberately size-PRESERVING rather than corrective - it
+ * reproduces the old formulas (name = basePt * hs * 1.15, heading = max(basePt * hs *
+ * 0.6, basePt)) as explicit multipliers, so every saved CV prints byte-identically
+ * after the upgrade. The bigger headings the new presets carry reach a document only
+ * when its owner picks a template or moves the slider, because a migration may
+ * convert a stored choice but may not restyle a page nobody asked it to.
+ *
+ * Runs AFTER zod has parsed, so theme.nameScale already holds its schema default;
+ * headingScale still holds the old combined value, which is what both lines read.
+ */
+function applyV7(lib: Library): void {
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  for (const doc of Object.values(lib.library)) {
+    const t = doc.theme;
+    t.nameScale = r2(t.headingScale * 1.15);
+    t.headingScale = r2(Math.max(t.headingScale * 0.6, 1));
+  }
+}
+
+/**
+ * v8. density -> blockSpacing + rowSpacing, both taking density's value, so a saved
+ * document's rhythm is unchanged (the CSS multiplies by exactly one of the two where it
+ * used to multiply by density). density is left on the theme: it is what this reads,
+ * and an exported JSON from before v8 still carries only that field.
+ */
+function applyV8(lib: Library): void {
+  for (const doc of Object.values(lib.library)) {
+    const t = doc.theme;
+    t.blockSpacing = t.density;
+    t.rowSpacing = t.density;
+  }
+}
+
+/**
  * Version chain. Older payloads fall through to the same reader, which validates.
  * Never returns the seed without first backing up what was there, so a bad
  * migration is recoverable instead of fatal.
@@ -127,6 +174,8 @@ export function migratePersisted(persisted: unknown, fromVersion: number): Libra
   // Before the dropped-document branch, so a partially unreadable library still gets
   // the fix on the documents that DID survive.
   if (read && fromVersion < 6) applyV6(read.lib);
+  if (read && fromVersion < 7) applyV7(read.lib);
+  if (read && fromVersion < 8) applyV8(read.lib);
   if (read && !read.dropped) return read.lib;
   recovery = { kind: 'unreadable', backupKey: key };
   return read ? read.lib : seedLibrary();

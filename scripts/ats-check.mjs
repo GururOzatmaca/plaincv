@@ -45,6 +45,30 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const ACCEPTED = [
   {
     template: '*',
+    check: 'skill-group-line',
+    when: (axes) => axes.skills === 'badge',
+    reason:
+      "skillStyle 'badge' only, and it cannot be tuned away. A pill puts 9pt of padding on " +
+      "each side of every skill plus the 5pt row gap, so two adjacent skills are 23pt apart = " +
+      "2.49 em-widths of the value font, against the ~0.9 at which poppler calls a gap a column " +
+      "boundary (measured 0.87 clean / 0.91 broken). Getting under it needs ~1.5pt of padding a " +
+      "side, which is not a pill. Hence applyV6 moving saved documents to 'plain' and shuffle.ts " +
+      "refusing to sample the axis. Reachable only by picking Badges deliberately, and this line " +
+      "is the only place that says so.",
+  },
+  {
+    template: '*',
+    check: 'role-date-line',
+    when: (axes) => axes.skills === 'badge',
+    reason:
+      "Same cause as the badge entry above and only reachable the same way: a columnar skills " +
+      "section flips poppler's reading order for the WHOLE page, so the dates in Experience " +
+      "come out ahead of their roles even though entryLayout is date-right. It disappears the " +
+      "moment Skills is not Badges; it is listed separately because the check that fires is a " +
+      "different one and a bare match would hide real date defects.",
+  },
+  {
+    template: '*',
     check: 'role-date-line',
     match: 'BSc Software Engineering',
     reason:
@@ -55,9 +79,19 @@ const ACCEPTED = [
       "means not right-aligning the date, which is the layout.",
   },
 ];
-const isAccepted = (id, f) =>
+/**
+ * `axes` is the rendered paper's data-* state. An entry may narrow itself by template,
+ * by a substring of the summary, or by `when(axes)` - the last is what keeps the two
+ * badge entries from suppressing their checks on every other run, which a bare
+ * template:'*' match would do and which would have hidden a real date defect.
+ */
+const isAccepted = (id, f, axes) =>
   ACCEPTED.some(
-    (a) => (a.template === '*' || a.template === id) && a.check === f.check && (!a.match || f.summary.includes(a.match)),
+    (a) =>
+      (a.template === '*' || a.template === id) &&
+      a.check === f.check &&
+      (!a.match || f.summary.includes(a.match)) &&
+      (!a.when || a.when(axes)),
   );
 
 // ---------------------------------------------------------------------------
@@ -69,6 +103,11 @@ const argOf = (name) => {
   return i >= 0 ? argv[i + 1] : undefined;
 };
 const only = argOf('--only');
+// The template list is not the risk surface. Every template ships one point of the
+// layout-axis space; the Design panel lets a user pick any of them, and two values of
+// skillStyle put enough air between skills that poppler reads them as columns and the
+// section comes out scrambled. Sweeping templates alone never renders either one.
+const axes = argv.includes('--axes');
 const keep = argv.includes('--keep');
 const outDir = argOf('--out');
 const sweepArg = argOf('--sweep');
@@ -460,6 +499,40 @@ try {
   const notes = [];
   const seen = [];
 
+  /**
+   * Print the current paper, extract it both ways, assert, and record. `acceptId` is
+   * the template the ACCEPTED table is matched against, which is not always the label
+   * (an axis run is labelled by its axis but still rendered on a template).
+   */
+  const renderAndAssert = async (label, acceptId) => {
+    // print media hides .no-print, so the harvest sees exactly what prints - and it
+    // has to happen AFTER any click, because the Design panel is .no-print too
+    await page.emulateMedia({ media: 'print' });
+    // .then(): document.fonts.ready resolves to a FontFaceSet, which is not
+    // serialisable across the CDP boundary
+    await page.evaluate(() => document.fonts.ready.then(() => true));
+    await page.waitForTimeout(120);
+    const exp = await page.evaluate(HARVEST);
+    if (exp.error) die(`  ${exp.error}`);
+
+    const file = join(dir, `${label.replace(/[^\w.=-]+/g, '_')}.pdf`);
+    await page.pdf({ path: file, format: 'A4', printBackground: true, preferCSSPageSize: true });
+    await page.emulateMedia({ media: 'screen' });
+
+    const geom = await textOf(file, false);
+    const raw = await textOf(file, true);
+    const fonts = hasPdffonts ? parseFonts((await execFile(PDFFONTS, [file])).stdout) : [];
+    const lines = linesOf(geom);
+
+    const found = assertAll(exp, lines, linesOf(raw), fonts, pageCount(geom)).filter(
+      (f) => !isAccepted(acceptId, f, exp.axes),
+    );
+    for (const n of NOTES(lines)) notes.push({ id: acceptId, ...n });
+    for (const f of found) failures.push({ id: label, ...f });
+    failed += found.length;
+    rows.push({ label, axes: exp.axes, bad: found.length });
+  };
+
   for (let i = 0; i < count; i++) {
     await page.locator('.tpl-list .tpl-opt').nth(i).click();
     await page.waitForFunction(
@@ -475,9 +548,6 @@ try {
     if (only && id !== only) continue;
 
     for (const value of sweep ? sweep.values : [null]) {
-      // print media hides .no-print, so the harvest sees exactly what prints - and it
-      // has to happen AFTER the click, because the Design panel is .no-print too
-      await page.emulateMedia({ media: 'print' });
       if (sweep) {
         // inline, not addStyleTag: a rule in <head> loses on specificity to paper.css's
         // attribute selectors and the sweep would silently report identical results
@@ -486,29 +556,56 @@ try {
           [sweep.prop, value],
         );
       }
-      // .then(): document.fonts.ready resolves to a FontFaceSet, which is not
-      // serialisable across the CDP boundary
-      await page.evaluate(() => document.fonts.ready.then(() => true));
-      await page.waitForTimeout(120);
-      const exp = await page.evaluate(HARVEST);
-      if (exp.error) die(`  ${exp.error}`);
-
-      const label = value ? `${id} ${sweep.prop}=${value}` : id;
-      const file = join(dir, `${label.replace(/[^\w.=-]+/g, '_')}.pdf`);
-      await page.pdf({ path: file, format: 'A4', printBackground: true, preferCSSPageSize: true });
-      await page.emulateMedia({ media: 'screen' });
-
-      const geom = await textOf(file, false);
-      const raw = await textOf(file, true);
-      const fonts = hasPdffonts ? parseFonts((await execFile(PDFFONTS, [file])).stdout) : [];
-      const lines = linesOf(geom);
-
-      const found = assertAll(exp, lines, linesOf(raw), fonts, pageCount(geom)).filter((f) => !isAccepted(id, f));
-      for (const n of NOTES(lines)) notes.push({ id, ...n });
-      for (const f of found) failures.push({ id: label, ...f });
-      failed += found.length;
-      rows.push({ label, axes: exp.axes, bad: found.length });
+      await renderAndAssert(value ? `${id} ${sweep.prop}=${value}` : id, id);
     }
+  }
+
+  // ---- axis matrix -------------------------------------------------------
+  // Every value of every layout axis, on one baseline template. A template pins one
+  // point of this space; the panel exposes all of it.
+  if (axes && !sweep) {
+    const AXES = [
+      ['headerLayout', ['left', 'centered', 'split']],
+      ['entryLayout', ['date-right', 'date-stacked', 'date-rail']],
+      ['headingLayout', ['rule', 'left-rail', 'boxed']],
+      ['skillStyle', ['badge', 'plain', 'bullets']],
+    ];
+    const BASE = only && seen.includes(only) ? seen.indexOf(only) : 0;
+    const OTHER = BASE === 0 ? 1 : 0;
+
+    /**
+     * Back to the baseline template's preset. Two clicks, not one: a radio that is
+     * ALREADY checked fires no React onChange, so re-clicking the current template is
+     * a no-op and every axis run would silently inherit the previous run's axes.
+     * skillStyle needs its own click on top - applyTemplate deliberately preserves it
+     * (see registry.ts), so a template switch does not reset it either.
+     */
+    const reset = async () => {
+      await page.locator('.tpl-list .tpl-opt').nth(OTHER).click();
+      await page.waitForTimeout(180);
+      await page.locator('.tpl-list .tpl-opt').nth(BASE).click();
+      await page.waitForTimeout(180);
+      await page.locator('.pnl-axis[data-axis="skillStyle"] .radio .name').nth(1).click(); // 'plain'
+      await page.waitForTimeout(180);
+    };
+
+    for (const [axis, values] of AXES) {
+      for (let i = 0; i < values.length; i++) {
+        await reset();
+        // the .name span, not the input: the radio is visually hidden (1x1px) so
+        // Playwright refuses to click it
+        await page.locator(`.pnl-axis[data-axis="${axis}"] .radio .name`).nth(i).click();
+        await page.waitForTimeout(200);
+        const got = await page.getAttribute('.print-scale-box > .print-paper', `data-${{ headerLayout: 'header', entryLayout: 'entry', headingLayout: 'heading', skillStyle: 'skills' }[axis]}`);
+        if (got !== values[i]) die(`  clicking ${axis}="${values[i]}" left the paper at "${got}".`);
+        await renderAndAssert(`${axis}=${values[i]}`, seen[BASE]);
+      }
+    }
+
+    await reset();
+    await page.locator('.seg .seg-btn').nth(1).click(); // dividers off
+    await page.waitForTimeout(200);
+    await renderAndAssert('dividers=off', seen[BASE]);
   }
 
   if (!only && !sweep) {

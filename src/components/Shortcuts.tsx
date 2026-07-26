@@ -14,7 +14,6 @@ const KEYS: { keys: string[]; what: string }[] = [
   { keys: ['Ctrl', 'Y'], what: 'Redo' },
   { keys: ['Ctrl', '+'], what: 'Zoom in' },
   { keys: ['Ctrl', '−'], what: 'Zoom out' },
-  { keys: ['Ctrl', '0'], what: 'Reset zoom' },
   { keys: ['Ctrl', 'P'], what: 'Download as PDF' },
   { keys: ['?'], what: 'This list' },
 ];

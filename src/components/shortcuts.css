@@ -86,7 +86,10 @@
   display: block;
   width: 100%;
   margin: 0 0 12px;
-  border: 1px solid var(--accent-weak);
+  /* --accent-weak (1.19:1) left this button with no edge at all; full --accent-strong
+     put a near-black hairline round it on a dark accent. A 45% mix keeps the edge
+     visible without making a secondary button the heaviest thing in the dialog. */
+  border: 1px solid color-mix(in srgb, var(--accent-strong) 45%, white);
   border-radius: 12px;
   padding: 10px 12px;
   background: color-mix(in srgb, var(--accent) 5%, white);
@@ -113,7 +116,7 @@
   padding: 0 10px 0 24px;
 }
 .sc-showme {
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--line-ctl);
   border-radius: var(--r-md);
   padding: 5px 10px;
   background: var(--surface);
@@ -152,7 +155,7 @@
   color: var(--muted);
 }
 .sc-row kbd {
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--line-ctl);
   border-bottom-width: 2px;
   border-radius: 5px;
   background: var(--surface-2);

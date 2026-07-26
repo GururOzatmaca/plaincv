@@ -145,7 +145,13 @@ export function RichEditable({
       spellCheck
       data-ph={placeholder}
       data-fid={fid}
-      onBlur={commit}
+      // See Editable: "typed since focus", read by the global Ctrl+Z handler.
+      onFocus={(e) => e.currentTarget.removeAttribute('data-dirty')}
+      onInput={(e) => e.currentTarget.setAttribute('data-dirty', '1')}
+      onBlur={(e) => {
+        e.currentTarget.removeAttribute('data-dirty');
+        commit();
+      }}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
           e.preventDefault();

@@ -23,5 +23,10 @@
 [data-template='classic'] .cv-chip {
   background: transparent;
   border: 0.75pt solid var(--paper-accent);
-  color: #2a2f34;
+}
+/* The skills "+" carries .cv-chip so it sits on the pills' baseline, but it is a solid
+   accent square, not a pill: the outline is invisible on it and, being border-box, it
+   inset the content box by 1px so the glyph no longer shared the chip's box. */
+[data-template='classic'] .cv-chip.cv-chip-add {
+  border: 0;
 }

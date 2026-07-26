@@ -5,10 +5,11 @@ import { useResumeStore } from '@/store/resumeStore';
 import type { Bullet, Line, Resume, Section } from '@/schema/resume';
 import { uid, newItem, newSection, newBullet } from '@/schema/factory';
 import { A4_W, A4_H } from '@/lib/paperSize';
-import { setOverflowPx } from '@/lib/pageBudget';
+import { setFitDeltaPx } from '@/lib/pageBudget';
 import { Editable } from './Editable';
 import { RichEditable } from './RichEditable';
 import { PrintLink, willLink } from './PrintLink';
+import { ContactIcon, detectContactKind } from './ContactIcon';
 import { resolveTemplate } from '@/templates/registry';
 import './paper.css';
 import '@/templates/templates.css';
@@ -231,19 +232,35 @@ function PlusIcon() {
     </svg>
   );
 }
+/**
+ * Driven from the click rather than from CSS on purpose.
+ *
+ * A class-based animation had to stay on the element, and these buttons sit at
+ * opacity 0 until their header is hovered: Chrome parks a never-painted element's
+ * animation at play-pending, so a stale class fired its pop the NEXT time that eye
+ * was revealed - other rows appearing to animate themselves. And the glyph itself is
+ * swapped for the other icon component in the same commit, so anything mounted on it
+ * is torn down mid-play. The button survives the swap and is on screen by definition
+ * when it is clicked.
+ */
+function popEye(el: HTMLElement) {
+  if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  el.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.35)', offset: 0.4 }, { transform: 'scale(1)' }], {
+    duration: 260,
+    easing: 'cubic-bezier(0.22, 0.61, 0.36, 1)',
+  });
+}
 function EyeIcon() {
   return (
-    <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
-      <path d="M1 8s2.6-4.5 7-4.5S15 8 15 8s-2.6 4.5-7 4.5S1 8 1 8Z" />
-      <circle cx="8" cy="8" r="1.9" />
+    <svg viewBox="0 0 576 512" aria-hidden="true">
+      <path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM144 256a144 144 0 1 1 288 0 144 144 0 1 1 -288 0zm144-64c0 35.3-28.7 64-64 64c-7.1 0-13.9-1.2-20.3-3.3c-5.5-1.8-11.9 1.6-11.7 7.4c.3 6.9 1.3 13.8 3.2 20.7c13.7 51.2 66.4 81.6 117.6 67.9s81.6-66.4 67.9-117.6c-11.1-41.5-47.8-69.4-88.6-71.1c-5.8-.2-9.2 6.1-7.4 11.7c2.1 6.4 3.3 13.2 3.3 20.3z" />
     </svg>
   );
 }
 function EyeOffIcon() {
   return (
-    <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
-      <path d="M1 8s2.6-4.5 7-4.5c1.2 0 2.3.3 3.2.8M15 8s-2.6 4.5-7 4.5c-1.2 0-2.3-.3-3.2-.8" />
-      <path d="M2 2l12 12" />
+    <svg viewBox="0 0 640 512" aria-hidden="true">
+      <path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c8.4-19.3 10.6-41.4 4.8-63.3c-11.1-41.5-47.8-69.4-88.6-71.1c-5.8-.2-9.2 6.1-7.4 11.7c2.1 6.4 3.3 13.2 3.3 20.3c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zM373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5L373 389.9z" />
     </svg>
   );
 }
@@ -697,6 +714,7 @@ function SectionView({
       value={section.id}
       as="div"
       className={`cv-section${section.hidden ? ' cv-hidden' : ''}`}
+      data-norule={section.noRule ? '1' : undefined}
       layout={sectionDragging ? true : undefined}
       layoutDependency={layoutKey}
       transition={sectionDragging ? ROW_SPRING : ROW_STATIC}
@@ -721,12 +739,30 @@ function SectionView({
             title={section.hidden ? 'Show in the PDF' : 'Hide from the PDF'}
             aria-label={section.hidden ? 'Show in the PDF' : 'Hide from the PDF'}
             aria-pressed={!!section.hidden}
-            onClick={() => editSection((s) => (s.hidden ? delete s.hidden : (s.hidden = true)))}
+            onClick={(e) => {
+              popEye(e.currentTarget);
+              editSection((s) => (s.hidden ? delete s.hidden : (s.hidden = true)));
+            }}
           >
             {section.hidden ? <EyeOffIcon /> : <EyeIcon />}
           </button>
         </span>
         <Del onClick={onDeleteSection} />
+        {/* Hides only THIS heading's rule; the panel toggle still governs all of them.
+            Absent once hidden, so the control never claims to undo what it did - the
+            way back is the panel, same as the header rule's X. */}
+        {!section.noRule && (
+          <button
+            className="cv-rule-x no-print"
+            type="button"
+            title="Remove this divider line"
+            aria-label="Remove this divider line"
+            contentEditable={false}
+            onClick={() => editSection((s) => void (s.noRule = true))}
+          >
+            <XIcon />
+          </button>
+        )}
         <Editable
           value={section.title}
           fid={`sec:${section.id}:title`}
@@ -918,6 +954,10 @@ function SectionView({
 
       {section.type === 'skills' && (
         <>
+          {/* Wrapper so Bullets can lay EVERY skill out in one grid: with the rows as its
+              own grids, each group started a new line and left holes in the last one.
+              Plain and Badges leave this a bare block, so nothing else changes. */}
+          <div className="cv-skills">
           {section.items.map((g) => (
             <div className="cv-skillrow" key={g.id}>
               {/* Deleting the last group is allowed: the "add skill group" control below
@@ -1002,6 +1042,7 @@ function SectionView({
               </div>
             </div>
           ))}
+          </div>
           <SecAdd
             label="skill group"
             onClick={() => {
@@ -1031,13 +1072,52 @@ export function EditorPaper({ scale }: { scale: number }) {
   const doc = useResumeStore((s) => s.doc);
   const update = useResumeStore((s) => s.update);
   const paperRef = useRef<HTMLDivElement>(null);
-  const [overflow, setOverflow] = useState(false);
-  // Printed height of the content. Drives how far the "cut" strip extends below the
-  // page edge on screen; print still clips at exactly one page.
-  const [contentH, setContentH] = useState(A4_H);
-  // Printed height at which "Fit to page" gave up, or null. Height, not a boolean,
-  // so the verdict expires as soon as the content actually changes (see check()).
-  const [fitFailedAt, setFitFailedAt] = useState<number | null>(null);
+
+  // TEMP DEBUG - render tracing for the contact row. Remove before shipping.
+  // EditorPaper subscribes to the WHOLE doc and also takes `scale` as a prop, so it
+  // re-renders for any edit anywhere and for every zoom step; the contacts are inline
+  // JSX inside it, so they re-render every time it does.
+  const dbgRenders = useRef(0);
+  const dbgPrev = useRef<{ doc: unknown; scale: number } | null>(null);
+  dbgRenders.current += 1;
+  {
+    const changed: string[] = [];
+    const p = dbgPrev.current;
+    if (p) {
+      if (p.doc !== doc) changed.push('doc');
+      if (p.scale !== scale) changed.push('scale');
+      if (!changed.length) changed.push('parent/other');
+    }
+    // eslint-disable-next-line no-console
+    console.log(
+      `[contacts] EditorPaper render #${dbgRenders.current} | contact buttons drawn: ${doc.header.contacts.length + 1}` +
+        ` | scale ${scale.toFixed(4)} | trigger: ${p ? changed.join('+') : 'mount'}`,
+    );
+    dbgPrev.current = { doc, scale };
+  }
+  /**
+   * The whole result of one page measurement, in ONE state.
+   *
+   * These were three useStates written back to back by check(). Every measurement
+   * pass therefore pushed three updates, and - worse - it pushed them even when the
+   * numbers were identical, so the ResizeObserver's own re-fires each cost a full
+   * re-render of the document. Measured: 4 renders per zoom click and 6 per committed
+   * edit, when 1 was needed.
+   *
+   * As one object the updater can return `prev` unchanged, and React bails out
+   * without rendering. That is what makes a no-op measurement free, which matters
+   * most for zoom: scrollHeight/clientHeight are read on the UNSCALED box, so zooming
+   * cannot change them, and every one of those passes is now a no-op.
+   *
+   * `fitFailedAt` is the printed height at which "Fit to page" gave up, not a boolean,
+   * so the verdict expires as soon as the content actually changes.
+   */
+  const [pageFit, setPageFit] = useState<{ contentH: number; overflow: boolean; fitFailedAt: number | null }>({
+    contentH: A4_H,
+    overflow: false,
+    fitFailedAt: null,
+  });
+  const { contentH, overflow, fitFailedAt } = pageFit;
   const fitFailed = fitFailedAt !== null;
 
   // Section order while dragging (ids); null when idle. Commit to the store once, on
@@ -1109,11 +1189,22 @@ export function EditorPaper({ scale }: { scale: number }) {
     if (!el) return A4_H;
     const chrome = el.querySelectorAll<HTMLElement>('.no-print, .cv-hidden');
     chrome.forEach((n) => (n.style.display = 'none'));
-    // scrollHeight collapses to clientHeight while overflow is visible, so clip for
-    // the duration of the read; this is the one place that needs the printed height.
-    el.style.overflow = 'hidden';
-    const h = el.scrollHeight;
-    el.style.overflow = '';
+    // Bottom of the last laid-out child, NOT scrollHeight: the paper is a fixed-height
+    // A4 box, so scrollHeight can never fall below clientHeight and a page with room
+    // left reads as an exact fit. That made the free-room half of the AI budget dead
+    // code - it could only ever ask for cuts. Children, so a half-empty page measures
+    // short and the prompt can say how much room is left.
+    //
+    // offsetTop/offsetHeight, NOT getBoundingClientRect: the paper is painted through
+    // transform: scale(zoom), so rects come back in SCREEN px while the clientHeight
+    // this is compared against is layout px. At a 0.7 fit that hid every overflow up
+    // to ~40% past the page - the warning simply did not appear. Offsets ignore
+    // transforms, so no zoom value has to be threaded in here.
+    const kids = Array.from(el.children).filter((k): k is HTMLElement => k instanceof HTMLElement && k.style.display !== 'none');
+    const padBottom = parseFloat(getComputedStyle(el).paddingBottom) || 0;
+    const h = kids.length
+      ? Math.round(Math.max(...kids.map((k) => k.offsetTop + k.offsetHeight)) + padBottom)
+      : el.scrollHeight;
     chrome.forEach((n) => (n.style.display = ''));
     return h;
   };
@@ -1130,14 +1221,19 @@ export function EditorPaper({ scale }: { scale: number }) {
     const check = () => {
       ro.disconnect();
       const h = measure();
-      setContentH((prev) => (prev === h ? prev : h));
-      setOverflow(h > el.clientHeight + 1);
-      setOverflowPx(h - el.clientHeight);
-      // A "cannot fit" verdict only holds for the content it was measured on. It
-      // used to be cleared solely by a SUCCESSFUL fit, which a failure makes
-      // unreachable (it removes the button), so the message and the missing button
-      // survived deleting content all the way back down to a fittable page.
-      setFitFailedAt((prev) => (prev === null || prev === h ? prev : null));
+      const nextOverflow = h > el.clientHeight + 1;
+      setFitDeltaPx(h - el.clientHeight); // module-level, not React state; sign carries free room too
+      setPageFit((prev) => {
+        // A "cannot fit" verdict only holds for the content it was measured on. It
+        // used to be cleared solely by a SUCCESSFUL fit, which a failure makes
+        // unreachable (it removes the button), so the message and the missing button
+        // survived deleting content all the way back down to a fittable page.
+        const nextFailed = prev.fitFailedAt === null || prev.fitFailedAt === h ? prev.fitFailedAt : null;
+        // Identity back = React bails out and nothing re-renders. This is the branch
+        // every zoom step and every re-observe takes.
+        if (prev.contentH === h && prev.overflow === nextOverflow && prev.fitFailedAt === nextFailed) return prev;
+        return { contentH: h, overflow: nextOverflow, fitFailedAt: nextFailed };
+      });
       raf = requestAnimationFrame(() => ro.observe(el));
     };
 
@@ -1166,10 +1262,20 @@ export function EditorPaper({ scale }: { scale: number }) {
     const limit = el.clientHeight + 1;
     const t = { ...doc.theme };
 
+    // Density first: it is the only knob that costs the reader nothing, and it did not
+    // exist before, so this used to open with line spacing and end up spending font
+    // size. Floors are sourced, not the slider minimums: Yale OCS puts body text at
+    // 10-12pt and margins at "no smaller than 0.5inch" (= 36pt), so 9pt/34pt was the
+    // automatic fix quietly landing the user under the published floor.
+    // https://ocs.yale.edu/resources/resume-formatting/
     const knobs = [
+      // Row gaps before block gaps: tightening the space between bullets of one entry
+      // is less visible than closing the break between two sections.
+      { key: 'rowSpacing', cssVar: '--paper-row', floor: 0.72, step: 0.04, unit: '' },
+      { key: 'blockSpacing', cssVar: '--paper-block', floor: 0.72, step: 0.04, unit: '' },
       { key: 'lineHeight', cssVar: '--paper-lh', floor: 1.15, step: 0.02, unit: '' },
-      { key: 'marginPt', cssVar: '--paper-margin', floor: 34, step: 2, unit: 'pt' },
-      { key: 'basePt', cssVar: '--paper-size', floor: 9, step: 0.5, unit: 'pt' },
+      { key: 'marginPt', cssVar: '--paper-margin', floor: 36, step: 2, unit: 'pt' },
+      { key: 'basePt', cssVar: '--paper-size', floor: 10, step: 0.5, unit: 'pt' },
     ] as const;
 
     const apply = () => {
@@ -1190,15 +1296,20 @@ export function EditorPaper({ scale }: { scale: number }) {
 
     if (!fits) {
       // put the preview back; nothing is committed, so the doc is untouched
+      root.setProperty('--paper-row', String(doc.theme.rowSpacing));
+      root.setProperty('--paper-block', String(doc.theme.blockSpacing));
       root.setProperty('--paper-lh', String(doc.theme.lineHeight));
       root.setProperty('--paper-margin', `${doc.theme.marginPt}pt`);
       root.setProperty('--paper-size', `${doc.theme.basePt}pt`);
-      setFitFailedAt(measure()); // remember WHICH page could not be fitted
+      const failedAt = measure(); // remember WHICH page could not be fitted
+      setPageFit((prev) => (prev.fitFailedAt === failedAt ? prev : { ...prev, fitFailedAt: failedAt }));
       return;
     }
 
-    setFitFailedAt(null);
+    setPageFit((prev) => (prev.fitFailedAt === null ? prev : { ...prev, fitFailedAt: null }));
     update((d) => {
+      d.theme.rowSpacing = t.rowSpacing;
+      d.theme.blockSpacing = t.blockSpacing;
       d.theme.lineHeight = t.lineHeight;
       d.theme.marginPt = t.marginPt;
       d.theme.basePt = t.basePt;
@@ -1255,7 +1366,9 @@ export function EditorPaper({ scale }: { scale: number }) {
           position: 'relative',
           zIndex: 1,
           background: 'var(--surface)',
-          padding: 'var(--paper-margin)',
+          // side margin falls back to the vertical one, so a document saved before the
+          // margin split is byte-identical and needs no migration
+          padding: 'var(--paper-margin) var(--paper-margin-x, var(--paper-margin))',
           fontFamily: 'var(--paper-font)',
           fontSize: 'var(--paper-size)',
           lineHeight: 'var(--paper-lh)',
@@ -1274,8 +1387,34 @@ export function EditorPaper({ scale }: { scale: number }) {
             <Editable value={doc.header.title} placeholder="Your title" onCommit={(t) => update((d) => (d.header.title = t))} />
           </div>
           <div className="cv-contact">
-            {doc.header.contacts.map((c) => (
+            {doc.header.contacts.map((c, dbgI) => (
+              // eslint-disable-next-line no-console
+              (console.log(`[contacts]   delete button ${dbgI} rebuilt (id ${c.id})`), true) && (
               <span className="cv-contact-item" key={c.id}>
+                {(() => {
+                  // Detection is the default only; `icon` overrides it, 'none' silences it.
+                  const kind = c.icon ? (c.icon === 'none' ? null : c.icon) : detectContactKind(c.value);
+                  if (!kind) return null;
+                  return (
+                    <span className="cv-contact-ico" contentEditable={false}>
+                      <ContactIcon kind={kind} />
+                      <button
+                        type="button"
+                        className="cv-ico-x no-print"
+                        title="Remove this icon"
+                        aria-label="Remove this icon"
+                        onClick={() =>
+                          update((d) => {
+                            const ct = d.header.contacts.find((x) => x.id === c.id);
+                            if (ct) ct.icon = 'none';
+                          })
+                        }
+                      >
+                        <XIcon />
+                      </button>
+                    </span>
+                  );
+                })()}
                 <Editable
                   className={willLink(c.value) ? 'cv-haslink' : undefined}
                   value={c.value}
@@ -1298,6 +1437,7 @@ export function EditorPaper({ scale }: { scale: number }) {
                   <XIcon />
                 </button>
               </span>
+              )
             ))}
             <button
               type="button"
@@ -1314,14 +1454,16 @@ export function EditorPaper({ scale }: { scale: number }) {
             </button>
           </div>
         </div>
-        <div className="cv-rule">
+        {/* One rule, one X: this hides the header's own line only. The Design panel's
+            Divider lines toggle is still the master switch for all of them. */}
+        <div className="cv-rule" data-norule={doc.header.noRule ? '1' : undefined}>
           <button
             className="cv-rule-x no-print"
             type="button"
-            title="Remove divider lines"
-            aria-label="Remove divider lines"
+            title="Remove this divider line"
+            aria-label="Remove this divider line"
             contentEditable={false}
-            onClick={() => update((d) => void (d.theme.dividers = false))}
+            onClick={() => update((d) => void (d.header.noRule = true))}
           >
             <XIcon />
           </button>

@@ -20,7 +20,14 @@ export const DEFAULT_THEME: Theme = {
   // matches Classic's defaultTheme, so the slider's "recommended" pin sits under the
   // thumb on a fresh document instead of one notch off
   lineHeight: 1.4,
-  headingScale: 1.7,
+  headingScale: 1.22,
+  nameScale: 1.96,
+  roleScale: 1.08,
+  titleScale: 0.571,
+  density: 1, // pre-v8, unused by the CSS; see blockSpacing/rowSpacing
+  blockSpacing: 1,
+  rowSpacing: 1,
+  secondaryInk: 'grey',
   marginPt: 46,
   accent: '#0891b2',
 };

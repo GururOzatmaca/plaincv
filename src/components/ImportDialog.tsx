@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useResumeStore } from '@/store/resumeStore';
 import { buildAiPrompt, exportJson, parseImport } from '@/schema/transform';
-import { getOverflowPx } from '@/lib/pageBudget';
-import { A4_H } from '@/lib/paperSize';
+import { getFitDeltaPx } from '@/lib/pageBudget';
+import { A4_H, A4_W } from '@/lib/paperSize';
 import { sampleResume } from '@/schema/sample';
 import { downloadText, slugify } from '@/lib/download';
 import { useDialog } from '@/lib/useDialog';
@@ -26,15 +26,19 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const cardRef = useDialog(open, () => close());
 
   // After a successful import, play the tick then auto-close (~1s). No button.
+  // 1600ms is paced to the stroke-draw choreography in import.css; with reduced
+  // motion that choreography is gone, so holding the splash would just be dead time.
+  // A CSS media query cannot reach a setTimeout, hence the match here.
   useEffect(() => {
     if (okNotes === null) return;
-    const s = setTimeout(playSuccess, 300); // land the chime as the check draws
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const s = setTimeout(playSuccess, calm ? 0 : 300); // land the chime as the check draws
     const t = setTimeout(() => {
       setOkNotes(null);
       setErrors([]);
       setText('');
       onClose();
-    }, 1600);
+    }, calm ? 450 : 1600);
     return () => {
       clearTimeout(s);
       clearTimeout(t);
@@ -91,8 +95,13 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
     copy(
       buildAiPrompt({
         basePt: doc.theme.basePt,
-        overflowPx: getOverflowPx(),
+        lineHeight: doc.theme.lineHeight,
+        marginPt: doc.theme.marginPt,
+        marginXPt: doc.theme.marginXPt,
+        blockSpacing: doc.theme.blockSpacing,
+        fitDeltaPx: getFitDeltaPx(),
         pageHeightPx: A4_H,
+        pageWidthPx: A4_W,
         sections: doc.sections.map((s) => s.title).filter(Boolean),
       }),
       'prompt',

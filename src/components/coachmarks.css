@@ -35,7 +35,7 @@
   fill: none;
   stroke: var(--accent);
   stroke-width: 3;
-  animation: coach-pulse 1.6s var(--ease-in-out) infinite;
+  animation: coach-pulse var(--dur-pulse) var(--ease-in-out) infinite;
   /* Rings travel between steps instead of teleporting, so the sequence reads as one
      tour rather than ten unrelated flashes. */
   transition: x var(--dur-3) var(--ease-in-out), y var(--dur-3) var(--ease-in-out),

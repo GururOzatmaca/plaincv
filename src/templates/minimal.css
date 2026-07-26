@@ -31,7 +31,9 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   border-bottom: none;
-  margin: 18pt 0 5pt;
+  /* density-scaled like paper.css's base 12/6pt, or the Density slider would move
+     every template's section rhythm except this one */
+  margin: calc(var(--paper-lead) * 1.18 * var(--paper-block)) 0 calc(var(--paper-lead) * 0.33 * var(--paper-block));
   padding-bottom: 0;
 }
 /* was `content: '–  '`. The en-dash was Minimal's marker identity and it IS inside
@@ -60,5 +62,5 @@
 [data-template='minimal'] .cv-chip:not(.cv-chip-add) + .cv-chip:not(.cv-chip-add)::before {
   content: '·';
   margin: 0 7pt 0 2pt;
-  color: #6b7580;
+  color: var(--paper-muted);
 }

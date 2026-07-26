@@ -65,7 +65,13 @@
      on-screen paper exactly (which also clips at one page). Without this the
      screen shows 1 clipped page while print silently spills to page 2. */
   .print-paper {
-    width: 100% !important;
+    /* A4 at 96dpi, not 100%: printing resolves 100% against the page box (correct in
+       the PDF), but browser print-media EMULATION resolves it against the flattened
+       ancestors above, i.e. the viewport - so a 1700px window laid the paper out
+       1839px wide, wrapped nothing, and reported a CV as fitting when the real PDF
+       clipped it. An explicit width makes the emulated layout and the printed one the
+       same box. Keep in step with A4_W in src/lib/paperSize.ts. */
+    width: 793.7px !important;
     height: 1122.52px !important;
     overflow: hidden !important;
     box-shadow: none !important;

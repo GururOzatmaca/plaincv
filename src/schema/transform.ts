@@ -27,6 +27,14 @@ const oneOf = <T extends string>(v: unknown, allowed: readonly T[], fallback: T)
 
 function mergeTheme(t?: ImportDto['theme']): Theme {
   const m = { ...DEFAULT_THEME, ...(t ?? {}) };
+  // Pre-v7 file: one headingScale drove the name at 1.15x and the section heading at
+  // max(0.6x, 1). Detected by nameScale being ABSENT on the raw input rather than by
+  // the value's range - the old (1.2-2.2) and new (1-1.5) ranges overlap, so a range
+  // test would misread a legitimate new file. Same conversion as applyV7 in
+  // src/store/migrations.ts, so an import and a migration agree.
+  const legacy = t?.nameScale === undefined && t?.headingScale !== undefined;
+  const headingScale = legacy ? Math.max(m.headingScale * 0.6, 1) : m.headingScale;
+  const nameScale = legacy ? m.headingScale * 1.15 : m.nameScale;
   return {
     // clamp to a known font id so the picker never desyncs from the render
     fontFamily: FONTS[m.fontFamily] ? m.fontFamily : DEFAULT_FONT_ID,
@@ -37,8 +45,23 @@ function mergeTheme(t?: ImportDto['theme']): Theme {
     skillStyle: oneOf(m.skillStyle, ['badge', 'plain', 'bullets'] as const, 'plain'),
     basePt: clamp(m.basePt, 8, 13),
     lineHeight: clamp(m.lineHeight, 1.1, 1.8),
-    headingScale: clamp(m.headingScale, 1.2, 2.2),
+    headingScale: clamp(headingScale, 1, 1.5),
+    nameScale: clamp(nameScale, 1.2, 2.6),
+    // 1 for a file that predates the control, which is what the old render was
+    roleScale: clamp(t?.roleScale ?? 1, 1, 1.3),
+    // A file that predates the split carried a title at a flat 1.12x body, so derive
+    // the fraction from the name it actually had rather than defaulting to Classic's.
+    titleScale: clamp(t?.titleScale ?? 1.12 / nameScale, 0.35, 0.9),
+    density: clamp(m.density, 0.7, 1.3),
+    // A JSON written before the v8 split carries only `density`; fall back to it so an
+    // older export still imports at its own rhythm rather than at the default.
+    blockSpacing: clamp(t?.blockSpacing ?? m.density, 0, 1.3),
+    rowSpacing: clamp(t?.rowSpacing ?? m.density, 0, 1.3),
+    secondaryInk: oneOf(m.secondaryInk, ['grey', 'soft', 'black'] as const, 'grey'),
     marginPt: clamp(m.marginPt, 24, 64),
+    // Left undefined when the file does not carry one, so the CSS fallback keeps the
+    // sides equal to the top/bottom instead of a backfilled value freezing them apart.
+    ...(m.marginXPt === undefined ? {} : { marginXPt: clamp(m.marginXPt, 24, 64) }),
     accent: clampAccent(m.accent),
   };
 }
@@ -143,6 +166,11 @@ export function dtoToResume(dto: ImportDto): Resume {
         };
     }
   });
+  // Patched after the switch rather than inside all seven cases: `noRule` is design
+  // state that applies to every section type identically.
+  (dto.sections ?? []).forEach((s, i) => {
+    if (s.noRule && sections[i]) sections[i].noRule = true;
+  });
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -153,7 +181,12 @@ export function dtoToResume(dto: ImportDto): Resume {
     header: {
       fullName: dto.header?.fullName ?? '',
       title: dto.header?.title ?? '',
-      contacts: (dto.header?.contacts ?? []).map((value) => ({ id: uid(), value })),
+      contacts: (dto.header?.contacts ?? []).map((c) => {
+        const value = typeof c === 'string' ? c : c.value;
+        const icon = typeof c === 'string' ? undefined : ICONS.find((k) => k === c.icon);
+        return { id: uid(), value, ...(icon ? { icon } : {}) };
+      }),
+      ...(dto.header?.noRule ? { noRule: true } : {}),
     },
     sections,
   };
@@ -232,6 +265,11 @@ export function resumeToDto(doc: Resume): ImportDto {
     }
   });
 
+  // Same reason as the import side: one patch instead of seven identical spreads.
+  doc.sections.forEach((s, i) => {
+    if (s.noRule) (sections[i] as { noRule?: boolean }).noRule = true;
+  });
+
   return {
     name: doc.name,
     templateId: doc.templateId,
@@ -239,7 +277,10 @@ export function resumeToDto(doc: Resume): ImportDto {
     header: {
       fullName: doc.header.fullName,
       title: doc.header.title,
-      contacts: doc.header.contacts.map((c) => c.value),
+      // Bare string unless the icon was overridden, so a normal CV's JSON stays a list
+      // of plain strings and the AI prompt's example keeps matching what it gets back.
+      contacts: doc.header.contacts.map((c) => (c.icon ? { value: c.value, icon: c.icon } : c.value)),
+      ...(doc.header.noRule ? { noRule: true } : {}),
     },
     sections: sections as ImportDto['sections'],
   };
@@ -350,16 +391,28 @@ const PROMPT_EXAMPLE: ImportDto = {
 };
 
 /**
- * What the page can actually hold, measured from the live document.
- * `overflowPx` is how far past one A4 page the current content already runs
- * (0 when it fits); `basePt` is the body size those numbers were measured at.
+ * What the page can actually hold, taken from the live theme and measurement.
+ * `fitDeltaPx` is signed: positive runs past one A4 page, negative is unused room.
+ * Every field that changes capacity has to be here - body size alone said a 36pt
+ * margin at lineHeight 1.15 held the same text as a 60pt margin at 1.6.
  */
 export interface LengthBudget {
   basePt: number;
-  overflowPx: number;
+  lineHeight: number;
+  marginPt: number;
+  marginXPt?: number;
+  /** theme.blockSpacing: what scales the section-heading gaps this budget counts. */
+  blockSpacing: number;
+  fitDeltaPx: number;
   pageHeightPx: number;
+  pageWidthPx: number;
   sections: string[];
 }
+
+const PX_PER_PT = 96 / 72;
+
+/** Contact icon ids an import may carry; anything else falls back to auto-detection. */
+const ICONS = ['email', 'phone', 'location', 'linkedin', 'github', 'link', 'none'] as const;
 
 /**
  * Turn the measured page into instructions a model can follow.
@@ -371,21 +424,40 @@ export interface LengthBudget {
  * remove - is worth more than any amount of prompt politeness.
  */
 function budgetLines(b: LengthBudget): string[] {
-  // ~1.85 characters per pt of body size per line at the paper's text width; derived
-  // from the sample CV rather than from font metrics, so it is a guide, not a promise.
-  const perBullet = Math.max(70, Math.round(210 - b.basePt * 9));
+  const lineH = b.basePt * PX_PER_PT * b.lineHeight;
+  const usableH = b.pageHeightPx - 2 * b.marginPt * PX_PER_PT;
+  const usableW = b.pageWidthPx - 2 * (b.marginXPt ?? b.marginPt) * PX_PER_PT;
+  // A section heading's own margins are 0.82 + 0.41 of a LINE (paper.css .cv-secH,
+  // against --paper-lead = size * line-height), scaled by blockSpacing - so the cost of
+  // a section is 1.23 lines regardless of body size, and no px conversion is needed.
+  // Entry and bullet gaps ride on rowSpacing and are not counted: their number is not
+  // known until the model answers, and a safety factor for them measured ~5 lines too
+  // pessimistic on a real one-page CV, which the model spent by deleting bullets.
+  const gapLines = b.sections.length * 1.23 * b.blockSpacing;
+  const textLines = Math.max(12, Math.floor(usableH / lineH - gapLines));
+  // Average glyph ~0.5em across the serif and sans stacks; a guide, not font metrics.
+  const perLine = Math.max(40, Math.round(usableW / (b.basePt * PX_PER_PT * 0.5)));
+
   const lines = [
     `- HARD LIMIT: the result must fit ONE A4 page at ${b.basePt}pt. Anything past the`,
     '  first page is CLIPPED, not moved to page two, so overlong output loses content.',
-    `- Keep bullets to about ${perBullet} characters each, and at most 3-4 per role.`,
-    '- Prefer cutting an older role to shortening every bullet into a fragment.',
+    `- The page holds about ${textLines} lines. Every section title and every role+dates`,
+    '  header spends one of them, so count those in, not just the bullets.',
+    `- A full line is about ${perLine} characters. A bullet may run one or two lines;`,
+    '  do not compress one into a fragment to save half a line.',
+    '- Spend the lines by recency: newest role gets the most bullets, oldest the fewest.',
+    '  If it will not fit, drop the oldest role outright rather than trimming every',
+    '  bullet everywhere. Do not use a fixed number of bullets per role.',
   ];
-  if (b.overflowPx > 0) {
-    // one bullet line is roughly 1.4x the body size in px (96dpi: 1pt = 1.333px)
-    const lineH = b.basePt * 1.333 * 1.4;
-    const over = Math.max(1, Math.round(b.overflowPx / lineH));
+  if (b.fitDeltaPx > lineH) {
+    const over = Math.round(b.fitDeltaPx / lineH);
+    lines.push(`- My current draft runs about ${over} line${over === 1 ? '' : 's'} past the page. Cut at least that much.`);
+  } else if (-b.fitDeltaPx > 2 * lineH) {
+    const free = Math.round(-b.fitDeltaPx / lineH);
     lines.push(
-      `- My current draft is about ${over} line${over === 1 ? '' : 's'} too long. Cut at least that much.`,
+      `- My current draft leaves about ${free} lines of the page empty. Use that room:`,
+      '  more bullets on recent roles, full tool names, no telegraphed fragments - but',
+      '  only from details I actually gave you.',
     );
   }
   if (b.sections.length) lines.push(`- Sections I am currently using: ${b.sections.join(', ')}.`);
@@ -400,6 +472,10 @@ export function buildAiPrompt(budget?: LengthBudget): string {
     '',
     ...(budget ? ['Length (this matters most):', ...budgetLines(budget), ''] : []),
     'Rules:',
+    '- Convert, do not rewrite. If I already gave finished bullets, keep MY wording and',
+    '  move it into the shape unchanged. Write new prose only for what I gave as rough',
+    '  notes. If the budget forces a cut, shorten by removing a whole bullet or role,',
+    '  not by paraphrasing every line: paraphrase is what loses tool names and numbers.',
     '- Include every section type that applies to me: profile (summary), skills,',
     '  experience, projects, education, certifications, and custom (any extra',
     '  section like Awards or Languages). Drop the ones I have no data for.',
@@ -407,12 +483,24 @@ export function buildAiPrompt(budget?: LengthBudget): string {
     '  strings. Dates are strings (e.g. "Jan 2021", "2017", "Present").',
     '- Group skills by category as shown ({"label": ..., "values": [...]}); a plain',
     '  list of strings also works if categories do not apply to me.',
+    '- Copy every technology name I list into skills verbatim; never summarise the list',
+    '  or drop one. A skills row costs one line and is what an ATS matches on.',
     '- Use **bold** inside bullet text for the numbers or results worth emphasising.',
     '- Put my strongest, quantified achievements in experience/project bullets.',
     '- Do NOT invent facts, employers, dates, or numbers. Omit what I did not give.',
+    '- Never pad to reach one page. If my details only fill half a page, return half a',
+    '  page: the length rules above never override this one.',
     '- Do NOT add a "theme", "id", or design fields; the app handles styling.',
     '',
-    'Return the result inside a single ```json code block and nothing else.',
+    'Return the result inside a single ```json code block.',
+    '- If my details covered everything, add nothing after it.',
+    '- If they were thin (a role with no detail, no skills, no dates, no education), ask',
+    '  up to 5 short questions AFTER the code block, most valuable first: missing role',
+    '  detail before skills, skills before education, education before projects. Ask what',
+    '  I can answer in one sentence, e.g. "At <employer>, what did you build and with',
+    '  which tools? Any number you remember: users, hours saved, team size?". Then tell me',
+    '  to paste the JSON into the app now and that you will redo it once I answer.',
+    '- Never put questions inside the JSON and never send questions instead of it.',
     '',
     'EXAMPLE SHAPE (replace all content with mine; this shows every supported field):',
     example,
@@ -514,7 +602,12 @@ export function normalizeAliases(input: unknown): { value: unknown; notes: strin
     fill(header, 'contacts', ['contact', 'links', 'info'], notes, 'header');
     if (Array.isArray(header.contacts)) {
       header.contacts = header.contacts
-        .map((c) => (typeof c === 'string' ? c : asText(c)))
+        .map((c) => {
+          // {value, icon} is a legal contact, not a stray object to flatten: asText()
+          // reads `value` first, so coercing here would silently drop the icon override.
+          if (isRecord(c) && typeof c.value === 'string') return c;
+          return typeof c === 'string' ? c : asText(c);
+        })
         .filter(Boolean);
     }
   }
@@ -619,6 +712,76 @@ export type ImportResult =
   | { ok: true; doc: Resume; notes: string[] }
   | { ok: false; errors: string[] };
 
+/**
+ * Every balanced `{...}` run in `raw`, outermost only, in document order.
+ *
+ * Replaces first-`{`-to-last-`}`, which could not survive prose either side of the
+ * JSON: the model is now asked to append follow-up questions after the code block,
+ * and one brace or emoticon in that prose swallowed the whole reply into a parse
+ * error. String- and escape-aware so a `}` inside a bullet does not close an object.
+ */
+function jsonCandidates(raw: string, cap = 10): string[] {
+  const out: string[] = [];
+  let i = 0;
+  while (out.length < cap) {
+    const start = raw.indexOf('{', i);
+    if (start === -1) break;
+    let depth = 0;
+    let inStr = false;
+    let esc = false;
+    let end = -1;
+    for (let j = start; j < raw.length; j++) {
+      const c = raw[j];
+      if (inStr) {
+        if (esc) esc = false;
+        else if (c === '\\') esc = true;
+        else if (c === '"') inStr = false;
+        continue;
+      }
+      if (c === '"') inStr = true;
+      else if (c === '{') depth++;
+      else if (c === '}' && --depth === 0) {
+        end = j;
+        break;
+      }
+    }
+    if (end === -1) {
+      // Unbalanced from here on: a truncated reply. Keep it as a last-resort candidate
+      // so the "looks cut off" message still wins over "does not look like an answer".
+      out.push(raw.slice(start));
+      break;
+    }
+    out.push(raw.slice(start, end + 1));
+    i = end + 1;
+  }
+  return out;
+}
+
+/** A fenced ```json block wins over loose text: it is the one place prose cannot reach. */
+function extractJson(raw: string): { text: string | null; reason: 'wrongShape' | 'truncated' | 'notAnAnswer' } {
+  const ordered: string[] = [];
+  for (const m of raw.matchAll(/```(?:json|JSON)?\s*([\s\S]*?)```/g)) {
+    if (m[1].includes('{')) ordered.push(...jsonCandidates(m[1]));
+  }
+  ordered.push(...jsonCandidates(raw));
+  let parsedSomething = false;
+  for (const c of ordered) {
+    try {
+      const v: unknown = JSON.parse(c);
+      parsedSomething = true;
+      // A model that answers in prose can still leave `{}` or a stray `{1,2}` in the
+      // text, so a candidate only counts once it looks like the shape we asked for.
+      if (v && typeof v === 'object' && ('sections' in v || 'header' in v)) return { text: c, reason: 'wrongShape' };
+    } catch {
+      /* try the next candidate */
+    }
+  }
+  // Our keys present but nothing parsed = a reply that got cut off mid-object; braces
+  // with none of our keys = the model answered in prose (questions only, or a refusal).
+  const ours = /"(?:sections|header)"\s*:/.test(raw);
+  return { text: null, reason: parsedSomething || !ours ? 'notAnAnswer' : 'truncated' };
+}
+
 /** Staged validation: size -> JSON.parse -> DTO schema -> transform -> internal schema. */
 export function parseImport(raw: string): ImportResult {
   if (raw.length > MAX_IMPORT_BYTES)
@@ -626,28 +789,21 @@ export function parseImport(raw: string): ImportResult {
   if (!raw.trim())
     return { ok: false, errors: ["Nothing pasted yet. Paste your AI's reply above."] };
 
-  // Tolerate ChatGPT wrapping: ```json fences, a leading "JSON" label, or stray
-  // prose around the object. Take the outermost { ... } and parse that.
-  const start = raw.indexOf('{');
-  const end = raw.lastIndexOf('}');
-  if (start === -1 || end <= start) {
+  // Tolerate ChatGPT wrapping: ```json fences, a leading "JSON" label, and prose on
+  // either side - the prompt asks for follow-up questions after the code block.
+  const { text, reason } = extractJson(raw);
+  if (text === null) {
     return {
       ok: false,
-      errors: ["That doesn't look like your AI's answer. Copy its full reply and paste it here."],
+      errors: [
+        reason === 'truncated'
+          ? "The reply looks cut off or broken. Copy your AI's full reply and paste it again."
+          : "That doesn't look like your AI's answer. Copy its full reply and paste it here.",
+      ],
     };
   }
 
-  let data: unknown;
-  try {
-    data = JSON.parse(raw.slice(start, end + 1));
-  } catch {
-    return {
-      ok: false,
-      errors: ["The reply looks cut off or broken. Copy your AI's full reply and paste it again."],
-    };
-  }
-
-  const { value, notes } = normalizeAliases(data);
+  const { value, notes } = normalizeAliases(JSON.parse(text));
 
   const dto = ImportDtoSchema.safeParse(value);
   if (!dto.success) {
