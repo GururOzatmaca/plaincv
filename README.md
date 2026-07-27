@@ -3,8 +3,7 @@
 **A CV is one page of text. Why does making one eat an afternoon?**
 
 PlainCV is a CV builder with no account, no server and no forms. Click the text
-on the page and type. The page you edit *is* the PDF that comes out; that is not
-a promise, it is a test that runs.
+on the page and type. The page you edit *is* the PDF that comes out.
 
 Live at **[plaincv.net](https://plaincv.net)**.
 
