@@ -47,7 +47,16 @@ async function mergeIntoStored(name: string, value: string): Promise<string> {
     if (typeof prevRaw !== 'string' || !next.state?.library) return value;
     const prev = JSON.parse(prevRaw) as { state?: { library?: Record<string, unknown> } };
     if (!prev.state?.library) return value;
-    const merged: Record<string, unknown> = { ...prev.state.library, ...next.state.library };
+    const merged: Record<string, unknown> = {};
+    for (const [key, entry] of [
+      ...Object.entries(prev.state.library),
+      ...Object.entries(next.state.library),
+    ]) {
+      // Keying by the doc's own id keeps a stale key from smuggling a deleted
+      // doc past the tombstones, which deletes by id.
+      const id = (entry as { id?: unknown })?.id;
+      merged[typeof id === 'string' ? id : key] = entry;
+    }
     for (const id of tombstones) delete merged[id];
     next.state.library = merged;
     return JSON.stringify(next);
@@ -155,6 +164,7 @@ const withFreshId = (doc: Resume, name: string): Resume => ({ ...doc, id: uid(),
 
 function adoptDoc(state: { doc: Resume; library: Record<string, Resume>; activeId: string }, doc: Resume): void {
   delete state.library[state.activeId];
+  delete state.library[state.doc.id];
   state.library[doc.id] = doc;
   state.doc = doc;
   state.activeId = doc.id;
@@ -170,21 +180,27 @@ export const useResumeStore = create<ResumeStore>()(
 
         setDoc: (doc) => {
           const parsed = ResumeSchema.safeParse(doc);
-          if (parsed.success) setState((state) => void adoptDoc(state, parsed.data));
+          if (!parsed.success) return;
+          setState((state) => void adoptDoc(state, parsed.data));
+          // Undoing past an adoption would restore a doc the library no longer
+          // keys, which is how phantom twins appear in the switcher.
+          clearHistory();
         },
         update: (recipe) =>
           setState((state) => {
             recipe(state.doc);
           }),
-        reset: (kind) =>
-          setState((state) => void adoptDoc(state, kind === 'blank' ? blankResume() : withFreshId(sampleResume, 'Sample CV'))),
+        reset: (kind) => {
+          setState((state) => void adoptDoc(state, kind === 'blank' ? blankResume() : withFreshId(sampleResume, 'Sample CV')));
+          clearHistory();
+        },
 
         switchDoc: (id) => {
           const s = getState();
           if (id === s.activeId || !s.library[id]) return;
           setState((state) => {
 
-            state.library[state.activeId] = state.doc;
+            state.library[state.doc.id] = state.doc;
             state.doc = state.library[id];
             state.activeId = id;
           });
@@ -194,7 +210,7 @@ export const useResumeStore = create<ResumeStore>()(
         addDoc: (kind) => {
           const doc = kind === 'blank' ? blankResume() : withFreshId(sampleResume, 'Sample CV');
           setState((state) => {
-            state.library[state.activeId] = state.doc;
+            state.library[state.doc.id] = state.doc;
             state.library[doc.id] = doc;
             state.doc = doc;
             state.activeId = doc.id;
@@ -206,7 +222,7 @@ export const useResumeStore = create<ResumeStore>()(
         duplicateDoc: () => {
           const copy = withFreshId(getState().doc, `${getState().doc.name} copy`);
           setState((state) => {
-            state.library[state.activeId] = state.doc;
+            state.library[state.doc.id] = state.doc;
             state.library[copy.id] = copy;
             state.doc = copy;
             state.activeId = copy.id;
@@ -217,19 +233,20 @@ export const useResumeStore = create<ResumeStore>()(
 
         renameDoc: (name, id) =>
           setState((state) => {
-            const target = id ?? state.activeId;
-            if (target === state.activeId) state.doc.name = name;
+            const target = id ?? state.doc.id;
+            if (target === state.doc.id) state.doc.name = name;
             if (state.library[target]) state.library[target].name = name;
           }),
 
         deleteDoc: (id) => {
           const s = getState();
-          if (!s.library[id]) return;
+          const keys = Object.keys(s.library).filter((k) => k === id || s.library[k].id === id);
+          if (!keys.length && s.doc.id !== id) return;
           markDeleted(id);
-          const wasActive = id === s.activeId;
+          const wasActive = id === s.activeId || s.doc.id === id;
           setState((state) => {
-            if (!wasActive) state.library[state.activeId] = state.doc;
-            delete state.library[id];
+            if (!wasActive) state.library[state.doc.id] = state.doc;
+            for (const k of keys) delete state.library[k];
             if (!wasActive) return;
 
             const next = Object.keys(state.library)[0];
@@ -251,8 +268,8 @@ export const useResumeStore = create<ResumeStore>()(
       storage: createJSONStorage(() => idbStorage),
 
       partialize: (state) => ({
-        library: { ...state.library, [state.activeId]: state.doc },
-        activeId: state.activeId,
+        library: { ...state.library, [state.doc.id]: state.doc },
+        activeId: state.doc.id,
       }),
       merge: (persisted, current) => {
         const lib = mergePersisted(persisted, { library: current.library, activeId: current.activeId });
@@ -269,8 +286,14 @@ channel?.addEventListener('message', (e: MessageEvent<{ from?: string }>) => {
   void useResumeStore.persist.rehydrate();
 });
 
-export const docSummaries = (library: Record<string, Resume>, doc: Resume, activeId: string): DocSummary[] =>
-  Object.values({ ...library, [activeId]: doc }).map((d) => ({
+const byId = (library: Record<string, Resume>): Record<string, Resume> => {
+  const out: Record<string, Resume> = {};
+  for (const d of Object.values(library)) out[d.id] = d;
+  return out;
+};
+
+export const docSummaries = (library: Record<string, Resume>, doc: Resume): DocSummary[] =>
+  Object.values({ ...byId(library), [doc.id]: doc }).map((d) => ({
     id: d.id,
     name: d.name,
     fullName: d.header.fullName,

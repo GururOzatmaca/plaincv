@@ -5,9 +5,8 @@ export function DocSwitcher() {
 
   const library = useResumeStore((s) => s.library);
   const doc = useResumeStore((s) => s.doc);
-  const activeId = useResumeStore((s) => s.activeId);
   const activeName = doc.name;
-  const docs = useMemo(() => docSummaries(library, doc, activeId), [library, doc, activeId]);
+  const docs = useMemo(() => docSummaries(library, doc), [library, doc]);
   const switchDoc = useResumeStore((s) => s.switchDoc);
   const addDoc = useResumeStore((s) => s.addDoc);
   const duplicateDoc = useResumeStore((s) => s.duplicateDoc);
@@ -74,8 +73,8 @@ export function DocSwitcher() {
         <div className="doc-menu" role="menu">
           <ul className="doc-list app-scroll">
             {docs.map((d) => (
-              <li key={d.id} className={`doc-item${d.id === activeId ? ' sel' : ''}`}>
-                {renaming && d.id === activeId ? (
+              <li key={d.id} className={`doc-item${d.id === doc.id ? ' sel' : ''}`}>
+                {renaming && d.id === doc.id ? (
                   <input
                     ref={renameRef}
                     className="doc-rename"

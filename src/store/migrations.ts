@@ -42,15 +42,22 @@ function readLibrary(raw: unknown): { lib: Library; dropped: number } | null {
   if (r.library && typeof r.library === 'object') {
     const out: Record<string, Resume> = {};
     let dropped = 0;
-    for (const [id, entry] of Object.entries(r.library as Record<string, unknown>)) {
+    let activeFromKey: string | undefined;
+    for (const [key, entry] of Object.entries(r.library as Record<string, unknown>)) {
       const doc = readDoc(entry);
-      if (doc) out[id] = doc;
-      else dropped++;
+      if (!doc) {
+        dropped++;
+        continue;
+      }
+      // A key that disagrees with the doc it holds shows up as a twin row the
+      // delete button cannot reach, so re-key by the doc's own id.
+      if (key === r.activeId) activeFromKey = doc.id;
+      out[doc.id] = doc;
     }
     const ids = Object.keys(out);
     if (!ids.length) return null;
-    const activeId = typeof r.activeId === 'string' && out[r.activeId] ? r.activeId : ids[0];
-    return { lib: { library: out, activeId }, dropped };
+    const stored = typeof r.activeId === 'string' && out[r.activeId] ? r.activeId : undefined;
+    return { lib: { library: out, activeId: stored ?? activeFromKey ?? ids[0] }, dropped };
   }
 
   const doc = readDoc(r.doc);
