@@ -565,6 +565,14 @@ body.coach-tour:not(.coach-bare) .cv-secadd-wrap,
   flex: 0 0 auto;
 }
 
+/* Hover chrome takes flow height, so revealing it resizes the paper. Zoomed in the stage
+   scrolls, and scroll anchoring turns that resize into a scroll event, which sets
+   .is-scrolling, which drops pointer-events below, which unhovers the control that
+   caused it. That cycle runs forever with the mouse still. */
+.print-stage {
+  overflow-anchor: none;
+}
+
 body:not(.cv-dragging) .print-stage.is-scrolling .print-paper {
   pointer-events: none;
 }
