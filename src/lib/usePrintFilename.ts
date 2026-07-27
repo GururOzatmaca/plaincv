@@ -5,7 +5,7 @@ import { slugify } from './download';
 export function usePrintFilename(): void {
   const fullName = useResumeStore((s) => s.doc.header.fullName);
   useEffect(() => {
-    const appTitle = 'CV Generator';
+    const appTitle = 'PlainCV';
     const before = () => {
       document.title = fullName.trim() ? `${slugify(fullName)}-cv` : 'my-cv';
     };

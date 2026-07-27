@@ -173,6 +173,11 @@ body.coach-tour:not(.coach-bare) .cv-rule-x,
   left: -46px;
   top: -11px;
 }
+/* A section heading is taller than an entry row, so the shared offset above sits high
+   against it. Entry handles keep the base value. */
+.cv-secH > .cv-hz-l {
+  top: -6px;
+}
 .cv-hz-r {
   right: -50px;
   top: -13px;
@@ -208,12 +213,15 @@ body.coach-tour:not(.coach-bare) .cv-rule-x,
 
 .cv-li > .cv-hz-r > *,
 .cv-entry > .cv-hz-r > *,
+.cv-note > .cv-hz-r > *,
 .cv-skillrow > .cv-hz-r > * {
   transition: opacity var(--dur-1) var(--ease-out) 0.3s;
 }
 
 .cv-li:hover > .cv-hz-r > *,
 .cv-li > .cv-hz-r:hover > *,
+.cv-note:hover > .cv-hz-r > *,
+.cv-note > .cv-hz-r:hover > *,
 .cv-entry:has(> .cv-etop:hover) > .cv-hz-r > *,
 .cv-entry:has(> .cv-role:hover) > .cv-hz-r > *,
 .cv-entry:has(> .cv-co:hover) > .cv-hz-r > *,
@@ -238,7 +246,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
 }
 
 .cv-li > .cv-hz-l {
-  left: -23px;
+  left: -21px;
   width: 18px;
   top: -11px;
 }
@@ -259,8 +267,6 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
 .cv-contact-add,
 .cv-rule-x,
 .cv-plus {
-  /* Hit areas sized in INVERSE zoom: everything here paints through scale(), so a
-     20px control is ~14 screen px at fit zoom and ~9 on a phone. */
   --hit: clamp(16px, calc(24px / var(--zoom, 1)), 44px);
 }
 .cv-drag::after,
@@ -338,8 +344,6 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
 }
 
 .cv-drag {
-  /* Ring in inverse zoom: it paints through scale(), so a flat 1px goes to a
-     sub-pixel smudge at fit zoom. */
   --ring: calc(1px / var(--zoom, 1));
   background: var(--accent-weak);
   box-shadow: inset 0 0 0 var(--ring) color-mix(in oklab, var(--paper-accent) 24%, transparent);
@@ -450,6 +454,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
 
 .cv-entry:has(> .cv-hz-r > .cv-del:hover),
 .cv-li:has(> .cv-hz-r > .cv-del:hover),
+.cv-note:has(> .cv-hz-r > .cv-del:hover),
 .cv-skillrow:has(> .cv-hz-r > .cv-del:hover),
 .cv-section:has(> .cv-secH > .cv-hz-r > .cv-del:hover) {
   background: #fbdada;
@@ -508,8 +513,6 @@ body.coach-tour:not(.coach-bare) .cv-addbul,
   padding: 0;
   border: none;
   border-radius: 5px;
-  /* Pale tint + saturated glyph, the same weight as the delete control. --accent-ink is
-     darkened against --accent-weak until it clears AA, so this holds at any accent. */
   background: var(--accent-weak);
   color: var(--accent-ink);
   font-size: 14px;
@@ -562,9 +565,6 @@ body.coach-tour:not(.coach-bare) .cv-secadd-wrap,
   flex: 0 0 auto;
 }
 
-/* Scrolling: no hover, so none of the :hover / :has() rules below re-resolve per frame
-   while the page moves. Set by EditorPage; skipped mid-drag, where a wheel scroll would
-   otherwise pull the row out from under framer's pointer capture. */
 body:not(.cv-dragging) .print-stage.is-scrolling .print-paper {
   pointer-events: none;
 }
@@ -796,6 +796,9 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
   display: grid;
 }
 .cv-note {
+  /* Anchors the note's own delete control. Without it the .cv-hz inside would position
+     against .cv-entry and land on top of the entry's delete. */
+  position: relative;
   margin-top: calc(var(--paper-gap) * 0.14 * var(--paper-row));
   color: var(--paper-muted);
 }
@@ -937,8 +940,6 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
   background: transparent;
   color: var(--accent-ink);
 
-  /* zero flow height: at 15px it grew every skills row, so the editor pushed
-     content past the page edge that the PDF still fits */
   height: 0;
   align-self: center;
   overflow: visible;

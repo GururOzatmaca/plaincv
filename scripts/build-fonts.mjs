@@ -11,10 +11,8 @@ const SRC_LOCAL = 'public/fonts';
 const UA_TTF = 'Mozilla/5.0 (Windows NT 6.1; WOW64)';
 
 const UNICODES = [
-  // latin
   'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC',
   'U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
-  // latin-ext
   'U+0100-024F,U+0259,U+1E00-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113',
   'U+2C60-2C7F,U+A720-A7FF',
 ].join(',');
@@ -26,7 +24,6 @@ const STYLES = [
   { key: 'BoldItalic', ital: 1, wght: 700 },
 ];
 
-/** Families already vendored as .ttf in the repo; nothing to download. */
 const LOCAL = {
   LiberationSerif: 'LiberationSerif',
   LiberationSans: 'LiberationSans',
@@ -34,7 +31,6 @@ const LOCAL = {
   Lato: 'Lato',
 };
 
-/** Families fetched from Google Fonts. All OFL. */
 const REMOTE = {
   Caladea: 'Caladea',
   Gelasio: 'Gelasio',
@@ -57,8 +53,6 @@ async function ttfUrls(family) {
   if (!res.ok) throw new Error(`${family}: css2 ${res.status}`);
   const css = await res.text();
 
-  // Blocks come back in the order requested; pair each src with its style/weight
-  // rather than trusting position alone.
   const blocks = css.split('@font-face').slice(1);
   const found = {};
   for (const b of blocks) {

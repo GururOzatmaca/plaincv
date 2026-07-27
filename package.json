@@ -1,5 +1,5 @@
 {
-  "name": "cv-generator",
+  "name": "plaincv",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -11,7 +11,11 @@
     "guardrail": "node scripts/check-guardrail.mjs",
     "ats-check": "node scripts/ats-check.mjs",
     "tune-check": "node scripts/tune-check.mjs",
-    "fonts": "node scripts/build-fonts.mjs"
+    "print-parity": "node scripts/print-parity.mjs",
+    "parity-demo": "node scripts/parity-demo.mjs",
+    "parity-cvs": "node scripts/parity-verify-cvs.mjs",
+    "fonts": "node scripts/build-fonts.mjs",
+    "og": "node scripts/build-og.mjs"
   },
   "dependencies": {
     "framer-motion": "^11.15.0",
@@ -29,7 +33,9 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "pixelmatch": "^7.2.0",
     "playwright-core": "^1.62.0",
+    "pngjs": "^7.0.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.7"

@@ -110,24 +110,25 @@ export function DocSwitcher() {
                         setConfirmId(null);
                       }}
                     >
-                      Delete
+                      {/* Deleting the last CV does not leave you with none: deleteDoc
+                          falls back to a blank one. Saying "Delete" there would promise
+                          something the store does not do. */}
+                      {docs.length > 1 ? 'Delete' : 'Start over'}
                     </button>
                     <button type="button" className="doc-x" onClick={() => setConfirmId(null)}>
                       Keep
                     </button>
                   </span>
                 ) : (
-                  docs.length > 1 && (
-                    <button
-                      type="button"
-                      className="doc-x"
-                      title="Delete this CV"
-                      aria-label={`Delete ${d.name}`}
-                      onClick={() => setConfirmId(d.id)}
-                    >
-                      ✕
-                    </button>
-                  )
+                  <button
+                    type="button"
+                    className="doc-x"
+                    title={docs.length > 1 ? 'Delete this CV' : 'Clear this CV and start over'}
+                    aria-label={docs.length > 1 ? `Delete ${d.name}` : `Clear ${d.name} and start over`}
+                    onClick={() => setConfirmId(d.id)}
+                  >
+                    ✕
+                  </button>
                 )}
               </li>
             ))}

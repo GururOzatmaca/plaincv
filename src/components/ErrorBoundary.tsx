@@ -17,7 +17,7 @@ function format(err: unknown): string {
 function ErrorScreen({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   const mailto = `mailto:${EMAIL}?subject=${encodeURIComponent(
-    'cv-generator error',
+    'PlainCV error',
   )}&body=${encodeURIComponent(`Hi, I hit this error in the app:\n\n${text}`)}`;
 
   const copy = () => {

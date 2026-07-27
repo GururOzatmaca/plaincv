@@ -56,7 +56,7 @@ function initialShowCtl(): boolean {
     const saved = localStorage.getItem(CTL_KEY);
     if (saved !== null) return saved === '1';
   } catch {}
-  return true;
+  return false;
 }
 
 const MinusIcon = () => (
@@ -323,14 +323,12 @@ export function EditorPage() {
 
       <header className="no-print app-header">
         <div className="hdr-side">
-          <span
-            className="hdr-logo grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xs font-extrabold text-white"
-
-            style={{ background: 'linear-gradient(150deg,var(--accent-strong),color-mix(in oklab, var(--accent-strong) 80%, black))' }}
-          >
-            cv
+          <span className="hdr-logo grid h-8 w-8 shrink-0 place-items-center rounded-lg text-sm font-semibold text-white">
+            CV
           </span>
-          <span className="hdr-wordmark">CV Generator</span>
+          <span className="hdr-wordmark">
+            plain<span className="hdr-cv">cv</span>
+          </span>
           <span className="hdr-rule" aria-hidden="true" />
           <DocSwitcher />
           <span className="hdr-rule" aria-hidden="true" />

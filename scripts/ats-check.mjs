@@ -1,47 +1,13 @@
-/**
- * ats-check - does the printed CV survive being read back out of the PDF?
- *
- * The app's entire output is one A4 page printed from the live DOM, and every defect
- * this catches is INVISIBLE on paper: the page looks right and the extracted text is
- * wrong. That is the whole reason for the script. A PDF stores glyphs at coordinates,
- * with no columns, no headings and no reading order, so anything reading it back has
- * to reconstruct lines from gaps - and a gap the layout put there for looks gets read
- * as a column boundary. Which is what an ATS does with your CV.
- *
- * Two extraction modes are used, and the difference between them IS the diagnosis:
- *   pdftotext <f> -        geometry / reading-order. Every assertion runs against this.
- *                          It is the model a parser applies.
- *   pdftotext -raw <f> -   content-stream order, i.e. DOM order. Never asserted on;
- *                          shown on failure. If a string is intact in raw and broken
- *                          in geometry, the characters are in the PDF and the CSS
- *                          geometry is what broke them. If it is missing from both,
- *                          the content never made it onto the page at all.
- *
- * Not wired into `npm run build` on purpose: it needs a browser and a system poppler,
- * and a build should not depend on either. Run it after touching paper.css, any
- * template stylesheet, or the seeded sample.
- *
- *   npm run ats-check
- *   npm run ats-check -- --only dense --keep
- *   npm run ats-check -- --only rail --sweep entry-rail=48pt,56pt,64pt,68pt
- *
- * Exit codes:  0 clean   1 the CVs regressed   2 the harness could not run
- */
-import { execFile as execFileCb, execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { execFile as execFileCb } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
-const execFile = promisify(execFileCb);
-const ROOT = fileURLToPath(new URL('..', import.meta.url));
+import { Bail, PAPER_SEL, TEMPLATES, findChrome, makeDie, openApp, popplerHint, probe, startServer, templateCount } from './lib/harness.mjs';
 
-// ---------------------------------------------------------------------------
-// Known, deliberate exceptions. Every entry is an ATS defect the project has decided
-// to ship; each needs a reason, and all of them are printed in every run's summary so
-// the list cannot rot quietly. Ships empty.
-// ---------------------------------------------------------------------------
+const execFile = promisify(execFileCb);
+
 const ACCEPTED = [
   {
     template: '*',
@@ -79,12 +45,6 @@ const ACCEPTED = [
       "means not right-aligning the date, which is the layout.",
   },
 ];
-/**
- * `axes` is the rendered paper's data-* state. An entry may narrow itself by template,
- * by a substring of the summary, or by `when(axes)` - the last is what keeps the two
- * badge entries from suppressing their checks on every other run, which a bare
- * template:'*' match would do and which would have hidden a real date defect.
- */
 const isAccepted = (id, f, axes) =>
   ACCEPTED.some(
     (a) =>
@@ -94,102 +54,27 @@ const isAccepted = (id, f, axes) =>
       (!a.when || a.when(axes)),
   );
 
-// ---------------------------------------------------------------------------
-// args
-// ---------------------------------------------------------------------------
 const argv = process.argv.slice(2);
 const argOf = (name) => {
   const i = argv.indexOf(name);
   return i >= 0 ? argv[i + 1] : undefined;
 };
 const only = argOf('--only');
-// The template list is not the risk surface. Every template ships one point of the
-// layout-axis space; the Design panel lets a user pick any of them, and two values of
-// skillStyle put enough air between skills that poppler reads them as columns and the
-// section comes out scrambled. Sweeping templates alone never renders either one.
 const axes = argv.includes('--axes');
 const keep = argv.includes('--keep');
 const outDir = argOf('--out');
 const sweepArg = argOf('--sweep');
 
-/**
- * Bail with exit 2 (the harness could not run, as distinct from 1, the CVs regressed).
- * Throws rather than calling process.exit so the `finally` below still runs: after the
- * browser is launched, exiting straight out would orphan its process tree.
- */
-class Bail extends Error {}
-/** Flipped once a dev server or a browser exists and therefore needs closing. */
-let needsCleanup = false;
-const die = (msg) => {
-  if (!needsCleanup) {
-    process.stdout.write(`\n${msg}\n`);
-    process.exit(2);
-  }
-  throw new Bail(msg);
-};
+const state = { needsCleanup: false };
+const die = makeDie(state);
 
-// ---------------------------------------------------------------------------
-// prerequisites, probed before anything expensive starts
-// ---------------------------------------------------------------------------
 const PDFTOTEXT = process.env.ATS_PDFTOTEXT || 'pdftotext';
 const PDFFONTS = process.env.ATS_PDFFONTS || 'pdffonts';
-const probe = (bin) => {
-  try {
-    execFileSync(bin, ['-v'], { stdio: 'pipe' });
-    return true;
-  } catch {
-    return false;
-  }
-};
-if (!probe(PDFTOTEXT)) {
-  die(
-    `  ats-check needs poppler-utils for \`pdftotext\`, which is how it models what a\n` +
-      `  geometry-based ATS parser reads. It is a system package, not an npm one:\n\n` +
-      `    Debian/Ubuntu   sudo apt install poppler-utils\n` +
-      `    macOS           brew install poppler\n` +
-      `    Fedora          sudo dnf install poppler-utils\n\n` +
-      `  Installed somewhere unusual?  ATS_PDFTOTEXT=/path/to/pdftotext npm run ats-check\n\n` +
-      `  Nothing was checked.`,
-  );
-}
+if (!probe(PDFTOTEXT)) die(popplerHint('ats-check', 'pdftotext'));
 const hasPdffonts = probe(PDFFONTS);
 
-let chromium;
-try {
-  ({ chromium } = await import('playwright-core'));
-} catch {
-  die('  ats-check needs the playwright-core devDependency.  npm i -D playwright-core\n\n  Nothing was checked.');
-}
+const { chromium, chromePath } = await findChrome('ats-check', die);
 
-const CHROME_CANDIDATES = [
-  process.env.ATS_CHROME,
-  (() => {
-    try {
-      return chromium.executablePath();
-    } catch {
-      return undefined;
-    }
-  })(),
-  '/usr/bin/google-chrome',
-  '/usr/bin/google-chrome-stable',
-  '/usr/bin/chromium',
-  '/usr/bin/chromium-browser',
-  '/snap/bin/chromium',
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-].filter(Boolean);
-const chromePath = CHROME_CANDIDATES.find((p) => existsSync(p));
-if (!chromePath) {
-  die(
-    '  ats-check found no Chrome to print with.\n\n' +
-      '    ATS_CHROME=/path/to/chrome npm run ats-check\n' +
-      '    npx playwright install chromium\n\n' +
-      '  Nothing was checked.',
-  );
-}
-
-// ---------------------------------------------------------------------------
-// extraction helpers
-// ---------------------------------------------------------------------------
 const norm = (s) => s.replace(/\s+/g, ' ').trim();
 const textOf = async (file, raw) =>
   (await execFile(PDFTOTEXT, raw ? ['-q', '-raw', file, '-'] : ['-q', file, '-'], { maxBuffer: 8 << 20 })).stdout;
@@ -198,15 +83,12 @@ const linesOf = (text) =>
     .split('\n')
     .map(norm)
     .filter(Boolean);
-/** poppler writes \f at the end of every page, so no pdfinfo dependency is needed. */
 const pageCount = (text) => (text.match(/\f/g) ?? []).length || 1;
 
-/** Index of the first extracted line containing `needle`, or -1. */
 const lineWith = (lines, needle) => {
   const n = norm(needle);
   return n ? lines.findIndex((l) => l.includes(n)) : -1;
 };
-/** True when `line` contains every value in `values`, in order. */
 const containsInOrder = (line, values) => {
   let at = 0;
   for (const v of values) {
@@ -217,10 +99,6 @@ const containsInOrder = (line, values) => {
   return true;
 };
 
-// ---------------------------------------------------------------------------
-// what the printed DOM says the PDF should contain. Derived, never hardcoded: change
-// the sample or a template and the expectations follow.
-// ---------------------------------------------------------------------------
 const HARVEST = () => {
   const papers = document.querySelectorAll('.print-scale-box > .print-paper');
   if (papers.length !== 1) return { error: `expected 1 editor paper, found ${papers.length}` };
@@ -228,8 +106,6 @@ const HARVEST = () => {
   const t = (el) => (el?.innerText ?? '').replace(/\s+/g, ' ').trim();
   const all = (sel, root = paper) => Array.from(root.querySelectorAll(sel));
 
-  // measure the PRINTED height the way EditorPaper does, so an overflow here means
-  // the same thing the on-screen "cut from the PDF" warning means
   const chrome = all('.no-print, .cv-hidden');
   chrome.forEach((n) => (n.style.display = 'none'));
   paper.style.overflow = 'hidden';
@@ -254,10 +130,6 @@ const HARVEST = () => {
       label: t(row.querySelector('.cv-skilllabel')),
       values: all('.cv-chip:not(.cv-chip-add)', row).map(t).filter(Boolean),
     })),
-    // A painted marker is invisible to text extraction by design, so no assertion on
-    // the extracted text can tell "correct marker" from "no marker at all". Tailwind's
-    // preflight sets `ul { list-style: none }`, so losing one declaration in paper.css
-    // silently strips every bullet on the page and every text check still passes.
     markerTypes: [...new Set(all('.cv-ul').map((u) => getComputedStyle(u).listStyleType))],
     entries: all('.cv-entry')
       .map((e) => {
@@ -270,15 +142,10 @@ const HARVEST = () => {
   };
 };
 
-// ---------------------------------------------------------------------------
-// assertions. Pure: (expected, lines, rawLines, fonts) -> findings
-// ---------------------------------------------------------------------------
 const F = (check, summary, detail) => ({ check, summary, detail });
 
 function assertAll(exp, lines, rawLines, fonts, pages) {
   const out = [];
-  /** Is the string present in content-stream order? If yes, the glyphs reached the
-   *  page and the geometry is what broke them; if no, the content never got there. */
   const inRawText = (s) => lineWith(rawLines, s) >= 0;
 
   if (pages !== 1) out.push(F('page-count', `printed ${pages} pages, expected 1`, []));
@@ -292,7 +159,6 @@ function assertAll(exp, lines, rawLines, fonts, pages) {
     return out; // the rest would be noise
   }
 
-  // headings intact, on one line each
   for (const h of exp.headings) {
     const hits = lines.filter((l) => l === h).length;
     if (hits !== 1) {
@@ -310,7 +176,6 @@ function assertAll(exp, lines, rawLines, fonts, pages) {
     }
   }
 
-  // one skill group per line, label first, values in order
   for (const row of exp.skillRows) {
     if (!row.values.length) continue;
     const probeStr = row.label || row.values[0];
@@ -331,7 +196,6 @@ function assertAll(exp, lines, rawLines, fonts, pages) {
     }
   }
 
-  // the job title belongs next to the name, not inside the contact block
   const iName = lineWith(lines, exp.fullName);
   const iTitle = lineWith(lines, exp.title);
   if (iName < 0) out.push(F('content-complete', `name "${exp.fullName}" not in the extracted text`, []));
@@ -351,12 +215,6 @@ function assertAll(exp, lines, rawLines, fonts, pages) {
     }
   }
 
-  // A role and its date must be readable as one entry. "Role, then date on the very
-  // next line" is the commonest CV shape there is and every parser handles it, so it
-  // passes; what fails is a date that drifts further than that, because then nothing
-  // ties it to the role - which is what a date sitting in its own column does.
-  // date-rail is stricter: it puts the date BEFORE the role (accepted, that is DOM
-  // order), so the two have to share a line or there is nothing to pair them with.
   const rail = exp.axes.entry === 'date-rail';
   for (const e of exp.entries) {
     if (!e.date) continue;
@@ -378,7 +236,6 @@ function assertAll(exp, lines, rawLines, fonts, pages) {
     }
   }
 
-  // every bullet and every contact survived, and no contact was duplicated
   for (const b of exp.bullets) {
     const head = norm(b).slice(0, 40);
     if (head && lineWith(lines, head) < 0) out.push(F('content-complete', `bullet not extracted: "${head}..."`, []));
@@ -389,8 +246,6 @@ function assertAll(exp, lines, rawLines, fonts, pages) {
     else if (hits > 1) out.push(F('content-complete', `contact "${c}" extracted ${hits} times`, []));
   }
 
-  // bullets must have a marker, and it must be one Blink paints rather than one it
-  // writes into the text layer
   const PAINTED = ['disc', 'circle', 'square'];
   for (const m of exp.markerTypes) {
     if (!PAINTED.includes(m)) {
@@ -404,8 +259,6 @@ function assertAll(exp, lines, rawLines, fonts, pages) {
     }
   }
 
-  // fonts must be embedded, subset and reverse-mappable to unicode, or the text layer
-  // is not reliably readable
   for (const f of fonts) {
     if (f.emb !== 'yes' || f.sub !== 'yes' || f.uni !== 'yes') {
       out.push(
@@ -434,15 +287,10 @@ const parseFonts = (stdout) =>
     .map((l) => l.trim())
     .filter(Boolean)
     .map((l) => {
-      // columns are: name type encoding emb sub uni object ID - and "object ID" is
-      // TWO whitespace-separated fields, so everything is counted from the right
       const c = l.split(/\s+/);
       return { name: c[0], emb: c[c.length - 5], sub: c[c.length - 4], uni: c[c.length - 3] };
     });
 
-// ---------------------------------------------------------------------------
-// run
-// ---------------------------------------------------------------------------
 const started = Date.now();
 const dir = outDir ?? mkdtempSync(join(tmpdir(), 'ats-check-'));
 let server;
@@ -451,30 +299,14 @@ let failed = 0;
 let bailed = false;
 
 try {
-  needsCleanup = true;
-  let base = process.env.ATS_BASE_URL;
-  if (!base) {
-    process.stdout.write('  starting dev server...\r');
-    const { createServer } = await import('vite');
-    server = await createServer({ root: ROOT, server: { port: 0 }, logLevel: 'error' });
-    await server.listen();
-    base = server.resolvedUrls?.local?.[0];
-    if (!base) die('  vite started but reported no local URL.');
-  }
+  state.needsCleanup = true;
+  const boot = await startServer(die);
+  server = boot.server;
+  const base = boot.base;
 
-  browser = await chromium.launch({ executablePath: chromePath });
-  const ctx = await browser.newContext({ viewport: { width: 1600, height: 1200 } });
-  // A fresh context has no localStorage, so the first-run guided tour opens and its
-  // full-page blocking rect swallows every click on the template picker. Mark it done
-  // before the app boots. Key is read from the component so it cannot drift.
-  const doneKey = (await import('node:fs')).readFileSync(join(ROOT, 'src/components/Coachmarks.tsx'), 'utf8')
-    .match(/DONE_KEY = '([^']+)'/)?.[1];
-  if (!doneKey) die('  could not find DONE_KEY in src/components/Coachmarks.tsx - has the tour moved?');
-  await ctx.addInitScript((k) => localStorage.setItem(k, '1'), doneKey);
-
-  const page = await ctx.newPage();
-  await page.goto(base, { waitUntil: 'load', timeout: 60000 });
-  await page.waitForSelector('.print-scale-box > .print-paper', { timeout: 30000 });
+  const app = await openApp({ chromium, chromePath, base, die });
+  browser = app.browser;
+  const page = app.page;
 
   const version = await browser.version();
   process.stdout.write(
@@ -491,25 +323,15 @@ try {
       })()
     : null;
 
-  const count = await page.locator('.tpl-list .tpl-opt').count();
-  if (!count) die('  found no template options - is the Design panel markup still `.tpl-list .tpl-opt`?');
+  const count = await templateCount(page, die, 'ats-check');
 
   const rows = [];
   const failures = [];
   const notes = [];
   const seen = [];
 
-  /**
-   * Print the current paper, extract it both ways, assert, and record. `acceptId` is
-   * the template the ACCEPTED table is matched against, which is not always the label
-   * (an axis run is labelled by its axis but still rendered on a template).
-   */
   const renderAndAssert = async (label, acceptId) => {
-    // print media hides .no-print, so the harvest sees exactly what prints - and it
-    // has to happen AFTER any click, because the Design panel is .no-print too
     await page.emulateMedia({ media: 'print' });
-    // .then(): document.fonts.ready resolves to a FontFaceSet, which is not
-    // serialisable across the CDP boundary
     await page.evaluate(() => document.fonts.ready.then(() => true));
     await page.waitForTimeout(120);
     const exp = await page.evaluate(HARVEST);
@@ -536,33 +358,26 @@ try {
   for (let i = 0; i < count; i++) {
     await page.locator('.tpl-list .tpl-opt').nth(i).click();
     await page.waitForFunction(
-      (prev) => document.querySelector('.print-scale-box > .print-paper')?.dataset.template !== prev,
-      i === 0 ? null : seen[seen.length - 1],
+      ([sel, prev]) => document.querySelector(sel)?.dataset.template !== prev,
+      [PAPER_SEL, i === 0 ? null : seen[seen.length - 1]],
       { timeout: 10000 },
     ).catch(() => {});
-    const id = await page.getAttribute('.print-scale-box > .print-paper', 'data-template');
-    // A click that silently failed to register would otherwise measure the previous
-    // template a second time and report it as clean.
+    const id = await page.getAttribute(PAPER_SEL, 'data-template');
     if (seen.includes(id)) die(`  clicking template option ${i + 1} did not change the paper (still "${id}").`);
     seen.push(id);
     if (only && id !== only) continue;
 
     for (const value of sweep ? sweep.values : [null]) {
       if (sweep) {
-        // inline, not addStyleTag: a rule in <head> loses on specificity to paper.css's
-        // attribute selectors and the sweep would silently report identical results
         await page.evaluate(
-          ([p, v]) => document.querySelector('.print-scale-box > .print-paper').style.setProperty(p, v),
-          [sweep.prop, value],
+          ([sel, p, v]) => document.querySelector(sel).style.setProperty(p, v),
+          [PAPER_SEL, sweep.prop, value],
         );
       }
       await renderAndAssert(value ? `${id} ${sweep.prop}=${value}` : id, id);
     }
   }
 
-  // ---- axis matrix -------------------------------------------------------
-  // Every value of every layout axis, on one baseline template. A template pins one
-  // point of this space; the panel exposes all of it.
   if (axes && !sweep) {
     const AXES = [
       ['headerLayout', ['left', 'centered', 'split']],
@@ -573,13 +388,6 @@ try {
     const BASE = only && seen.includes(only) ? seen.indexOf(only) : 0;
     const OTHER = BASE === 0 ? 1 : 0;
 
-    /**
-     * Back to the baseline template's preset. Two clicks, not one: a radio that is
-     * ALREADY checked fires no React onChange, so re-clicking the current template is
-     * a no-op and every axis run would silently inherit the previous run's axes.
-     * skillStyle needs its own click on top - applyTemplate deliberately preserves it
-     * (see registry.ts), so a template switch does not reset it either.
-     */
     const reset = async () => {
       await page.locator('.tpl-list .tpl-opt').nth(OTHER).click();
       await page.waitForTimeout(180);
@@ -592,11 +400,9 @@ try {
     for (const [axis, values] of AXES) {
       for (let i = 0; i < values.length; i++) {
         await reset();
-        // the .name span, not the input: the radio is visually hidden (1x1px) so
-        // Playwright refuses to click it
         await page.locator(`.pnl-axis[data-axis="${axis}"] .radio .name`).nth(i).click();
         await page.waitForTimeout(200);
-        const got = await page.getAttribute('.print-scale-box > .print-paper', `data-${{ headerLayout: 'header', entryLayout: 'entry', headingLayout: 'heading', skillStyle: 'skills' }[axis]}`);
+        const got = await page.getAttribute(PAPER_SEL, `data-${{ headerLayout: 'header', entryLayout: 'entry', headingLayout: 'heading', skillStyle: 'skills' }[axis]}`);
         if (got !== values[i]) die(`  clicking ${axis}="${values[i]}" left the paper at "${got}".`);
         await renderAndAssert(`${axis}=${values[i]}`, seen[BASE]);
       }
@@ -609,7 +415,7 @@ try {
   }
 
   if (!only && !sweep) {
-    const missing = ['classic', 'harvard', 'sharp', 'minimal', 'rail', 'banner', 'dense'].filter((t) => !seen.includes(t));
+    const missing = TEMPLATES.filter((t) => !seen.includes(t));
     if (missing.length) process.stdout.write(`  note: template(s) not seen: ${missing.join(', ')}\n\n`);
   }
 

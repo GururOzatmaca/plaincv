@@ -243,6 +243,21 @@ function Del({ onClick }: { onClick: () => void }) {
   );
 }
 
+/**
+ * Adds the optional note to an education entry. Same control as Add bullet, same class,
+ * same hover reveal - only the label differs. Sharing .cv-addbul rather than cloning it
+ * means the note inherits whatever that control does, including the fact that it
+ * currently holds ~20px of flow height that the PDF does not have.
+ */
+function NoteAdd({ onClick }: { onClick: () => void }) {
+  return (
+    <button className="cv-addbul no-print" type="button" contentEditable={false} title="Add note" onClick={onClick}>
+      <PlusIcon />
+      Add note
+    </button>
+  );
+}
+
 function SecAdd({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <div className="cv-secadd-wrap no-print" contentEditable={false}>
@@ -482,6 +497,15 @@ function SectionView({
 
   const [itemDragIds, setItemDragIds] = useState<string[] | null>(null);
 
+  /**
+   * Which education item is having a note added right now. Local, NOT `note: []` in the
+   * document: RichEditable.commit() skips onCommit when the value has not changed, so an
+   * empty note written to the model would survive a blur and leave the field on the page
+   * forever. An empty field costs a line on screen and nothing in the PDF, which is the
+   * whole reason this section stopped rendering the note unconditionally.
+   */
+  const [addingNote, setAddingNote] = useState<string | null>(null);
+
   const certOrderKey = ('items' in section ? applyOrder(section.items as Array<{ id: string }>, itemDragIds) : [])
     .map((i) => i.id)
     .join(',');
@@ -717,18 +741,49 @@ function SectionView({
                   <Editable value={it.end} placeholder="End" onCommit={(t) => editItem(it.id, (i) => (i.end = t))} />
                 </div>
               </div>
-              <div className="cv-note">
-                <RichEditable
-                  value={it.note ?? []}
-                  placeholder="Note (optional)"
-                  onCommit={(l) =>
-                    editItem(it.id, (i) => {
-                      if (l.length) i.note = l;
-                      else delete i.note;
-                    })
-                  }
+              {it.note !== undefined || addingNote === it.id ? (
+                <div
+                  className="cv-note"
+                  onBlur={(e) => {
+                    // Leaving an untouched empty note behind would put a placeholder line
+                    // on the page that the PDF does not have. commit() alone cannot do
+                    // this: with an unchanged empty value it never fires onCommit.
+                    if (!e.currentTarget.textContent?.trim()) {
+                      setAddingNote(null);
+                      editItem(it.id, (i) => delete i.note);
+                    }
+                  }}
+                >
+                  <RichEditable
+                    value={it.note ?? []}
+                    fid={`${it.id}:note`}
+                    placeholder="Note (optional)"
+                    onCommit={(l) =>
+                      editItem(it.id, (i) => {
+                        if (l.length) i.note = l;
+                        else delete i.note;
+                      })
+                    }
+                    onDeleteEmpty={() => {
+                      setAddingNote(null);
+                      editItem(it.id, (i) => delete i.note);
+                    }}
+                  />
+                  <Del
+                    onClick={() => {
+                      setAddingNote(null);
+                      editItem(it.id, (i) => delete i.note);
+                    }}
+                  />
+                </div>
+              ) : (
+                <NoteAdd
+                  onClick={() => {
+                    setAddingNote(it.id);
+                    requestFocus(`${it.id}:note`);
+                  }}
                 />
-              </div>
+              )}
             </>
           ))}
           <SecAdd label="education" onClick={addItem} />
@@ -950,7 +1005,6 @@ function SectionView({
   );
 }
 
-// Memoised: nothing in here reads `scale`, so zoom must not reconcile these ~600 nodes.
 const PaperBody = memo(function PaperBody({
   doc,
   update,
@@ -1126,8 +1180,6 @@ export function EditorPaper({ scale }: { scale: number }) {
   const { contentH, overflow, fitFailedAt } = pageFit;
   const fitFailed = fitFailedAt !== null;
 
-  // Via a ref so this callback's identity never changes: an inline arrow churned the
-  // motion context every zoom step, and framer then re-measured every Reorder.Item.
   const scaleRef = useRef(scale);
   scaleRef.current = scale;
   const transformPagePoint = useCallback(
@@ -1136,28 +1188,54 @@ export function EditorPaper({ scale }: { scale: number }) {
   );
 
   /**
-   * Two different limits, and conflating them is what made a page that prints fine
-   * claim its content was being cut:
-   *   ink    - bottom of the real content. Past clientHeight is where print.css
-   *            actually clips, i.e. the only place content is LOST.
-   *   needed - ink plus the bottom margin. What the page needs to look right, which
-   *            is the budget Fit to page and the AI prompt should work against.
-   * Content sitting inside the bottom margin is 61px short of being clipped.
+   * This number decides two things - whether to warn that content is being cut, and how
+   * hard Fit to page compresses the document - so it has to be the height the PDF is
+   * laid out with, not the height the editor happens to draw.
+   *
+   * Three rules make print differ from screen, and every one of them has to be undone
+   * here or the answer is a height neither medium has:
+   *   .no-print / .cv-hidden   print.css and paper.css hide them
+   *   .cv-edit:empty           paper.css blanks the placeholder, so an empty field that
+   *                            occupies a line on screen occupies nothing in the PDF
+   *   .cv-haslink              print.css swaps the editable twin for the .cv-printlink
+   *                            anchor, which is display:none on screen
+   * Missing the last two is what let a CV that prints on one page claim its tail was
+   * missing, and made Fit to page squeeze a document that already fitted.
+   *
+   * `scripts/print-parity.mjs --check measure` asserts this equals the real print-media
+   * height, so a fourth rule added to print.css cannot quietly reintroduce the gap.
    */
   const measure = (): { ink: number; needed: number } => {
     const el = paperRef.current;
     if (!el) return { ink: A4_H, needed: A4_H };
-    // Hide the on-screen-only chrome first, or its height trips the overflow warning
-    // on a CV that actually prints to one page.
-    const chrome = el.querySelectorAll<HTMLElement>('.no-print, .cv-hidden');
-    chrome.forEach((n) => (n.style.display = 'none'));
+
+    const hidden: HTMLElement[] = [];
+    const hide = (n: HTMLElement) => {
+      hidden.push(n);
+      n.style.display = 'none';
+    };
+    el.querySelectorAll<HTMLElement>('.no-print, .cv-hidden').forEach(hide);
+    // An empty field paints its placeholder on screen only. Collapsing the text is not
+    // enough: the element still holds a line box, so it has to leave the flow.
+    el.querySelectorAll<HTMLElement>('.cv-edit').forEach((n) => {
+      if (!n.textContent) hide(n);
+    });
+    // The two halves of the autolink swap: the editable twin goes, the anchor comes back.
+    el.querySelectorAll<HTMLElement>('.cv-edit.cv-haslink').forEach(hide);
+    const links: HTMLElement[] = [];
+    el.querySelectorAll<HTMLElement>('.cv-printlink').forEach((n) => {
+      links.push(n);
+      n.style.display = 'inline';
+    });
 
     const kids = Array.from(el.children).filter((k): k is HTMLElement => k instanceof HTMLElement && k.style.display !== 'none');
     const padBottom = parseFloat(getComputedStyle(el).paddingBottom) || 0;
     const ink = kids.length
       ? Math.round(Math.max(...kids.map((k) => k.offsetTop + k.offsetHeight)))
       : Math.round(el.scrollHeight - padBottom);
-    chrome.forEach((n) => (n.style.display = ''));
+
+    hidden.forEach((n) => (n.style.display = ''));
+    links.forEach((n) => (n.style.display = ''));
     return { ink, needed: Math.round(ink + padBottom) };
   };
 
@@ -1167,13 +1245,13 @@ export function EditorPaper({ scale }: { scale: number }) {
     let raf = 0;
     const ro = new ResizeObserver(() => check());
 
-    // measure() mutates layout, so the observer must be detached around every read or
-    // it re-triggers itself forever and pins the CPU.
     const check = () => {
       ro.disconnect();
       const { ink, needed } = measure();
-      // Warn only where the PDF actually loses content. Running into the bottom margin
-      // is a layout problem, not a missing paragraph, and must not raise "cut".
+      // Published so print-parity can assert this equals the real print-media height
+      // instead of re-deriving it, which would just reproduce whatever measure() gets
+      // wrong. Attributes do not affect layout, so this cannot re-trigger the observer.
+      el.dataset.ink = String(ink);
       const lineBox = parseFloat(getComputedStyle(el).lineHeight) || 0;
       const nextOverflow = ink > el.clientHeight + Math.max(2, lineBox * 0.3);
       setFitDeltaPx(needed - el.clientHeight);
@@ -1211,10 +1289,6 @@ export function EditorPaper({ scale }: { scale: number }) {
     };
   }, [doc]);
 
-  // `bestEffort` keeps whatever the walk managed when the CV cannot be made to fit
-  // at all. The manual button does NOT: pressing Fit to page and being told it failed,
-  // with the document silently reset to floors, would be the worse surprise. The
-  // automatic path does, because half a page of cut content beats a full page of it.
   const fitToPage = (bestEffort = false) => {
     const el = paperRef.current;
     if (!el) return;
@@ -1235,7 +1309,6 @@ export function EditorPaper({ scale }: { scale: number }) {
       for (const k of knobs) root.setProperty(k.cssVar, `${t[k.key]}${k.unit}`);
     };
 
-    // `needed`, not `ink`: fitting means the page looks right, margin included.
     let fits = measure().needed <= limit;
     for (const k of knobs) {
 
@@ -1280,13 +1353,14 @@ export function EditorPaper({ scale }: { scale: number }) {
     const t = { ...doc.theme };
     const preset = resolveTemplate(doc.templateId).defaultTheme;
 
-    // Air only, and never far past the template's own look: type size and margins
-    // are what the template IS, so growing them would make every short CV a
-    // different template. Caps also respect the panel's slider maxima.
+    // Caps are rounded, not just the steps. Math.min() below can land a knob exactly ON
+    // the cap, and an unrounded one writes 1.15 * 1.4 = 1.6099999999999999 straight into
+    // the saved document and the slider.
+    const cap = (v: number, hard: number) => Math.min(+v.toFixed(2), hard);
     const knobs = [
-      { key: 'rowSpacing', cssVar: '--paper-row', cap: Math.min(preset.rowSpacing * 1.15, 1.3), step: 0.04, unit: '' },
-      { key: 'blockSpacing', cssVar: '--paper-block', cap: Math.min(preset.blockSpacing * 1.15, 1.3), step: 0.04, unit: '' },
-      { key: 'lineHeight', cssVar: '--paper-lh', cap: Math.min(preset.lineHeight * 1.15, 1.8), step: 0.02, unit: '' },
+      { key: 'rowSpacing', cssVar: '--paper-row', cap: cap(preset.rowSpacing * 1.15, 1.3), step: 0.04, unit: '' },
+      { key: 'blockSpacing', cssVar: '--paper-block', cap: cap(preset.blockSpacing * 1.15, 1.3), step: 0.04, unit: '' },
+      { key: 'lineHeight', cssVar: '--paper-lh', cap: cap(preset.lineHeight * 1.15, 1.8), step: 0.02, unit: '' },
     ] as const;
 
     const write = (k: (typeof knobs)[number]) => root.setProperty(k.cssVar, `${t[k.key]}${k.unit}`);
@@ -1311,6 +1385,18 @@ export function EditorPaper({ scale }: { scale: number }) {
       if (needed >= target) break;
     }
 
+    // Every knob at its cap and still short of the band: growing was not enough, so put
+    // the preset back rather than keep a document that is 15% looser everywhere AND
+    // still under-filled. A short CV that cannot reach the band should look like the
+    // template it chose, which is the same reasoning as the BAND_FLOOR case in
+    // fitToBand, and the same revert fitToPage does when it cannot make a page fit.
+    if (needed < target) {
+      root.setProperty('--paper-row', String(doc.theme.rowSpacing));
+      root.setProperty('--paper-block', String(doc.theme.blockSpacing));
+      root.setProperty('--paper-lh', String(doc.theme.lineHeight));
+      return;
+    }
+
     update((d) => {
       d.theme.rowSpacing = t.rowSpacing;
       d.theme.blockSpacing = t.blockSpacing;
@@ -1318,16 +1404,11 @@ export function EditorPaper({ scale }: { scale: number }) {
     });
   };
 
-  // One entry point for "the document just changed wholesale" - import, template
-  // switch. Editing does NOT trigger it: retuning the page under a typing cursor
-  // is the opposite of helpful.
   const fitToBand = () => {
     const el = paperRef.current;
     if (!el) return;
     const fill = measure().needed / el.clientHeight;
     if (fill > 1) return fitToPage(true);
-    // Below the floor the document is genuinely short; stretching it to fill A4
-    // reads as padding, so leave it honest.
     if (fill >= BAND_LO || fill < BAND_FLOOR) return;
     growToBand();
   };

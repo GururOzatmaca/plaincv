@@ -27,8 +27,6 @@ const oneOf = <T extends string>(v: unknown, allowed: readonly T[], fallback: T)
   allowed.includes(v as T) ? (v as T) : fallback;
 
 function mergeTheme(templateId: string, t?: ImportDto['theme']): Theme {
-  // The template's own numbers, not classic's: a themeless import that names a
-  // template used to render classic's metrics under that template's skin.
   const base: Theme = { ...DEFAULT_THEME, ...resolveTemplate(templateId).defaultTheme };
   const m = { ...base, ...(t ?? {}) };
 

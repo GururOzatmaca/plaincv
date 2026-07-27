@@ -65,6 +65,10 @@ const STYLES: { suffix: string; weight: number; style: string }[] = [
   { suffix: 'BoldItalic', weight: 700, style: 'italic' },
 ];
 
+// public/ is copied verbatim, so these filenames carry no content hash while the CDN
+// serves them `immutable` for a year. Bump on any re-run of `npm run fonts`.
+const FONT_REV = 1;
+
 const loaded = new Set<string>();
 let sheet: HTMLStyleElement | null = null;
 
@@ -82,7 +86,7 @@ export function ensureFont(id: string): void {
   sheet.appendChild(
     document.createTextNode(
       STYLES.map(
-        (s) => `@font-face{font-family:'${f.file}';src:url('/fonts/${f.file}-${s.suffix}.woff2') format('woff2');` +
+        (s) => `@font-face{font-family:'${f.file}';src:url('/fonts/${f.file}-${s.suffix}.woff2?v=${FONT_REV}') format('woff2');` +
           `font-weight:${s.weight};font-style:${s.style};font-display:swap;}`,
       ).join(''),
     ),

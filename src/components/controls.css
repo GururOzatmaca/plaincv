@@ -461,14 +461,12 @@ input[type='range'].cp-range::-moz-range-thumb {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #fff;
-  /* Keeps each of the seven scaled miniatures out of the panel's layout and raster.
-     Fixed box, already overflow:hidden, so nothing changes visually. */
   contain: content;
 }
 
 .tpl-thumb-page {
   width: 793.7px;
-  height: 1122.5px;
+  height: 1122.52px;
 
   transform-origin: top left;
   color: #171b1e;

@@ -49,8 +49,6 @@
   --paper-tscale: 0.571;
   --paper-density: 1;
 
-  /* gaps track type size ONLY. This was size*lh, so the line-spacing slider dragged
-     every section gap with it and raising leading overflowed the page. */
   --paper-gap: calc(var(--paper-size) * 1.35);
   --paper-block: 1;
   --paper-row: 1;
@@ -245,11 +243,18 @@ body {
   flex: 0 0 auto;
   order: 0;
 }
+.hdr-logo {
+  background: var(--accent);
+  letter-spacing: -0.02em;
+}
 .hdr-wordmark {
-  font-size: 15px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
   white-space: nowrap;
+}
+.hdr-cv {
+  color: var(--accent);
 }
 .hdr-rule {
   width: 1px;
@@ -784,8 +789,6 @@ body {
   background-clip: content-box;
 }
 
-/* No scroll chaining: without this, hitting the end of any of these hands the wheel
-   straight to the CV page behind it. */
 .doc-list,
 .fp-menu,
 .imp-body,
