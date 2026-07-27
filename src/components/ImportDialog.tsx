@@ -12,7 +12,15 @@ import './import.css';
 
 type Pending = { title: string; body: string; label: string; run: () => void };
 
-export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function ImportDialog({
+  open,
+  onClose,
+  onWatch,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onWatch: () => void;
+}) {
   const t = useT();
   const doc = useResumeStore((s) => s.doc);
   const setDoc = useResumeStore((s) => s.setDoc);
@@ -149,6 +157,9 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
             {t('imp.title')}
           </h2>
           <p className="imp-sub">{t('imp.sub')}</p>
+          <button className="imp-watch" type="button" onClick={onWatch}>
+            {t('imp.watch')}
+          </button>
         </div>
 
         <div className="imp-body app-scroll">
@@ -209,10 +220,10 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
           </div>
           <div className="imp-foot-row">
             <span className="imp-foot-label">{t('imp.startOver')}</span>
-            <button className="imp-link" onClick={() => startOver('blank')}>
+            <button className="imp-link" data-coach="start-blank" onClick={() => startOver('blank')}>
               {t('imp.blank')}
             </button>
-            <button className="imp-link" onClick={() => startOver('sample')}>
+            <button className="imp-link" data-coach="start-sample" onClick={() => startOver('sample')}>
               {t('imp.sample')}
             </button>
           </div>

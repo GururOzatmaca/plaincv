@@ -244,6 +244,7 @@ export const tr: Record<keyof typeof en, string> = {
   'imp.imported': 'İçe aktarıldı',
   'imp.title': 'AI ile oluştur',
   'imp.sub': `CV'nizi ChatGPT ya da başka bir AI doldursun, sonra geri yapıştırın.`,
+  'imp.watch': '▶ Nasıl yapıldığını izleyin',
   'imp.close': 'Kapat',
   'imp.step1': 'İstemi kopyalayın',
   'imp.copyPrompt': 'İstemi kopyala',
@@ -277,6 +278,13 @@ export const tr: Record<keyof typeof en, string> = {
   'imp.err.notAnAnswer': `Bu, AI'ın cevabına benzemiyor. Tam cevabını kopyalayıp buraya yapıştırın.`,
   'imp.err.shape': `Bazı bilgiler biçime uymadı. AI'dan 1. adımdaki istemle yeniden yapmasını isteyin, sonra tekrar yapıştırın.`,
   'imp.err.final': `Bilgilerde bir şey ters görünüyor. AI'dan 1. adımdaki istemle yeniden yapmasını isteyin.`,
+
+  // walkthrough video
+  'video.title': 'AI akışı nasıl çalışıyor',
+  'video.sub': 'Baştan sona bir dakika. Buradaki hiçbir şey kaydedilmiyor, hiçbir yere gönderilmiyor.',
+  'video.close': 'Kapat',
+  'video.unmute': '🔇 Sesi aç',
+  'video.unsupported': 'Tarayıcınız bu videoyu oynatamıyor.',
 
   // help dialog
   'help.title': 'Yardım',
@@ -322,6 +330,8 @@ export const tr: Record<keyof typeof en, string> = {
   'howto.storage.q': 'Verilerim nerede saklanıyor?',
   'howto.storage.a':
     'Sadece bu tarayıcıda, IndexedDB içinde. Hesap da yok sunucu da. Tarayıcı verilerini temizlemeden önce "AI ile doldur" → "Yedekle" ile JSON kopyasını indirin.',
+  'howto.startOver.q': 'Her şeyi silip baştan nasıl başlarım?',
+  'howto.startOver.a': `"AI ile doldur" → "Sıfırdan başla". Boş CV sayfayı boşaltır ama bölüm başlıklarını bırakır; Örnek CV örneği geri yükler. İkisi de var olanın üzerine yazar ve ikisi de Ctrl+Z ile geri alınır.`,
   'howto.pdf.q': `PDF'i nasıl alırım?`,
   'howto.pdf.a': `CV indir, tarayıcınızın yazdırma penceresini açar; "PDF olarak kaydet"i seçin. CV'deki bağlantılar tıklanabilir kalır, dosya adı isminizden gelir.`,
   'howto.language.q': 'Dili nasıl değiştiririm?',
@@ -358,6 +368,10 @@ export const tr: Record<keyof typeof en, string> = {
   'coach.ai.title': 'AI doldursun',
   'coach.ai.body': 'AI ile doldur, size ChatGPT için bir istem verir ve cevabı geri alır.',
   'coach.ai.body2': `1. adım, tek sayfa bütçenizi bilen bir istemi kopyalar. 2. adım cevabı alır. Yedekle, CV'nizi JSON olarak indirir; tarayıcıyı temizlemekten kurtulan tek kopya budur.`,
+  'coach.blank.title': 'Boş sayfadan başlayın',
+  'coach.blank.body': `Sayfayı temizler, bölüm başlıkları yerinde duran boş bir CV bırakır; başkasının CV'sini düzenlemek yerine kendinizinkini yazmak istediğinizde. Var olanın üzerine yazar; Ctrl+Z geri getirir.`,
+  'coach.sample.title': 'Örneği geri getirin',
+  'coach.sample.body': `Sayfanın açılışta gösterdiği örnek CV'yi geri yükler. Tek bir A4'e ne kadar ayrıntı sığdığını ölçmek için işe yarar. Aynı uyarı: üzerine yazar ve Ctrl+Z geri alır.`,
   'coach.settings.title': 'Ayarlar ve yardım burada',
   'coach.settings.body': `AI ile doldur'un yanındaki ?. CV'nizin parçası olmayan her ayar bunun arkasında.`,
   'coach.settings.body2':

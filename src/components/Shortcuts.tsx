@@ -34,6 +34,7 @@ const HOWTO: { id: string; step?: string }[] = [
   { id: 'tailor', step: 'switcher' },
   { id: 'template', step: 'layout' },
   { id: 'storage', step: 'ai' },
+  { id: 'startOver', step: 'start-blank' },
   { id: 'pdf', step: 'export' },
   { id: 'language', step: 'settings' },
 ];

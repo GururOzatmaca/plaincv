@@ -299,6 +299,25 @@ const buildSteps = (stacked: boolean, t: T): Step[] => [
     ],
     cleanup: (api) => api.setImportOpen(false),
   },
+  // Both of these open the dialog themselves rather than riding on the step above, because
+  // Shortcuts can deep-link straight to a step id. No `press`: pressing the real button
+  // would wipe the CV.
+  {
+    id: 'start-blank',
+    sel: ['[data-coach="start-blank"]'],
+    title: t('coach.blank.title'),
+    body: t('coach.blank.body'),
+    phases: [{ run: (api) => api.setImportOpen(true) }],
+    cleanup: (api) => api.setImportOpen(false),
+  },
+  {
+    id: 'start-sample',
+    sel: ['[data-coach="start-sample"]'],
+    title: t('coach.sample.title'),
+    body: t('coach.sample.body'),
+    phases: [{ run: (api) => api.setImportOpen(true) }],
+    cleanup: (api) => api.setImportOpen(false),
+  },
   {
     id: 'settings',
     sel: ['.hdr-icon'],

@@ -243,6 +243,7 @@ export const en = {
   'imp.imported': 'Imported',
   'imp.title': 'Build with your AI',
   'imp.sub': 'Let ChatGPT (or any AI) fill your CV, then paste it back.',
+  'imp.watch': '▶ Watch the walkthrough',
   'imp.close': 'Close',
   'imp.step1': 'Copy the prompt',
   'imp.copyPrompt': 'Copy prompt',
@@ -277,6 +278,13 @@ export const en = {
   'imp.err.shape':
     "Some details didn't match the format. Ask your AI to redo it using the Step 1 prompt, then paste again.",
   'imp.err.final': 'Something in the details looked off. Ask your AI to redo it using the Step 1 prompt.',
+
+  // walkthrough video
+  'video.title': 'How the AI flow works',
+  'video.sub': 'One minute, start to finish. Nothing here is saved or sent anywhere.',
+  'video.close': 'Close',
+  'video.unmute': '🔇 Sound on',
+  'video.unsupported': 'Your browser cannot play this video.',
 
   // help dialog
   'help.title': 'Help',
@@ -324,6 +332,9 @@ export const en = {
   'howto.storage.q': 'Where is my data stored?',
   'howto.storage.a':
     'Only in this browser, in IndexedDB. There is no account and no server. Use "Fill with AI" → "Back up" to download a JSON copy before clearing browser data.',
+  'howto.startOver.q': 'How do I clear everything and start again?',
+  'howto.startOver.a':
+    '"Fill with AI" → "Start over". Blank CV empties the page but keeps the section headings; Sample CV reloads the example. Both overwrite what you have, and both are undoable with Ctrl+Z.',
   'howto.pdf.q': 'How do I get a PDF?',
   'howto.pdf.a':
     'Download PDF opens your browser\'s print dialog; choose "Save as PDF". Links in the CV stay clickable and the filename comes from your name.',
@@ -364,6 +375,12 @@ export const en = {
   'coach.ai.body': 'Fill with AI hands you a prompt for ChatGPT and takes the answer back.',
   'coach.ai.body2':
     'Step 1 copies a prompt that already knows your one-page budget. Step 2 takes the reply. Back up downloads your CV as JSON, which is the only copy that survives clearing your browser.',
+  'coach.blank.title': 'Start from blank',
+  'coach.blank.body':
+    'Clears the page and leaves an empty CV with the section headings still in place, for when you would rather type your own than edit someone else\'s. It overwrites what is there; Ctrl+Z puts it back.',
+  'coach.sample.title': 'Put the sample back',
+  'coach.sample.body':
+    'Reloads the example CV the page starts with. Useful as a yardstick for how much detail actually fits on one A4. Same warning: it overwrites, and Ctrl+Z undoes it.',
   'coach.settings.title': 'Settings and help live here',
   'coach.settings.body':
     'The ? beside Fill with AI. Everything that is a setting rather than a part of your CV sits behind it.',

@@ -7,6 +7,7 @@ import { UndoRedo, SaveIndicator } from '@/components/HeaderActions';
 import { DocSwitcher } from '@/components/DocSwitcher';
 import { Coachmarks } from '@/components/Coachmarks';
 import { ImportDialog } from '@/components/ImportDialog';
+import { VideoDialog } from '@/components/VideoDialog';
 import { Shortcuts } from '@/components/Shortcuts';
 import { LangGate } from '@/components/LangGate';
 import { usePrintFilename } from '@/lib/usePrintFilename';
@@ -51,6 +52,8 @@ const STAGE_PAD_BOTTOM = 22;
 
 const CTL_KEY = 'cv-generator/show-controls';
 
+const VIDEO_KEY = 'cv-generator/ai-video-seen';
+
 const clampTo = (z: number, min: number, max: number): number => Math.min(max, Math.max(min, +z.toFixed(3)));
 
 function initialShowCtl(): boolean {
@@ -89,6 +92,7 @@ export function EditorPage() {
   const [showCtl, setShowCtl] = useState(initialShowCtl);
   const [importOpen, setImportOpen] = useState(false);
   const [keysOpen, setKeysOpen] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
   const [printBlocked, setPrintBlocked] = useState(false);
 
   const [langPicked, setLangPicked] = useState(hasStoredLang);
@@ -105,6 +109,20 @@ export function EditorPage() {
   );
 
   const clearTour = useCallback(() => setTourAt(null), []);
+
+  /**
+   * Only the header button counts as a first visit. The tour opens the same dialog through
+   * coachApi, and the print-blocked banner opens it to get a backup out; neither should
+   * trigger the walkthrough. Marked seen on open, so a reload mid-video does not replay it.
+   */
+  const openAi = useCallback(() => {
+    setImportOpen(true);
+    try {
+      if (localStorage.getItem(VIDEO_KEY) === '1') return;
+      localStorage.setItem(VIDEO_KEY, '1');
+      setVideoOpen(true);
+    } catch {}
+  }, []);
 
   /**
    * In-app browsers replace window.print with a bridge to a native handler that is often
@@ -420,7 +438,7 @@ export function EditorPage() {
             {t('hdr.viewOptions')}
           </button>
 
-          <button className="hdr-ai" type="button" onClick={() => setImportOpen(true)}>
+          <button className="hdr-ai" type="button" onClick={openAi}>
             {t('hdr.ai')}
           </button>
 
@@ -479,7 +497,12 @@ export function EditorPage() {
           )}
         </div>
       </main>
-      <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
+      <ImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onWatch={() => setVideoOpen(true)}
+      />
+      <VideoDialog open={videoOpen} onClose={() => setVideoOpen(false)} />
       <Shortcuts
         open={keysOpen}
         onOpenChange={setKeysOpen}
@@ -494,7 +517,7 @@ export function EditorPage() {
         api={coachApi}
         startAt={tourAt}
         onConsumed={clearTour}
-        dialogsOpen={importOpen || keysOpen}
+        dialogsOpen={importOpen || keysOpen || videoOpen}
         stacked={stacked}
         hold={!langPicked}
       />
