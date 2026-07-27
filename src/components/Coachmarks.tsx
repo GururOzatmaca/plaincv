@@ -241,8 +241,9 @@ export const STEPS: Step[] = [
         focus: () => scrollTo('.cv-palette'),
         press: '.cv-palette .cv-color:nth-child(5)',
         run: () => {
-          previewSwatch(document.querySelector('.cv-palette .cv-color:nth-child(5)'));
-          previewAccent('#9f1239');
+          const el = document.querySelector<HTMLElement>('.cv-palette .cv-color:nth-child(5)');
+          previewSwatch(el);
+          previewAccent(el?.style.getPropertyValue('--color').trim() || '#1d4ed8');
         },
       },
     ],

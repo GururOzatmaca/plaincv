@@ -87,7 +87,6 @@ export const sampleResume: Resume = {
       items: [
         { id: 'sk1', label: 'Languages', values: ['Go', 'Python', 'TypeScript', 'SQL'] },
         { id: 'sk2', label: 'Infrastructure', values: ['AWS', 'Kubernetes', 'Terraform', 'Kafka'] },
-        { id: 'sk3', label: 'Data', values: ['PostgreSQL', 'Redis', 'ClickHouse'] },
       ],
     },
     {
