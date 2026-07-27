@@ -1097,6 +1097,137 @@ body.coach-tour:not(.coach-bare) .cv-chip-add,
   text-align: right;
 }
 
+/* Photo. Every rule is gated on [data-photo], which is absent unless the photo is on,
+   so the default cascade above is untouched. The frame is last inside .cv-head so the
+   PDF text extraction order stays name -> title -> contacts. */
+.cv-photo {
+  position: relative;
+  width: var(--paper-photo, 22mm);
+  height: var(--paper-photo, 22mm);
+  flex: none;
+  overflow: hidden;
+  border-radius: 3pt;
+  background: #eef1f4;
+}
+.print-paper[data-photo='circle'] .cv-photo {
+  border-radius: 50%;
+}
+.cv-photo-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+
+  transform: translate(var(--paper-photo-x, 0%), var(--paper-photo-y, 0%)) scale(var(--paper-photo-zoom, 1));
+  transform-origin: center;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.cv-photo-fill {
+  cursor: grab;
+  touch-action: none;
+}
+.cv-photo-fill:active {
+  cursor: grabbing;
+}
+.cv-photo-empty {
+  display: grid;
+  place-items: center;
+  padding: 4pt;
+  border: 1px dashed var(--line, #cbd5e1);
+  background: none;
+  color: var(--paper-muted);
+  cursor: pointer;
+  text-align: center;
+}
+.cv-photo-empty:hover,
+.cv-photo-empty:focus-visible {
+  border-color: var(--accent, #0891b2);
+  color: var(--accent-ink, #0891b2);
+}
+.cv-photo-drop {
+  border-style: solid;
+  border-color: var(--accent, #0891b2);
+}
+.cv-photo-hint {
+  font-size: calc(var(--paper-size) * 0.62);
+  line-height: 1.2;
+}
+.cv-photo-err {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 4px);
+  transform: translateX(-50%);
+  z-index: 4;
+  width: max-content;
+  max-width: 180px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: #b42318;
+  color: #fff;
+  font-size: 10px;
+  line-height: 1.3;
+}
+.cv-photo-x {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  margin-left: 0;
+  z-index: 3;
+  opacity: 0;
+}
+.cv-photo:hover .cv-photo-x,
+.cv-photo:focus-within .cv-photo-x,
+.show-ctl .cv-photo-x,
+body.coach-tour:not(.coach-bare) .cv-photo-x,
+.cv-photo-x:focus-visible {
+  opacity: 1;
+}
+
+.print-paper[data-photo] .cv-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'name photo'
+    'title photo'
+    'contact photo';
+  align-items: start;
+  column-gap: 12pt;
+}
+.print-paper[data-photo] .cv-h1 {
+  grid-area: name;
+}
+.print-paper[data-photo] .cv-title {
+  grid-area: title;
+}
+.print-paper[data-photo] .cv-contact {
+  grid-area: contact;
+}
+.print-paper[data-photo] .cv-photo {
+  grid-area: photo;
+  align-self: center;
+}
+
+.print-paper[data-photo][data-header='centered'] .cv-head {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.print-paper[data-photo][data-header='centered'] .cv-photo {
+
+  order: -1;
+  margin: 0 auto 6pt;
+}
+
+.print-paper[data-photo][data-header='split'] .cv-head {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 40%) auto;
+  grid-template-areas:
+    'name contact photo'
+    'title contact photo';
+  align-items: baseline;
+  column-gap: 14pt;
+}
+
 .print-paper[data-entry='date-stacked'] .cv-etop {
   display: block;
 }

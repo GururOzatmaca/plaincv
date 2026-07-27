@@ -15,6 +15,10 @@ export const DEFAULT_THEME: Theme = {
   entryLayout: 'date-right',
   headingLayout: 'rule',
   skillStyle: 'plain',
+
+  photo: false,
+  photoShape: 'circle',
+  photoSize: 22,
   basePt: 11,
 
   lineHeight: 1.4,

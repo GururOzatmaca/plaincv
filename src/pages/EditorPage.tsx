@@ -120,6 +120,7 @@ export function EditorPage() {
     }
   }, []);
   const theme = useResumeStore((s) => s.doc.theme);
+  const photo = useResumeStore((s) => s.doc.header.photo);
   usePrintFilename();
 
   useLayoutEffect(() => {
@@ -154,6 +155,8 @@ export function EditorPage() {
     r.setProperty('--paper-block', String(theme.blockSpacing));
     r.setProperty('--paper-row', String(theme.rowSpacing));
 
+    r.setProperty('--paper-photo', `${theme.photoSize}mm`);
+
     r.setProperty('--paper-muted', MUTED_INK[theme.secondaryInk]);
     r.setProperty('--paper-margin', `${theme.marginPt}pt`);
 
@@ -161,6 +164,13 @@ export function EditorPage() {
     else r.setProperty('--paper-margin-x', `${theme.marginXPt}pt`);
     writeAccentVars(r, theme.accent);
   }, [theme]);
+
+  useLayoutEffect(() => {
+    const r = document.documentElement.style;
+    r.setProperty('--paper-photo-zoom', String(photo?.zoom ?? 1));
+    r.setProperty('--paper-photo-x', `${photo?.x ?? 0}%`);
+    r.setProperty('--paper-photo-y', `${photo?.y ?? 0}%`);
+  }, [photo]);
 
   useLayoutEffect(() => {
     const el = stageRef.current;

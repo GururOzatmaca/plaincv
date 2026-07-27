@@ -7,9 +7,12 @@ import type { Theme } from '@/schema/resume';
 export const TemplatePreview = memo(function TemplatePreview({
   id,
   skillStyle = 'plain',
+  photo,
 }: {
   id: string;
   skillStyle?: Theme['skillStyle'];
+
+  photo?: { shape: Theme['photoShape']; size: number };
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -42,9 +45,11 @@ export const TemplatePreview = memo(function TemplatePreview({
         data-header={d.headerLayout}
         data-entry={d.entryLayout}
         data-heading={d.headingLayout}
+        data-photo={photo?.shape}
         style={
           {
             '--paper-font': fontStack(d.fontFamily),
+            ...(photo ? { '--paper-photo': `${photo.size}mm` } : null),
             '--paper-size': `${d.basePt}pt`,
             '--paper-lh': String(d.lineHeight),
             '--paper-hscale': String(d.headingScale),
@@ -70,6 +75,7 @@ export const TemplatePreview = memo(function TemplatePreview({
             <span className="cv-contact-item">alex@mail.com</span>
             <span className="cv-contact-item">London</span>
           </div>
+          {photo && <div className="cv-photo" />}
         </div>
         <div className="cv-rule" />
         <div className="cv-section">

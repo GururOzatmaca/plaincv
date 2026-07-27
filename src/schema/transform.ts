@@ -1,10 +1,11 @@
 import type { ImportDto } from './importDto';
 import { ImportDtoSchema } from './importDto';
-import type { Bullet, Line, Resume, Section, SkillGroup, Theme } from './resume';
+import type { Bullet, Line, Photo, Resume, Section, SkillGroup, Theme } from './resume';
 import { ResumeSchema, SCHEMA_VERSION } from './resume';
 import { lineToMd, mdToLine } from './marks';
 import { uid, DEFAULT_THEME } from './factory';
 import { clampAccent } from '@/lib/color';
+import { clampPan, clampZoom } from '@/lib/photo';
 import { FONTS, DEFAULT_FONT_ID } from '@/lib/fonts/registry';
 import { DEFAULT_TEMPLATE_ID, migrateTemplateId, resolveTemplate } from '@/templates/registry';
 import { getLang, t } from '@/i18n';
@@ -27,6 +28,11 @@ const toBullets = (arr?: string[]): Bullet[] => (arr ?? []).map((b) => ({ id: ui
 const oneOf = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T =>
   allowed.includes(v as T) ? (v as T) : fallback;
 
+function mergePhoto(p: NonNullable<NonNullable<ImportDto['header']>['photo']>): Photo {
+  const zoom = clampZoom(p.zoom ?? 1);
+  return { src: p.src, zoom, ...clampPan(zoom, p.x ?? 0, p.y ?? 0) };
+}
+
 function mergeTheme(templateId: string, t?: ImportDto['theme']): Theme {
   const base: Theme = { ...DEFAULT_THEME, ...resolveTemplate(templateId).defaultTheme };
   const m = { ...base, ...(t ?? {}) };
@@ -42,6 +48,10 @@ function mergeTheme(templateId: string, t?: ImportDto['theme']): Theme {
     entryLayout: oneOf(m.entryLayout, ['date-right', 'date-stacked', 'date-rail'] as const, 'date-right'),
     headingLayout: oneOf(m.headingLayout, ['rule', 'left-rail', 'boxed'] as const, 'rule'),
     skillStyle: oneOf(m.skillStyle, ['badge', 'plain', 'bullets'] as const, 'plain'),
+    photo: m.photo ?? false,
+    photoShape: oneOf(m.photoShape, ['circle', 'square'] as const, 'circle'),
+
+    photoSize: clamp(m.photoSize, 14, 34),
     basePt: clamp(m.basePt, 8, 13),
     lineHeight: clamp(m.lineHeight, 1.1, 1.8),
     headingScale: clamp(headingScale, 1, 1.5),
@@ -181,6 +191,7 @@ export function dtoToResume(dto: ImportDto): Resume {
         const icon = typeof c === 'string' ? undefined : ICONS.find((k) => k === c.icon);
         return { id: uid(), value, ...(icon ? { icon } : {}) };
       }),
+      ...(dto.header?.photo ? { photo: mergePhoto(dto.header.photo) } : {}),
       ...(dto.header?.noRule ? { noRule: true } : {}),
     },
     sections,
@@ -270,6 +281,7 @@ export function resumeToDto(doc: Resume): ImportDto {
       title: doc.header.title,
 
       contacts: doc.header.contacts.map((c) => (c.icon ? { value: c.value, icon: c.icon } : c.value)),
+      ...(doc.header.photo ? { photo: doc.header.photo } : {}),
       ...(doc.header.noRule ? { noRule: true } : {}),
     },
     sections: sections as ImportDto['sections'],

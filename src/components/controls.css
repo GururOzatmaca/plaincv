@@ -357,6 +357,10 @@ input[type='range'].cp-range::-moz-range-thumb {
 .pnl-axis + .pnl-axis {
   margin-top: 12px;
 }
+
+.pnl-axis[data-axis='photoShape'] {
+  margin-bottom: 14px;
+}
 .pnl-h-row {
   display: flex;
   align-items: baseline;
@@ -383,6 +387,35 @@ input[type='range'].cp-range::-moz-range-thumb {
   color: var(--muted);
   font-size: 11.5px;
 }
+.pnl-note {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.pnl-btn-row {
+  display: flex;
+  gap: 8px;
+  margin: 2px 0 10px;
+}
+.pnl-btn {
+  flex: 1;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  background: var(--surface-2);
+  box-shadow: 0 0 0 1px var(--line-ctl);
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.pnl-btn:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
 .pnl-axis-label {
   display: block;
   margin-bottom: 6px;

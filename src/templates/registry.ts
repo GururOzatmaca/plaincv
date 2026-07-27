@@ -4,7 +4,7 @@ export interface TemplateDef {
   id: string;
 
   // The name and blurb live in src/i18n under `tpl.<id>.label` / `.blurb`.
-  defaultTheme: Omit<Theme, 'accent' | 'skillStyle' | 'secondaryInk'>;
+  defaultTheme: Omit<Theme, 'accent' | 'skillStyle' | 'secondaryInk' | 'photo' | 'photoShape' | 'photoSize'>;
 }
 
 export const TEMPLATES: Record<string, TemplateDef> = {

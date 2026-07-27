@@ -11,6 +11,10 @@ const ThemeDto = z
     entryLayout: z.string().optional(),
     headingLayout: z.string().optional(),
     skillStyle: z.enum(['badge', 'plain', 'bullets']).optional(),
+
+    photo: z.boolean().optional(),
+    photoShape: z.string().optional(),
+    photoSize: z.number().optional(),
     basePt: z.number().optional(),
     lineHeight: z.number().optional(),
 
@@ -36,6 +40,16 @@ const HeaderDto = z
 
     contacts: z
       .array(z.union([z.string(), z.object({ value: z.string(), icon: z.string().optional() })]))
+      .optional(),
+
+    /** Inline data: URLs only - a remote src would break offline use and leak a fetch on open. */
+    photo: z
+      .object({
+        src: z.string().startsWith('data:image/').max(600_000),
+        zoom: z.number().optional(),
+        x: z.number().optional(),
+        y: z.number().optional(),
+      })
       .optional(),
 
     noRule: z.boolean().optional(),

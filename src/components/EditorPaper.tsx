@@ -2,8 +2,9 @@ import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyn
 import { createPortal } from 'react-dom';
 import { Reorder, useDragControls, MotionConfig } from 'framer-motion';
 import { useResumeStore } from '@/store/resumeStore';
-import type { Bullet, Line, Resume, Section } from '@/schema/resume';
+import type { Bullet, Line, Photo, Resume, Section } from '@/schema/resume';
 import { uid, newItem, newSection, newBullet } from '@/schema/factory';
+import { clampPan, clampZoom, imageFromDrop, loadPhotoFile, newPhoto, pickImageFile, type PhotoError } from '@/lib/photo';
 import { A4_W, A4_H } from '@/lib/paperSize';
 import { setFitDeltaPx, consumeBandFit } from '@/lib/pageBudget';
 import { Editable } from './Editable';
@@ -1017,6 +1018,161 @@ function SectionView({
   );
 }
 
+const writePhotoVars = (x: number, y: number, zoom: number) => {
+  const r = document.documentElement.style;
+  r.setProperty('--paper-photo-x', `${x}%`);
+  r.setProperty('--paper-photo-y', `${y}%`);
+  r.setProperty('--paper-photo-zoom', String(zoom));
+};
+
+function PhotoFrame({ photo, update }: { photo: Photo | undefined; update: UpdateFn }) {
+  const t = useT();
+  const [err, setErr] = useState<PhotoError | null>(null);
+  const [over, setOver] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  /** Live crop during a gesture; the store only sees the value once the gesture ends. */
+  const cur = useRef({ zoom: 1, x: 0, y: 0 });
+  const pan = useRef<{ id: number; cx: number; cy: number; x: number; y: number; scale: number } | null>(null);
+  const hasPhoto = !!photo;
+
+  useEffect(() => {
+    if (photo) cur.current = { zoom: photo.zoom, x: photo.x, y: photo.y };
+  }, [photo]);
+
+  useEffect(() => {
+    if (!err) return;
+    const id = window.setTimeout(() => setErr(null), 5000);
+    return () => clearTimeout(id);
+  }, [err]);
+
+  const accept = async (file: File) => {
+    const res = await loadPhotoFile(file);
+    if ('error' in res) return setErr(res.error);
+    setErr(null);
+    update((d) => void (d.header.photo = newPhoto(res.src)));
+  };
+
+  // React attaches wheel at the root as passive, so preventDefault only works on a native listener.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !hasPhoto) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const zoom = clampZoom(cur.current.zoom * (1 - e.deltaY * 0.0015));
+      const p = clampPan(zoom, cur.current.x, cur.current.y);
+      cur.current = { zoom, ...p };
+      writePhotoVars(p.x, p.y, zoom);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [hasPhoto]);
+
+  const commit = () => {
+    const { zoom, x, y } = cur.current;
+    update((d) => {
+      if (d.header.photo) Object.assign(d.header.photo, { zoom, x, y });
+    });
+  };
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = ref.current;
+    if (!hasPhoto || !el || cur.current.zoom <= 1 || e.button !== 0) return;
+
+    // Cancelling pointerdown kills the compat click, so never start a pan on the remove button.
+    if ((e.target as HTMLElement).closest('button')) return;
+
+    const scale = el.getBoundingClientRect().width / (el.offsetWidth || 1) || 1;
+    pan.current = { id: e.pointerId, cx: e.clientX, cy: e.clientY, x: cur.current.x, y: cur.current.y, scale };
+    el.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = pan.current;
+    const el = ref.current;
+    if (!d || !el || e.pointerId !== d.id) return;
+    const dx = ((e.clientX - d.cx) / d.scale / (el.offsetWidth || 1)) * 100;
+    const dy = ((e.clientY - d.cy) / d.scale / (el.offsetHeight || 1)) * 100;
+    const p = clampPan(cur.current.zoom, d.x + dx, d.y + dy);
+    cur.current = { ...cur.current, ...p };
+    writePhotoVars(p.x, p.y, cur.current.zoom);
+  };
+
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = pan.current;
+    if (!d || e.pointerId !== d.id) return;
+    pan.current = null;
+    ref.current?.releasePointerCapture(e.pointerId);
+    commit();
+  };
+
+  const pick = () => pickImageFile((f) => void accept(f));
+
+  return (
+    <div
+      ref={ref}
+      className={`cv-photo${photo ? ' cv-photo-fill' : ' cv-photo-empty no-print'}${over ? ' cv-photo-drop' : ''}`}
+      contentEditable={false}
+      role={photo ? undefined : 'button'}
+      tabIndex={photo ? undefined : 0}
+      title={photo ? t('paper.photo.adjust') : t('paper.photo.add')}
+      aria-label={photo ? undefined : t('paper.photo.add')}
+      onClick={photo ? undefined : pick}
+      onKeyDown={
+        photo
+          ? undefined
+          : (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                pick();
+              }
+            }
+      }
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setOver(true);
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setOver(false);
+        const f = imageFromDrop(e.dataTransfer);
+        if (f) void accept(f);
+        else setErr('type');
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {photo ? (
+        <>
+          <img className="cv-photo-img" src={photo.src} alt="" draggable={false} />
+          <button
+            type="button"
+            className="cv-chip-x cv-photo-x no-print"
+            title={t('paper.photo.remove')}
+            aria-label={t('paper.photo.remove')}
+            onClick={() =>
+              update((d) => {
+                delete d.header.photo;
+              })
+            }
+          >
+            <XIcon />
+          </button>
+        </>
+      ) : (
+        <span className="cv-photo-hint">{t('paper.photo.add')}</span>
+      )}
+      {err && <span className="cv-photo-err no-print">{t(`paper.photo.err.${err}` as Key)}</span>}
+    </div>
+  );
+}
+
 const PaperBody = memo(function PaperBody({
   doc,
   update,
@@ -1144,6 +1300,7 @@ const PaperBody = memo(function PaperBody({
             <PlusIcon />
           </button>
         </div>
+        {doc.theme.photo && <PhotoFrame photo={doc.header.photo} update={update} />}
       </div>
 
       <div className="cv-rule" data-norule={doc.header.noRule ? '1' : undefined}>
@@ -1448,6 +1605,11 @@ export function EditorPaper({ scale }: { scale: number }) {
         data-header={doc.theme.headerLayout}
         data-entry={doc.theme.entryLayout}
         data-heading={doc.theme.headingLayout}
+        data-photo={doc.theme.photo ? doc.theme.photoShape : undefined}
+
+        onDragOver={(e) => e.preventDefault()}
+
+        onDrop={(e) => e.preventDefault()}
         style={{
           width: `${A4_W}px`,
           height: `${A4_H}px`,

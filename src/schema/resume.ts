@@ -23,10 +23,21 @@ export const ContactSchema = z.object({
   icon: z.enum(['email', 'phone', 'location', 'linkedin', 'github', 'link', 'none']).optional(),
 });
 
+export const PhotoSchema = z.object({
+  src: z.string(),
+  zoom: z.number(),
+
+  x: z.number(),
+  y: z.number(),
+});
+export type Photo = z.infer<typeof PhotoSchema>;
+
 export const HeaderSchema = z.object({
   fullName: z.string(),
   title: z.string(),
   contacts: z.array(ContactSchema),
+
+  photo: PhotoSchema.optional(),
 
   noRule: z.boolean().optional(),
 });
@@ -99,6 +110,11 @@ export const ThemeSchema = z.object({
   headingLayout: z.enum(['rule', 'left-rail', 'boxed']).default('rule'),
 
   skillStyle: z.enum(['badge', 'plain', 'bullets']).default('plain'),
+
+  photo: z.boolean().default(false),
+  photoShape: z.enum(['circle', 'square']).default('circle'),
+
+  photoSize: z.number().default(22),
 
   basePt: z.number(),
   lineHeight: z.number(),

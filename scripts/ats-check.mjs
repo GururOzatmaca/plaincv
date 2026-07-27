@@ -409,7 +409,7 @@ try {
     }
 
     await reset();
-    await page.locator('.seg .seg-btn').nth(1).click(); // dividers off
+    await page.locator('.seg[aria-labelledby="dividers-label"] .seg-btn').nth(1).click(); // dividers off
     await page.waitForTimeout(200);
     await renderAndAssert('dividers=off', seen[BASE]);
   }

@@ -6,6 +6,7 @@ import { nextLook, describeLook, VALID_LOOKS, type ShuffleAxes } from '@/lib/shu
 import { TEMPLATE_IDS, resolveTemplate } from '@/templates/registry';
 import { useT, type Key } from '@/i18n';
 import { requestBandFit } from '@/lib/pageBudget';
+import { clampPan, loadPhotoFile, newPhoto, pickImageFile, MAX_ZOOM, MIN_ZOOM } from '@/lib/photo';
 import { FontPicker } from './FontPicker';
 import { TemplatePreview } from './TemplatePreview';
 import { ColorPicker } from './ColorPicker';
@@ -13,7 +14,7 @@ import './controls.css';
 
 const root = () => document.documentElement.style;
 
-type AxisKey = 'headerLayout' | 'entryLayout' | 'headingLayout' | 'skillStyle';
+type AxisKey = 'headerLayout' | 'entryLayout' | 'headingLayout' | 'skillStyle' | 'photoShape';
 
 function AxisRow<K extends AxisKey>(props: {
   label: string;
@@ -124,6 +125,7 @@ function LiveSlider(props: {
 export const DesignPanel = memo(function DesignPanel({ narrow = false, startOpen }: { narrow?: boolean; startOpen?: boolean }) {
   const t = useT();
   const theme = useResumeStore((s) => s.doc.theme);
+  const photo = useResumeStore((s) => s.doc.header.photo);
   const templateId = useResumeStore((s) => s.doc.templateId);
   const update = useResumeStore((s) => s.update);
 
@@ -169,6 +171,25 @@ export const DesignPanel = memo(function DesignPanel({ narrow = false, startOpen
   const set = <K extends keyof Theme>(k: K, v: Theme[K]) =>
     update((d) => {
       d.theme[k] = v;
+    });
+
+  const choosePhoto = () =>
+    pickImageFile(async (file) => {
+      const res = await loadPhotoFile(file);
+      if ('error' in res) return;
+      update((d) => void (d.header.photo = newPhoto(res.src)));
+    });
+
+  const removePhoto = () =>
+    update((d) => {
+      delete d.header.photo;
+    });
+
+  const setZoom = (zoom: number) =>
+    update((d) => {
+      if (!d.header.photo) return;
+      const p = clampPan(zoom, d.header.photo.x, d.header.photo.y);
+      Object.assign(d.header.photo, { zoom, ...p });
     });
 
   const colorRaf = useRef<number | null>(null);
@@ -221,12 +242,72 @@ export const DesignPanel = memo(function DesignPanel({ narrow = false, startOpen
                   checked={templateId === id}
                   onChange={() => applyTemplate(id)}
                 />
-                <TemplatePreview id={id} skillStyle={theme.skillStyle} />
+                <TemplatePreview
+                  id={id}
+                  skillStyle={theme.skillStyle}
+                  photo={theme.photo ? { shape: theme.photoShape, size: theme.photoSize } : undefined}
+                />
                 <span className="tpl-name">{t(`tpl.${id}.label` as Key)}</span>
                 <span className="tpl-blurb">{t(`tpl.${id}.blurb` as Key)}</span>
               </label>
             ))}
           </div>
+        </section>
+
+        <section className="pnl-sec">
+          <div className="pnl-h-row">
+            <h3 className="pnl-h" id="photo-label">
+              {t('pnl.photo')}
+            </h3>
+            <div className="seg" role="group" aria-labelledby="photo-label">
+              <button type="button" className={`seg-btn${theme.photo ? ' on' : ''}`} aria-pressed={theme.photo} onClick={() => set('photo', true)}>
+                {t('pnl.on')}
+              </button>
+              <button type="button" className={`seg-btn${!theme.photo ? ' on' : ''}`} aria-pressed={!theme.photo} onClick={() => set('photo', false)}>
+                {t('pnl.off')}
+              </button>
+            </div>
+          </div>
+
+          {theme.photo && (
+            <>
+              <AxisRow
+                label={t('pnl.photo.shape')}
+                axis="photoShape"
+                value={theme.photoShape}
+                options={[
+                  ['circle', t('pnl.photo.circle')],
+                  ['square', t('pnl.photo.square')],
+                ]}
+                onChange={(v) => set('photoShape', v)}
+              />
+              <LiveSlider label={t('pnl.photo.size')} min={14} max={34} step={1} value={theme.photoSize} cssVar="--paper-photo" unit="mm" format={(v) => `${v} mm`} commit={(v) => set('photoSize', v)} />
+
+              <LiveSlider
+                label={t('pnl.photo.zoom')}
+                min={MIN_ZOOM}
+                max={MAX_ZOOM}
+                step={0.01}
+                value={photo?.zoom ?? 1}
+                cssVar="--paper-photo-zoom"
+                unit=""
+                format={(v) => `${Math.round(v * 100)}%`}
+                commit={setZoom}
+              />
+              <div className="pnl-btn-row">
+                <button type="button" className="pnl-btn" onClick={choosePhoto}>
+                  {photo ? t('pnl.photo.replace') : t('pnl.photo.choose')}
+                </button>
+                {photo && (
+                  <button type="button" className="pnl-btn" onClick={removePhoto}>
+                    {t('pnl.photo.remove')}
+                  </button>
+                )}
+              </div>
+              <p className="pnl-shuffled">{t('pnl.photo.note')}</p>
+            </>
+          )}
+          <p className="pnl-note">{t('pnl.photo.ats')}</p>
         </section>
 
         <section className="pnl-sec">
