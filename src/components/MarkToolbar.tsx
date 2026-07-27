@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { MouseEvent } from 'react';
+import { useT } from '@/i18n';
 
 type Pos = { x: number; y: number };
 
@@ -10,6 +11,7 @@ const setMark = (cmd: 'bold' | 'italic') => (e: MouseEvent) => {
 };
 
 export function MarkToolbar() {
+  const t = useT();
   const [pos, setPos] = useState<Pos | null>(null);
 
   useEffect(() => {
@@ -30,10 +32,10 @@ export function MarkToolbar() {
   if (!pos) return null;
   return (
     <div className="mark-toolbar no-print" style={{ left: pos.x, top: pos.y }}>
-      <button type="button" onMouseDown={setMark('bold')} aria-label="Bold">
+      <button type="button" onMouseDown={setMark('bold')} aria-label={t('mark.bold')}>
         <b>B</b>
       </button>
-      <button type="button" onMouseDown={setMark('italic')} aria-label="Italic">
+      <button type="button" onMouseDown={setMark('italic')} aria-label={t('mark.italic')}>
         <i>I</i>
       </button>
     </div>

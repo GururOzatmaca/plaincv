@@ -7,6 +7,7 @@ import { uid, DEFAULT_THEME } from './factory';
 import { clampAccent } from '@/lib/color';
 import { FONTS, DEFAULT_FONT_ID } from '@/lib/fonts/registry';
 import { DEFAULT_TEMPLATE_ID, migrateTemplateId, resolveTemplate } from '@/templates/registry';
+import { getLang, t } from '@/i18n';
 
 const TITLE: Record<Section['type'], string> = {
   profile: 'Profile',
@@ -453,6 +454,15 @@ export function buildAiPrompt(budget?: LengthBudget): string {
     '- Never pad to reach one page. If my details only fill half a page, return half a',
     '  page: the length rules above never override this one.',
     '- Do NOT add a "theme", "id", or design fields; the app handles styling.',
+    // The prompt itself stays English: it is tuned instruction text, and the field names
+    // and "type" values below have to match ImportDtoSchema either way.
+    ...(getLang() === 'tr'
+      ? [
+          '- Write every piece of CV CONTENT in Turkish: section titles, bullets, the profile,',
+          '  role and organisation names as I gave them. Keep the JSON field names and every',
+          '  "type" value in English exactly as the example shows.',
+        ]
+      : []),
     '',
     'Return the result inside a single ```json code block.',
     '- If my details covered everything, add nothing after it.',
@@ -493,6 +503,17 @@ const TYPE_ALIAS: Record<string, string> = {
   project: 'projects', portfolio: 'projects',
   certs: 'certifications', certificates: 'certifications', certification: 'certifications', licenses: 'certifications',
   other: 'custom', misc: 'custom', section: 'custom',
+
+  // A model told to write Turkish content often translates "type" too, despite the prompt.
+  // Both the accented and the ASCII-folded spellings, because toLowerCase() folds neither.
+  profil: 'profile', özet: 'profile', ozet: 'profile', hakkımda: 'profile', hakkimda: 'profile',
+  deneyim: 'experience', deneyimler: 'experience', tecrübe: 'experience', tecrube: 'experience',
+  iş: 'experience', is: 'experience', 'iş deneyimi': 'experience', 'is deneyimi': 'experience',
+  eğitim: 'education', egitim: 'education', öğrenim: 'education', ogrenim: 'education',
+  yetenek: 'skills', yetenekler: 'skills', beceri: 'skills', beceriler: 'skills',
+  proje: 'projects', projeler: 'projects',
+  sertifika: 'certifications', sertifikalar: 'certifications',
+  diğer: 'custom', diger: 'custom', bölüm: 'custom', bolum: 'custom',
 };
 
 const ITEMS_ALIAS = ['jobs', 'work', 'roles', 'positions', 'entries', 'list', 'experiences'];
@@ -714,43 +735,25 @@ function extractJson(raw: string): { text: string | null; reason: 'wrongShape' |
 }
 
 export function parseImport(raw: string): ImportResult {
-  if (raw.length > MAX_IMPORT_BYTES)
-    return { ok: false, errors: ["That's too big. Paste just the reply your AI gave you."] };
-  if (!raw.trim())
-    return { ok: false, errors: ["Nothing pasted yet. Paste your AI's reply above."] };
+  if (raw.length > MAX_IMPORT_BYTES) return { ok: false, errors: [t('imp.err.tooBig')] };
+  if (!raw.trim()) return { ok: false, errors: [t('imp.err.empty')] };
 
   const { text, reason } = extractJson(raw);
   if (text === null) {
     return {
       ok: false,
-      errors: [
-        reason === 'truncated'
-          ? "The reply looks cut off or broken. Copy your AI's full reply and paste it again."
-          : "That doesn't look like your AI's answer. Copy its full reply and paste it here.",
-      ],
+      errors: [reason === 'truncated' ? t('imp.err.truncated') : t('imp.err.notAnAnswer')],
     };
   }
 
   const { value, notes } = normalizeAliases(JSON.parse(text));
 
   const dto = ImportDtoSchema.safeParse(value);
-  if (!dto.success) {
-    return {
-      ok: false,
-      errors: [
-        "Some details didn't match the format. Ask your AI to redo it using the Step 1 prompt, then paste again.",
-      ],
-    };
-  }
+  if (!dto.success) return { ok: false, errors: [t('imp.err.shape')] };
 
   const doc = dtoToResume(dto.data);
   const final = ResumeSchema.safeParse(doc);
-  if (!final.success) {
-    return {
-      ok: false,
-      errors: ["Something in the details looked off. Ask your AI to redo it using the Step 1 prompt."],
-    };
-  }
+  if (!final.success) return { ok: false, errors: [t('imp.err.final')] };
 
   return { ok: true, doc: final.data, notes };
 }

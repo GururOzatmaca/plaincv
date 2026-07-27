@@ -9,6 +9,7 @@ export interface FontDef {
 
   fallback: string;
 
+  /** Name of the font this one matches metric-for-metric; rendered through i18n. */
   note?: string;
 }
 
@@ -22,11 +23,11 @@ const def = (
 ): FontDef => ({ id, label, group, file, fallback, ...(note ? { note } : {}) });
 
 export const FONTS: Record<string, FontDef> = {
-  serif: def('serif', 'Times', 'ats', 'LiberationSerif', "Georgia, 'Times New Roman', serif", 'Times New Roman metrics'),
-  sans: def('sans', 'Helvetica', 'ats', 'LiberationSans', 'Arial, system-ui, sans-serif', 'Arial / Helvetica metrics'),
-  calibri: def('calibri', 'Calibri', 'ats', 'Carlito', "Calibri, system-ui, sans-serif", 'Calibri metrics'),
-  cambria: def('cambria', 'Cambria', 'ats', 'Caladea', "Cambria, Georgia, serif", 'Cambria metrics'),
-  georgia: def('georgia', 'Georgia', 'ats', 'Gelasio', 'Georgia, serif', 'Georgia metrics'),
+  serif: def('serif', 'Times', 'ats', 'LiberationSerif', "Georgia, 'Times New Roman', serif", 'Times New Roman'),
+  sans: def('sans', 'Helvetica', 'ats', 'LiberationSans', 'Arial, system-ui, sans-serif', 'Arial / Helvetica'),
+  calibri: def('calibri', 'Calibri', 'ats', 'Carlito', "Calibri, system-ui, sans-serif", 'Calibri'),
+  cambria: def('cambria', 'Cambria', 'ats', 'Caladea', "Cambria, Georgia, serif", 'Cambria'),
+  georgia: def('georgia', 'Georgia', 'ats', 'Gelasio', 'Georgia, serif', 'Georgia'),
 
   lato: def('lato', 'Lato', 'sans', 'Lato', 'system-ui, sans-serif'),
   inter: def('inter', 'Inter', 'sans', 'Inter', 'system-ui, sans-serif'),
@@ -43,12 +44,6 @@ export const FONTS: Record<string, FontDef> = {
 export const FONT_IDS = Object.keys(FONTS);
 export const DEFAULT_FONT_ID = 'serif';
 
-export const GROUP_LABEL: Record<FontGroup, string> = {
-
-  ats: 'ATS-safe',
-  sans: 'Sans serif',
-  serif: 'Serif',
-};
 export const GROUP_ORDER: FontGroup[] = ['ats', 'sans', 'serif'];
 
 export const resolveFont = (id: string): FontDef => FONTS[id] ?? FONTS[DEFAULT_FONT_ID];

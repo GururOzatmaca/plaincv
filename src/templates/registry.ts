@@ -2,17 +2,14 @@ import type { Theme } from '@/schema/resume';
 
 export interface TemplateDef {
   id: string;
-  label: string;
-  blurb: string;
 
+  // The name and blurb live in src/i18n under `tpl.<id>.label` / `.blurb`.
   defaultTheme: Omit<Theme, 'accent' | 'skillStyle' | 'secondaryInk'>;
 }
 
 export const TEMPLATES: Record<string, TemplateDef> = {
   classic: {
     id: 'classic',
-    label: 'Classic',
-    blurb: 'Serif · accent rules',
     defaultTheme: {
       fontFamily: 'serif', dividers: true, basePt: 11, lineHeight: 1.4, marginPt: 44, marginXPt: 62, density: 1, blockSpacing: 1, rowSpacing: 1,
 
@@ -22,8 +19,6 @@ export const TEMPLATES: Record<string, TemplateDef> = {
   },
   harvard: {
     id: 'harvard',
-    label: 'Harvard',
-    blurb: 'Centred · no colour',
     defaultTheme: {
       fontFamily: 'serif', dividers: true, basePt: 11, lineHeight: 1.28, marginPt: 48, marginXPt: 62, density: 1, blockSpacing: 0.95, rowSpacing: 0.92,
 
@@ -33,8 +28,6 @@ export const TEMPLATES: Record<string, TemplateDef> = {
   },
   sharp: {
     id: 'sharp',
-    label: 'Sharp',
-    blurb: 'Bold · accent bars',
     defaultTheme: {
       fontFamily: 'lato', dividers: true, basePt: 10.5, lineHeight: 1.3, marginPt: 42, marginXPt: 48, density: 1, blockSpacing: 1, rowSpacing: 0.95,
       headingScale: 1.19, nameScale: 1.9, roleScale: 1.08, titleScale: 0.589,
@@ -43,8 +36,6 @@ export const TEMPLATES: Record<string, TemplateDef> = {
   },
   minimal: {
     id: 'minimal',
-    label: 'Minimal',
-    blurb: 'Quiet · stacked dates',
     defaultTheme: {
       fontFamily: 'sans', dividers: false, basePt: 11, lineHeight: 1.45, marginPt: 48, marginXPt: 52, density: 1, blockSpacing: 1.15, rowSpacing: 1.05,
 
@@ -54,8 +45,6 @@ export const TEMPLATES: Record<string, TemplateDef> = {
   },
   rail: {
     id: 'rail',
-    label: 'Rail',
-    blurb: 'Dates in a left column',
     defaultTheme: {
       fontFamily: 'serif', dividers: true, basePt: 11, lineHeight: 1.38, marginPt: 44, marginXPt: 48, density: 1, blockSpacing: 1, rowSpacing: 1,
       headingScale: 1.15, nameScale: 1.84, roleScale: 1.06, titleScale: 0.609,
@@ -64,8 +53,6 @@ export const TEMPLATES: Record<string, TemplateDef> = {
   },
   banner: {
     id: 'banner',
-    label: 'Banner',
-    blurb: 'Split header · filled headings',
     defaultTheme: {
       fontFamily: 'sans', dividers: true, basePt: 10, lineHeight: 1.35, marginPt: 40, marginXPt: 46, density: 1, blockSpacing: 1, rowSpacing: 0.95,
       headingScale: 1.26, nameScale: 2.01, roleScale: 1.08, titleScale: 0.557,
@@ -75,8 +62,6 @@ export const TEMPLATES: Record<string, TemplateDef> = {
 
   dense: {
     id: 'dense',
-    label: 'Dense',
-    blurb: 'Small type · fits the most',
     defaultTheme: {
 
       fontFamily: 'sans', dividers: true, basePt: 10.5, lineHeight: 1.25, marginPt: 36, marginXPt: 44, density: 1, blockSpacing: 0.82, rowSpacing: 0.85,

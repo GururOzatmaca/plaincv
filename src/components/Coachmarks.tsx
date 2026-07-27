@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { writeAccentVars } from '@/lib/color';
+import { useT, type T } from '@/i18n';
 import './coachmarks.css';
 
 const DONE_KEY = 'cv-generator/coach-done';
@@ -10,6 +11,8 @@ export interface CoachApi {
   setShowCtl: (v: boolean) => void;
 
   setPanelOpen: (v: boolean | null) => void;
+
+  setKeysOpen: (v: boolean) => void;
 }
 
 const PRESS_LEAD_MS = 450;
@@ -153,69 +156,64 @@ const paperPhase = (sel: string, body: string): Phase => ({
   focus: () => scrollTo(sel),
 });
 
-const layoutStep = (stacked: boolean): Step => ({
+const paletteRun = () => {
+  const el = document.querySelector<HTMLElement>('.cv-palette .cv-color:nth-child(5)');
+  previewSwatch(el);
+  previewAccent(el?.style.getPropertyValue('--color').trim() || '#1d4ed8');
+};
+
+const layoutStep = (stacked: boolean, t: T): Step => ({
   id: 'layout',
   sel: ['.design-panel .pnl-sec'],
-  title: 'A template is a starting point, not a cage',
-  body: 'Watch the page while these change.',
+  title: t('coach.layout.title'),
+  body: t('coach.layout.body'),
   phases: stacked
     ? [
         {
           sel: ['.pnl-toggle'],
-          body: 'At this width the design controls sit under the page, behind this Design button.',
+          body: t('coach.layout.panel'),
           focus: () => scrollTo('.design-panel'),
           press: '.pnl-toggle',
           run: (api) => api.setPanelOpen(true),
         },
         {
           sel: ['.tpl-list'],
-          body: 'Seven presets. Each is a bundle of the four choices below, plus a font and spacing.',
+          body: t('coach.layout.templates'),
           focus: () => scrollTo('.tpl-list'),
         },
-        axisPhase('headerLayout', 1, 'data-header', 'centered', 'Header: switch it to Centred.'),
-        paperPhase('.print-paper .cv-head', 'Back up on the page: the name and contacts have moved with it.'),
-        axisPhase('entryLayout', 2, 'data-entry', 'date-rail', 'Dates: switch to Left rail.'),
-        paperPhase('.print-paper .cv-entry', 'Every date now sits in a column of its own.'),
-        axisPhase('headingLayout', 2, 'data-heading', 'boxed', 'Headings: switch to Boxed.'),
-        paperPhase('.print-paper .cv-secH', 'Every section heading is a filled block now.'),
-        axisPhase('skillStyle', 2, 'data-skills', 'bullets', 'Skills: switch to Bullets.'),
-        paperPhase('.print-paper .cv-skills', 'The same list, laid out as a bulleted grid.'),
+        axisPhase('headerLayout', 1, 'data-header', 'centered', t('coach.layout.header.narrow')),
+        paperPhase('.print-paper .cv-head', t('coach.layout.header.paper')),
+        axisPhase('entryLayout', 2, 'data-entry', 'date-rail', t('coach.layout.entry.narrow')),
+        paperPhase('.print-paper .cv-entry', t('coach.layout.entry.paper')),
+        axisPhase('headingLayout', 2, 'data-heading', 'boxed', t('coach.layout.heading.narrow')),
+        paperPhase('.print-paper .cv-secH', t('coach.layout.heading.paper')),
+        axisPhase('skillStyle', 2, 'data-skills', 'bullets', t('coach.layout.skills.narrow')),
+        paperPhase('.print-paper .cv-skills', t('coach.layout.skills.paper')),
         {
           sel: ['.cv-palette'],
-          body: 'And the colour. Shuffle picks a whole combination you would not have tried.',
+          body: t('coach.layout.colour.narrow'),
           focus: () => scrollTo('.cv-palette'),
           press: '.cv-palette .cv-color:nth-child(5)',
-          run: () => {
-            const el = document.querySelector<HTMLElement>('.cv-palette .cv-color:nth-child(5)');
-            previewSwatch(el);
-            previewAccent(el?.style.getPropertyValue('--color').trim() || '#1d4ed8');
-          },
+          run: paletteRun,
         },
-        paperPhase(
-          '.print-paper .cv-head',
-          'The accent follows it everywhere. Nothing you just saw was saved; the page goes back as it was.',
-        ),
+        paperPhase('.print-paper .cv-head', t('coach.layout.colour.paper')),
       ]
     : [
         {
           sel: ['.tpl-list'],
-          body: 'Seven presets. Each is a bundle of the four choices below, plus a font and spacing.',
+          body: t('coach.layout.templates'),
           focus: () => scrollTo('.tpl-list'),
         },
-        axisPhase('headerLayout', 1, 'data-header', 'centered', 'Header: watch it move to Centred, and the name and contacts move with it.'),
-        axisPhase('entryLayout', 2, 'data-entry', 'date-rail', 'Dates: switching to Left rail puts every date in a column of its own.'),
-        axisPhase('headingLayout', 2, 'data-heading', 'boxed', 'Headings: Boxed turns every section heading into a filled block.'),
-        axisPhase('skillStyle', 2, 'data-skills', 'bullets', 'Skills: Bullets lays the same list out as a bulleted grid.'),
+        axisPhase('headerLayout', 1, 'data-header', 'centered', t('coach.layout.header.wide')),
+        axisPhase('entryLayout', 2, 'data-entry', 'date-rail', t('coach.layout.entry.wide')),
+        axisPhase('headingLayout', 2, 'data-heading', 'boxed', t('coach.layout.heading.wide')),
+        axisPhase('skillStyle', 2, 'data-skills', 'bullets', t('coach.layout.skills.wide')),
         {
           sel: ['.cv-palette'],
-          body: 'And the colour. Shuffle picks a whole combination you would not have tried. Nothing you just saw was saved; the page goes back as it was.',
+          body: t('coach.layout.colour.wide'),
           focus: () => scrollTo('.cv-palette'),
           press: '.cv-palette .cv-color:nth-child(5)',
-          run: () => {
-            const el = document.querySelector<HTMLElement>('.cv-palette .cv-color:nth-child(5)');
-            previewSwatch(el);
-            previewAccent(el?.style.getPropertyValue('--color').trim() || '#1d4ed8');
-          },
+          run: paletteRun,
         },
       ],
   cleanup: (api) => {
@@ -224,18 +222,18 @@ const layoutStep = (stacked: boolean): Step => ({
   },
 });
 
-const buildSteps = (stacked: boolean): Step[] => [
+const buildSteps = (stacked: boolean, t: T): Step[] => [
 
   {
     id: 'view-options',
     sel: ['.hdr-ghost'],
-    title: 'Start here: where the controls are',
-    body: 'Watch the page: every add, delete and drag control has just gone. They are only hidden, and they come back whenever your pointer is near one.',
+    title: t('coach.view.title'),
+    body: t('coach.view.body'),
     phases: [
       { run: (api) => previewShowCtl(api, false) },
       {
         press: '.hdr-ghost',
-        body: 'View options pins all of them open at once, which is how the page starts on your first visit. Press it again whenever the page feels busy.',
+        body: t('coach.view.body2'),
         run: (api) => previewShowCtl(api, true),
       },
     ],
@@ -244,26 +242,26 @@ const buildSteps = (stacked: boolean): Step[] => [
   {
     id: 'switcher',
     sel: ['.doc-trigger'],
-    title: 'Keep more than one CV',
-    body: 'Duplicate this one and cut the copy down for a specific job. The original stays untouched. Undo never crosses between them.',
+    title: t('coach.switcher.title'),
+    body: t('coach.switcher.body'),
   },
   {
     id: 'reorder',
     sel: ['.cv-section .cv-secH .cv-hz-l'],
-    title: 'Drag to reorder',
-    body: 'This handle moves the whole section; entries and bullets have their own. Focus a handle and the up and down arrows do the same thing without a mouse.',
+    title: t('coach.reorder.title'),
+    body: t('coach.reorder.body'),
   },
   {
     id: 'hide',
     sel: ['.cv-section .cv-secH .cv-hz-eye'],
-    title: 'Hide without deleting',
-    body: 'Keeps the section in your CV but out of the PDF, so you can drop it for one application and put it back after. Hidden sections do not count toward the one-page limit.',
+    title: t('coach.hide.title'),
+    body: t('coach.hide.body'),
   },
   {
     id: 'add',
     sel: ['.cv-addbul', '.cv-plus', '.cv-chip-add', '.cv-contact-add'],
-    title: 'Everything you can add',
-    body: 'Every + adds one more of the thing beside it: a bullet, an entry, a skill, a contact. In a bullet, Enter starts the next one.',
+    title: t('coach.add.title'),
+    body: t('coach.add.body'),
   },
   {
 
@@ -276,25 +274,25 @@ const buildSteps = (stacked: boolean): Step[] => [
       '.cv-contact-item > .cv-chip-x',
     ],
     one: true,
-    title: 'Everything you can remove',
-    body: 'A section, an entry, a bullet, a skill, a contact: each x removes the row it sits on, and every one of them looks like these. Nothing here is final; Ctrl+Z puts any of it back.',
+    title: t('coach.delete.title'),
+    body: t('coach.delete.body'),
   },
   {
     id: 'add-section',
     sel: ['.cv-addsec-btn'],
-    title: 'Add a section',
-    body: 'Profile, projects, certifications and anything custom. Sections you add work exactly like these.',
+    title: t('coach.addSection.title'),
+    body: t('coach.addSection.body'),
   },
   {
     id: 'ai',
-    sel: ['.hdr-icon', '.hdr-ai'],
-    title: 'Let an AI fill it in',
-    body: 'Fill with AI hands you a prompt for ChatGPT and takes the answer back. The ? beside it reopens this help at any time.',
+    sel: ['.hdr-ai'],
+    title: t('coach.ai.title'),
+    body: t('coach.ai.body'),
     phases: [
       {},
       {
         sel: ['.imp-body', '.imp-foot'],
-        body: 'Step 1 copies a prompt that already knows your one-page budget. Step 2 takes the reply. Back up downloads your CV as JSON, which is the only copy that survives clearing your browser.',
+        body: t('coach.ai.body2'),
         press: '.hdr-ai',
         run: (api) => api.setImportOpen(true),
       },
@@ -302,12 +300,28 @@ const buildSteps = (stacked: boolean): Step[] => [
     cleanup: (api) => api.setImportOpen(false),
   },
   {
+    id: 'settings',
+    sel: ['.hdr-icon'],
+    title: t('coach.settings.title'),
+    body: t('coach.settings.body'),
+    phases: [
+      {},
+      {
+        sel: ['.sc-tour', '.sc-lang'],
+        body: t('coach.settings.body2'),
+        press: '.hdr-icon',
+        run: (api) => api.setKeysOpen(true),
+      },
+    ],
+    cleanup: (api) => api.setKeysOpen(false),
+  },
+  {
     id: 'export',
     sel: ['.hdr-dl'],
-    title: 'Download the PDF',
-    body: 'This prints the page you are looking at, so the PDF is exactly what you see, clipped to one A4. Pick "Save as PDF" in the dialog your browser opens.',
+    title: t('coach.export.title'),
+    body: t('coach.export.body'),
   },
-  layoutStep(stacked),
+  layoutStep(stacked, t),
 ];
 
 interface Spot {
@@ -321,9 +335,9 @@ const phasesOf = (s: Step): Phase[] => s.phases ?? [{}];
 
 const screenCount = (steps: Step[]): number => steps.reduce((n, s) => n + phasesOf(s).length, 0);
 
-// Step ids and their order do not depend on the viewport, so Shortcuts can resolve one
-// without knowing which variant is live.
-const STEP_IDS = buildSteps(false).map((s) => s.id);
+// Step ids and their order depend on neither the viewport nor the language, so Shortcuts
+// can resolve one without knowing which variant is live; the copy is never read here.
+const STEP_IDS = buildSteps(false, ((k: string) => k) as T).map((s) => s.id);
 
 export const stepIndex = (id: string): number => Math.max(0, STEP_IDS.indexOf(id));
 const screenIndex = (steps: Step[], step: number, phase: number): number =>
@@ -395,6 +409,7 @@ export const Coachmarks = memo(function Coachmarks({
   onConsumed,
   dialogsOpen,
   stacked,
+  hold,
 }: {
   api: CoachApi;
 
@@ -403,8 +418,12 @@ export const Coachmarks = memo(function Coachmarks({
   dialogsOpen: boolean;
 
   stacked: boolean;
+
+  /** Blocks the first-run auto-start while the language picker is still up. */
+  hold: boolean;
 }) {
-  const steps = useMemo(() => buildSteps(stacked), [stacked]);
+  const t = useT();
+  const steps = useMemo(() => buildSteps(stacked, t), [stacked, t]);
   const SCREEN_COUNT = useMemo(() => screenCount(steps), [steps]);
   const [step, setStep] = useState<number | null>(null);
   const [phase, setPhase] = useState(0);
@@ -428,16 +447,17 @@ export const Coachmarks = memo(function Coachmarks({
   }, []);
 
   useEffect(() => {
+    if (hold) return;
     try {
       if (localStorage.getItem(DONE_KEY) === '1') return;
     } catch {
       return;
     }
-    const t = setTimeout(() => {
+    const id = setTimeout(() => {
       if (!dialogsRef.current) setStep(0);
     }, 900);
-    return () => clearTimeout(t);
-  }, []);
+    return () => clearTimeout(id);
+  }, [hold]);
 
   useEffect(() => {
     if (startAt == null) return;
@@ -606,20 +626,18 @@ export const Coachmarks = memo(function Coachmarks({
         <rect className="coach-block" x="0" y="0" width="100%" height="100%" />
       </svg>
       <div ref={cardRef} className="coach-card" style={{ top: card.top, left: card.left, width: CARD_W }}>
-        <p className="coach-step">
-          {screenNo} of {SCREEN_COUNT}
-        </p>
+        <p className="coach-step">{t('coach.count', { n: screenNo, total: SCREEN_COUNT })}</p>
         <h3 className="coach-title" id="coach-title">
           {s.title}
         </h3>
         <p className="coach-body">{p?.body ?? s.body}</p>
         <div className="coach-actions">
           <button type="button" className="coach-skip" onClick={finish}>
-            {last ? 'Close' : 'Skip'}
+            {last ? t('coach.close') : t('coach.skip')}
           </button>
           {!last && (
             <button type="button" className="coach-next" onClick={advance}>
-              Next
+              {t('coach.next')}
             </button>
           )}
         </div>

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { hexToHsl, hslToHex, maxLightness } from '@/lib/color';
+import { useT, type Key } from '@/i18n';
 
 const ACCENTS = [
   '#0f172a',
@@ -17,20 +18,20 @@ const ACCENTS = [
   '#166534',
 ];
 
-const ACCENT_NAMES: Record<string, string> = {
-  '#0f172a': 'Ink',
-  '#172554': 'Midnight',
-  '#1e3a8a': 'Navy',
-  '#1e40af': 'Cobalt',
-  '#1d4ed8': 'Royal blue',
-  '#2563eb': 'Blue',
-  '#0284c7': 'Sky',
-  '#0891b2': 'Cyan',
-  '#0d9488': 'Teal',
-  '#059669': 'Emerald',
-  '#16a34a': 'Green',
-  '#15803d': 'Forest',
-  '#166534': 'Pine',
+const ACCENT_KEYS: Record<string, Key> = {
+  '#0f172a': 'color.ink',
+  '#172554': 'color.midnight',
+  '#1e3a8a': 'color.navy',
+  '#1e40af': 'color.cobalt',
+  '#1d4ed8': 'color.royalBlue',
+  '#2563eb': 'color.blue',
+  '#0284c7': 'color.sky',
+  '#0891b2': 'color.cyan',
+  '#0d9488': 'color.teal',
+  '#059669': 'color.emerald',
+  '#16a34a': 'color.green',
+  '#15803d': 'color.forest',
+  '#166534': 'color.pine',
 };
 
 export function ColorPicker({
@@ -40,6 +41,7 @@ export function ColorPicker({
   value: string;
   onChange: (hex: string, commit?: boolean) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
 
   const [{ hsl, hex }, setState] = useState(() => ({ hsl: hexToHsl(value), hex: value }));
@@ -113,7 +115,7 @@ export function ColorPicker({
               onChange(c, true);
             }}
             aria-pressed={lower === c}
-            aria-label={ACCENT_NAMES[c] ?? c}
+            aria-label={ACCENT_KEYS[c] ? t(ACCENT_KEYS[c]) : c}
           />
         ))}
 
@@ -122,16 +124,16 @@ export function ColorPicker({
           className={`cv-color cv-color-custom${custom ? ' sel' : ''}${open ? ' open' : ''}`}
           style={custom ? ({ ['--color' as string]: hex } as never) : undefined}
           aria-expanded={open}
-          aria-label="Custom colour"
+          aria-label={t('color.custom')}
           onClick={() => setOpen((o) => !o)}
         />
       </div>
 
       {open && (
-        <div className="cp-pop" role="dialog" aria-label="Custom colour">
+        <div className="cp-pop" role="dialog" aria-label={t('color.custom')}>
           <div className="pnl-row cp-hex-row">
             <label className="pnl-row-label" htmlFor={hexId}>
-              Hex
+              {t('color.hex')}
             </label>
             <input
               id={hexId}
@@ -145,7 +147,7 @@ export function ColorPicker({
           </div>
 
           <CpSlider
-            label="Hue"
+            label={t('color.hue')}
             min={0}
             max={359}
             value={hsl.h}
@@ -155,7 +157,7 @@ export function ColorPicker({
             onDone={commit}
           />
           <CpSlider
-            label="Intensity"
+            label={t('color.intensity')}
             min={0}
             max={100}
             value={hsl.s}
@@ -166,7 +168,7 @@ export function ColorPicker({
           />
 
           <CpSlider
-            label="Brightness"
+            label={t('color.brightness')}
             min={0}
             max={lCap}
             value={hsl.l}

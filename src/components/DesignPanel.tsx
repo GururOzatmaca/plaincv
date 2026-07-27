@@ -2,8 +2,9 @@ import { memo, useEffect, useId, useRef, useState } from 'react';
 import { useResumeStore } from '@/store/resumeStore';
 import type { Theme } from '@/schema/resume';
 import { clampAccent, writeAccentVars } from '@/lib/color';
-import { nextLook, describeLook, VALID_LOOKS } from '@/lib/shuffle';
-import { TEMPLATES, TEMPLATE_IDS, resolveTemplate } from '@/templates/registry';
+import { nextLook, describeLook, VALID_LOOKS, type ShuffleAxes } from '@/lib/shuffle';
+import { TEMPLATE_IDS, resolveTemplate } from '@/templates/registry';
+import { useT, type Key } from '@/i18n';
 import { requestBandFit } from '@/lib/pageBudget';
 import { FontPicker } from './FontPicker';
 import { TemplatePreview } from './TemplatePreview';
@@ -54,6 +55,7 @@ function LiveSlider(props: {
   recommended?: number;
 }) {
   const { label, min, max, step, value, cssVar, unit, format, commit, recommended } = props;
+  const t = useT();
   const inputId = useId();
   const recPct = recommended != null && recommended >= min && recommended <= max ? ((recommended - min) / (max - min)) * 100 : null;
   const [v, setV] = useState(value);
@@ -93,7 +95,7 @@ function LiveSlider(props: {
             className="slider-pin"
 
             style={{ left: `calc(${recPct}% + ${(8 - recPct * 0.16).toFixed(3)}px)` }}
-            title={`Recommended for this template: ${format(recommended as number)}`}
+            title={t('pnl.recommended', { value: format(recommended as number) })}
           />
         )}
         <input
@@ -120,6 +122,7 @@ function LiveSlider(props: {
 }
 
 export const DesignPanel = memo(function DesignPanel({ narrow = false, startOpen }: { narrow?: boolean; startOpen?: boolean }) {
+  const t = useT();
   const theme = useResumeStore((s) => s.doc.theme);
   const templateId = useResumeStore((s) => s.doc.templateId);
   const update = useResumeStore((s) => s.update);
@@ -151,10 +154,10 @@ export const DesignPanel = memo(function DesignPanel({ narrow = false, startOpen
 
   const rec = resolveTemplate(templateId).defaultTheme;
 
-  const [shuffled, setShuffled] = useState<string | null>(null);
+  const [shuffled, setShuffled] = useState<ShuffleAxes | null>(null);
   const shuffleLook = () => {
     const look = nextLook(theme);
-    setShuffled(describeLook(look));
+    setShuffled(look);
 
     update((d) => void Object.assign(d.theme, look));
   };
@@ -190,13 +193,13 @@ export const DesignPanel = memo(function DesignPanel({ narrow = false, startOpen
     <aside className={`no-print design-panel${narrow ? ' design-panel-narrow' : ''}`}>
       {narrow ? (
         <button type="button" className="pnl-toggle" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-          <span className="pnl-title">Design</span>
+          <span className="pnl-title">{t('pnl.design')}</span>
           <span className="pnl-caret">{open ? '▾' : '▸'}</span>
         </button>
       ) : (
         <div className="pnl-head">
-          <h2 className="pnl-title">Design</h2>
-          <p className="pnl-sub">Customise your CV</p>
+          <h2 className="pnl-title">{t('pnl.design')}</h2>
+          <p className="pnl-sub">{t('pnl.sub')}</p>
         </div>
       )}
 
@@ -206,9 +209,9 @@ export const DesignPanel = memo(function DesignPanel({ narrow = false, startOpen
       <div className={`panel-scroll app-scroll${narrow ? '' : ' flex-1 overflow-y-auto'}`}>
 
         <section className="pnl-sec">
-          <h3 className="pnl-h">Template</h3>
+          <h3 className="pnl-h">{t('pnl.template')}</h3>
 
-          <div className="tpl-list" role="radiogroup" aria-label="Template">
+          <div className="tpl-list" role="radiogroup" aria-label={t('pnl.template')}>
             {TEMPLATE_IDS.map((id) => (
               <label key={id} className={`tpl-opt${templateId === id ? ' sel' : ''}`}>
                 <input
@@ -219,43 +222,43 @@ export const DesignPanel = memo(function DesignPanel({ narrow = false, startOpen
                   onChange={() => applyTemplate(id)}
                 />
                 <TemplatePreview id={id} skillStyle={theme.skillStyle} />
-                <span className="tpl-name">{TEMPLATES[id].label}</span>
-                <span className="tpl-blurb">{TEMPLATES[id].blurb}</span>
+                <span className="tpl-name">{t(`tpl.${id}.label` as Key)}</span>
+                <span className="tpl-blurb">{t(`tpl.${id}.blurb` as Key)}</span>
               </label>
             ))}
           </div>
         </section>
 
         <section className="pnl-sec">
-          <h3 className="pnl-h">Typography</h3>
+          <h3 className="pnl-h">{t('pnl.typography')}</h3>
           <div className="pnl-row">
-            <span className="pnl-row-label">Font</span>
+            <span className="pnl-row-label">{t('pnl.font')}</span>
             <FontPicker value={theme.fontFamily} onChange={(id) => set('fontFamily', id)} />
           </div>
-          <LiveSlider label="Font size" min={8} max={13} step={0.5} value={theme.basePt} cssVar="--paper-size" unit="pt" format={(v) => `${v.toFixed(1)} pt`} commit={(v) => set('basePt', v)} recommended={rec.basePt} />
+          <LiveSlider label={t('pnl.fontSize')} min={8} max={13} step={0.5} value={theme.basePt} cssVar="--paper-size" unit="pt" format={(v) => `${v.toFixed(1)} pt`} commit={(v) => set('basePt', v)} recommended={rec.basePt} />
 
-          <LiveSlider label="Name size" min={1.2} max={2.6} step={0.01} value={theme.nameScale} cssVar="--paper-nscale" unit="" format={(v) => `${(v * theme.basePt).toFixed(1)} pt`} commit={(v) => set('nameScale', v)} recommended={rec.nameScale} />
+          <LiveSlider label={t('pnl.nameSize')} min={1.2} max={2.6} step={0.01} value={theme.nameScale} cssVar="--paper-nscale" unit="" format={(v) => `${(v * theme.basePt).toFixed(1)} pt`} commit={(v) => set('nameScale', v)} recommended={rec.nameScale} />
 
-          <LiveSlider label="Heading size" min={1} max={1.5} step={0.01} value={theme.headingScale} cssVar="--paper-hscale" unit="" format={(v) => `${(v * theme.basePt).toFixed(1)} pt`} commit={(v) => set('headingScale', v)} recommended={rec.headingScale} />
+          <LiveSlider label={t('pnl.headingSize')} min={1} max={1.5} step={0.01} value={theme.headingScale} cssVar="--paper-hscale" unit="" format={(v) => `${(v * theme.basePt).toFixed(1)} pt`} commit={(v) => set('headingScale', v)} recommended={rec.headingScale} />
 
-          <LiveSlider label="Role size" min={1} max={1.3} step={0.01} value={theme.roleScale} cssVar="--paper-rscale" unit="" format={(v) => `${(v * theme.basePt).toFixed(1)} pt`} commit={(v) => set('roleScale', v)} recommended={rec.roleScale} />
+          <LiveSlider label={t('pnl.roleSize')} min={1} max={1.3} step={0.01} value={theme.roleScale} cssVar="--paper-rscale" unit="" format={(v) => `${(v * theme.basePt).toFixed(1)} pt`} commit={(v) => set('roleScale', v)} recommended={rec.roleScale} />
 
-          <LiveSlider label="Line spacing" min={1.1} max={1.8} step={0.01} value={theme.lineHeight} cssVar="--paper-lh" unit="" format={(v) => v.toFixed(2)} commit={(v) => set('lineHeight', v)} recommended={rec.lineHeight} />
+          <LiveSlider label={t('pnl.lineSpacing')} min={1.1} max={1.8} step={0.01} value={theme.lineHeight} cssVar="--paper-lh" unit="" format={(v) => v.toFixed(2)} commit={(v) => set('lineHeight', v)} recommended={rec.lineHeight} />
         </section>
 
         <section className="pnl-sec">
-          <h3 className="pnl-h">Spacing</h3>
+          <h3 className="pnl-h">{t('pnl.spacing')}</h3>
 
-          <LiveSlider label="Margin top / bottom" min={36} max={72} step={2} value={theme.marginPt} cssVar="--paper-margin" unit="pt" format={(v) => `${v} pt`} commit={(v) => set('marginPt', v)} recommended={rec.marginPt} />
+          <LiveSlider label={t('pnl.marginY')} min={36} max={72} step={2} value={theme.marginPt} cssVar="--paper-margin" unit="pt" format={(v) => `${v} pt`} commit={(v) => set('marginPt', v)} recommended={rec.marginPt} />
 
-          <LiveSlider label="Margin sides" min={36} max={72} step={2} value={theme.marginXPt ?? theme.marginPt} cssVar="--paper-margin-x" unit="pt" format={(v) => `${v} pt`} commit={(v) => set('marginXPt', v)} recommended={rec.marginXPt ?? rec.marginPt} />
+          <LiveSlider label={t('pnl.marginX')} min={36} max={72} step={2} value={theme.marginXPt ?? theme.marginPt} cssVar="--paper-margin-x" unit="pt" format={(v) => `${v} pt`} commit={(v) => set('marginXPt', v)} recommended={rec.marginXPt ?? rec.marginPt} />
 
-          <LiveSlider label="Block spacing" min={0} max={1.3} step={0.05} value={theme.blockSpacing} cssVar="--paper-block" unit="" format={(v) => `${Math.round(v * 100)}%`} commit={(v) => set('blockSpacing', v)} recommended={rec.blockSpacing} />
-          <LiveSlider label="Row spacing" min={0} max={1.3} step={0.05} value={theme.rowSpacing} cssVar="--paper-row" unit="" format={(v) => `${Math.round(v * 100)}%`} commit={(v) => set('rowSpacing', v)} recommended={rec.rowSpacing} />
+          <LiveSlider label={t('pnl.blockSpacing')} min={0} max={1.3} step={0.05} value={theme.blockSpacing} cssVar="--paper-block" unit="" format={(v) => `${Math.round(v * 100)}%`} commit={(v) => set('blockSpacing', v)} recommended={rec.blockSpacing} />
+          <LiveSlider label={t('pnl.rowSpacing')} min={0} max={1.3} step={0.05} value={theme.rowSpacing} cssVar="--paper-row" unit="" format={(v) => `${Math.round(v * 100)}%`} commit={(v) => set('rowSpacing', v)} recommended={rec.rowSpacing} />
 
           <div className="tgl-row">
             <span className="tgl-label" id="dividers-label">
-              Divider lines
+              {t('pnl.dividers')}
             </span>
             <div className="seg" role="group" aria-labelledby="dividers-label">
               <button
@@ -264,7 +267,7 @@ export const DesignPanel = memo(function DesignPanel({ narrow = false, startOpen
                 aria-pressed={theme.dividers}
                 onClick={() => set('dividers', true)}
               >
-                On
+                {t('pnl.on')}
               </button>
               <button
                 type="button"
@@ -272,7 +275,7 @@ export const DesignPanel = memo(function DesignPanel({ narrow = false, startOpen
                 aria-pressed={!theme.dividers}
                 onClick={() => set('dividers', false)}
               >
-                Off
+                {t('pnl.off')}
               </button>
             </div>
           </div>
@@ -280,57 +283,57 @@ export const DesignPanel = memo(function DesignPanel({ narrow = false, startOpen
 
         <section className="pnl-sec">
           <div className="pnl-h-row">
-            <h3 className="pnl-h">Layout</h3>
+            <h3 className="pnl-h">{t('pnl.layout')}</h3>
 
-            <button type="button" className="pnl-shuffle" title={`Try a look you have not picked (${VALID_LOOKS.length} combinations)`} onClick={shuffleLook}>
-              Shuffle
+            <button type="button" className="pnl-shuffle" title={t('pnl.shuffle.title', { n: VALID_LOOKS.length })} onClick={shuffleLook}>
+              {t('pnl.shuffle')}
             </button>
           </div>
-          {shuffled && <p className="pnl-shuffled">{shuffled}</p>}
+          {shuffled && <p className="pnl-shuffled">{describeLook(shuffled, t)}</p>}
           <AxisRow
-            label="Header"
+            label={t('pnl.header')}
             axis="headerLayout"
             value={theme.headerLayout}
             options={[
-              ['left', 'Left'],
-              ['centered', 'Centred'],
-              ['split', 'Split'],
+              ['left', t('pnl.header.left')],
+              ['centered', t('pnl.header.centered')],
+              ['split', t('pnl.header.split')],
             ]}
             onChange={(v) => set('headerLayout', v)}
           />
           <AxisRow
-            label="Dates"
+            label={t('pnl.dates')}
             axis="entryLayout"
             value={theme.entryLayout}
             options={[
-              ['date-right', 'Right'],
-              ['date-stacked', 'Stacked'],
-              ['date-rail', 'Left rail'],
+              ['date-right', t('pnl.dates.right')],
+              ['date-stacked', t('pnl.dates.stacked')],
+              ['date-rail', t('pnl.dates.rail')],
             ]}
             onChange={(v) => set('entryLayout', v)}
           />
           <AxisRow
-            label="Headings"
+            label={t('pnl.headings')}
             axis="headingLayout"
             value={theme.headingLayout}
             options={[
-              ['rule', 'Rule'],
-              ['left-rail', 'Bar'],
-              ['boxed', 'Boxed'],
+              ['rule', t('pnl.headings.rule')],
+              ['left-rail', t('pnl.headings.bar')],
+              ['boxed', t('pnl.headings.boxed')],
             ]}
             onChange={(v) => set('headingLayout', v)}
           />
 
           <div className="pnl-axis" data-axis="secondaryInk">
             <span className="pnl-axis-label" id="secink-label">
-              Secondary text
+              {t('pnl.secondaryInk')}
             </span>
             <div className="radio-inputs" role="radiogroup" aria-labelledby="secink-label">
               {(
                 [
-                  ['grey', 'Grey'],
-                  ['soft', 'Soft black'],
-                  ['black', 'Black'],
+                  ['grey', t('pnl.ink.grey')],
+                  ['soft', t('pnl.ink.soft')],
+                  ['black', t('pnl.ink.black')],
                 ] as const
               ).map(([id, text]) => (
                 <label className="radio" key={id}>
@@ -341,24 +344,22 @@ export const DesignPanel = memo(function DesignPanel({ narrow = false, startOpen
             </div>
           </div>
           <AxisRow
-            label="Skills"
+            label={t('pnl.skills')}
             axis="skillStyle"
             value={theme.skillStyle}
             options={[
-              ['badge', 'Badges'],
-              ['plain', 'Plain'],
-              ['bullets', 'Bullets'],
+              ['badge', t('pnl.skills.badges')],
+              ['plain', t('pnl.skills.plain')],
+              ['bullets', t('pnl.skills.bullets')],
             ]}
             onChange={(v) => set('skillStyle', v)}
           />
 
-          {theme.skillStyle === 'bullets' && (
-            <p className="pnl-shuffled">Bullets hides the group names; your groups are kept and come back with Plain or Badges.</p>
-          )}
+          {theme.skillStyle === 'bullets' && <p className="pnl-shuffled">{t('pnl.skills.note')}</p>}
         </section>
 
         <section className="pnl-sec pnl-sec-last">
-          <h3 className="pnl-h">Colour</h3>
+          <h3 className="pnl-h">{t('pnl.colour')}</h3>
           <ColorPicker value={theme.accent} onChange={applyColor} />
         </section>
       </div>

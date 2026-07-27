@@ -7,11 +7,13 @@ import { sampleResume } from '@/schema/sample';
 import { downloadText, slugify } from '@/lib/download';
 import { useDialog } from '@/lib/useDialog';
 import { playSuccess } from '@/lib/sound';
+import { useT } from '@/i18n';
 import './import.css';
 
 type Pending = { title: string; body: string; label: string; run: () => void };
 
 export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useT();
   const doc = useResumeStore((s) => s.doc);
   const setDoc = useResumeStore((s) => s.setDoc);
   const reset = useResumeStore((s) => s.reset);
@@ -44,12 +46,12 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
 
   if (okNotes) {
     return (
-      <div className="imp-overlay imp-splash" role="status" aria-label="Imported">
+      <div className="imp-overlay imp-splash" role="status" aria-label={t('imp.imported')}>
         <svg className="imp-tick" viewBox="0 0 52 52" aria-hidden="true">
           <circle className="imp-tick-c" cx="26" cy="26" r="24" fill="none" />
           <path className="imp-tick-p" fill="none" d="M14 27 l8 8 l16 -18" />
         </svg>
-        <p className="imp-ok-h">Imported</p>
+        <p className="imp-ok-h">{t('imp.imported')}</p>
       </div>
     );
   }
@@ -105,9 +107,9 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
       return;
     }
     guard({
-      title: 'Replace your CV?',
-      body: 'This overwrites everything on the page. Download a copy first if you want to keep it (Ctrl+Z also undoes this).',
-      label: 'Replace it',
+      title: t('imp.confirm.replace.title'),
+      body: t('imp.confirm.body'),
+      label: t('imp.confirm.replace.label'),
       run: () => {
         requestBandFit();
         setDoc(res.doc);
@@ -119,9 +121,9 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
 
   const startOver = (kind: 'blank' | 'sample') =>
     guard({
-      title: kind === 'blank' ? 'Start from blank?' : 'Load the sample CV?',
-      body: 'This overwrites everything on the page. Download a copy first if you want to keep it (Ctrl+Z also undoes this).',
-      label: kind === 'blank' ? 'Start blank' : 'Load sample',
+      title: kind === 'blank' ? t('imp.confirm.blank.title') : t('imp.confirm.sample.title'),
+      body: t('imp.confirm.body'),
+      label: kind === 'blank' ? t('imp.confirm.blank.label') : t('imp.confirm.sample.label'),
       run: () => {
         reset(kind);
         close();
@@ -138,15 +140,15 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
         aria-modal="true"
         aria-labelledby="imp-title"
       >
-        <button className="imp-x" onClick={close} aria-label="Close">
+        <button className="imp-x" onClick={close} aria-label={t('imp.close')}>
           ×
         </button>
 
         <div className="imp-head">
           <h2 className="imp-title" id="imp-title">
-            Build with your AI
+            {t('imp.title')}
           </h2>
-          <p className="imp-sub">Let ChatGPT (or any AI) fill your CV, then paste it back.</p>
+          <p className="imp-sub">{t('imp.sub')}</p>
         </div>
 
         <div className="imp-body app-scroll">
@@ -154,24 +156,20 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
           <li>
             <div className="imp-step-h">
               <span className="imp-num">1</span>
-              <span>Copy the prompt</span>
+              <span>{t('imp.step1')}</span>
               <button className="imp-btn primary imp-inline" onClick={copyPrompt}>
-                {copied === 'prompt' ? 'Copied ✓' : 'Copy prompt'}
+                {copied === 'prompt' ? t('imp.copied') : t('imp.copyPrompt')}
               </button>
             </div>
-            <p className="imp-hint">
-              {copyFailed
-                ? 'Your browser blocked the clipboard. Click the page once, then try Copy prompt again.'
-                : 'Paste it into ChatGPT, add your details, hit enter.'}
-            </p>
+            <p className="imp-hint">{copyFailed ? t('imp.copyFailed') : t('imp.step1hint')}</p>
           </li>
           <li>
             <div className="imp-step-h">
-              <span className="imp-num">2</span> Paste what it gives back
+              <span className="imp-num">2</span> {t('imp.step2')}
             </div>
             <textarea
               className="imp-textarea"
-              placeholder="Paste the JSON here…"
+              placeholder={t('imp.ph')}
               value={text}
               onChange={(e) => {
                 setText(e.target.value);
@@ -190,9 +188,9 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
           <li>
             <div className="imp-step-h">
               <span className="imp-num">3</span>
-              <span>Load it</span>
+              <span>{t('imp.step3')}</span>
               <button className="imp-btn primary imp-inline" onClick={load} disabled={!text.trim()}>
-                Import
+                {t('imp.import')}
               </button>
             </div>
           </li>
@@ -201,21 +199,21 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
         </div>
         <div className="imp-foot">
           <div className="imp-foot-row">
-            <span className="imp-foot-label">Back up</span>
+            <span className="imp-foot-label">{t('imp.backup')}</span>
             <button className="imp-link" onClick={saveJson}>
-              Download .json
+              {t('imp.downloadJson')}
             </button>
             <button className="imp-link" onClick={copyJson}>
-              {copied === 'json' ? 'Copied ✓' : 'Copy as JSON'}
+              {copied === 'json' ? t('imp.copied') : t('imp.copyJson')}
             </button>
           </div>
           <div className="imp-foot-row">
-            <span className="imp-foot-label">Start over</span>
+            <span className="imp-foot-label">{t('imp.startOver')}</span>
             <button className="imp-link" onClick={() => startOver('blank')}>
-              Blank CV
+              {t('imp.blank')}
             </button>
             <button className="imp-link" onClick={() => startOver('sample')}>
-              Sample CV
+              {t('imp.sample')}
             </button>
           </div>
         </div>
@@ -227,7 +225,7 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
               <p className="imp-confirm-b">{pending.body}</p>
               <div className="imp-confirm-actions">
                 <button className="imp-btn" onClick={() => setPending(null)}>
-                  Cancel
+                  {t('imp.cancel')}
                 </button>
                 <button
                   className="imp-btn danger"

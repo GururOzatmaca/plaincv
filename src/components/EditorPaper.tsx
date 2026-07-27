@@ -11,6 +11,7 @@ import { RichEditable } from './RichEditable';
 import { PrintLink, willLink } from './PrintLink';
 import { ContactIcon, detectContactKind } from './ContactIcon';
 import { resolveTemplate } from '@/templates/registry';
+import { useT, type Key } from '@/i18n';
 import './paper.css';
 import '@/templates/templates.css';
 
@@ -22,15 +23,18 @@ type RequestFocus = (fid: string, caret?: 'start' | 'end') => void;
 const BAND_LO = 0.86;
 const BAND_FLOOR = 0.62;
 
-const SECTION_TYPES: { type: Section['type']; label: string }[] = [
-  { type: 'profile', label: 'Profile' },
-  { type: 'experience', label: 'Experience' },
-  { type: 'education', label: 'Education' },
-  { type: 'skills', label: 'Skills' },
-  { type: 'projects', label: 'Projects' },
-  { type: 'certifications', label: 'Certifications' },
-  { type: 'custom', label: 'Custom' },
+const SECTION_TYPES: Section['type'][] = [
+  'profile',
+  'experience',
+  'education',
+  'skills',
+  'projects',
+  'certifications',
+  'custom',
 ];
+
+/** What a drag handle moves; picks the i18n key for its title and label. */
+type DragWhat = 'bullet' | 'entry' | 'section' | 'certification';
 
 const ROW_SPRING = { type: 'spring', stiffness: 600, damping: 42, mass: 0.6 } as const;
 const ROW_ELASTIC = 0.08;
@@ -68,17 +72,18 @@ function DragHandle({
   onCancel,
 }: {
   controls: DragControls;
-  what: string;
+  what: DragWhat;
   onMove?: (dir: number) => void;
   onCancel?: () => void;
 }) {
+  const t = useT();
   return (
     <span className="cv-hz cv-hz-l no-print" contentEditable={false}>
       <button
         type="button"
         className="cv-drag"
-        title={`Drag to reorder this ${what}, or focus it and press the up/down arrows`}
-        aria-label={`Reorder ${what}. Press the up or down arrow key to move it.`}
+        title={t(`paper.drag.title.${what}`)}
+        aria-label={t(`paper.drag.aria.${what}`)}
         onKeyDown={(e) => {
           if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
           e.preventDefault();
@@ -142,7 +147,7 @@ function Row({
   onCommit: () => void;
   onMove?: (dir: number) => void;
   onCancel?: () => void;
-  what: string;
+  what: DragWhat;
   layoutKey: string;
   children: (handle: ReactNode) => ReactNode;
 }) {
@@ -220,13 +225,14 @@ const DELETE_GAP_MS = 350;
 const DELETE_GAP_PX = 24;
 
 function Del({ onClick }: { onClick: () => void }) {
+  const t = useT();
   return (
     <span className="cv-hz cv-hz-r no-print" contentEditable={false}>
       <button
         className="cv-del"
         type="button"
-        title="Delete"
-        aria-label="Delete"
+        title={t('paper.delete')}
+        aria-label={t('paper.delete')}
         onClick={(e) => {
           const now = performance.now();
           const moved = Math.hypot(e.clientX - lastDeleteX, e.clientY - lastDeleteY) > DELETE_GAP_PX;
@@ -250,19 +256,22 @@ function Del({ onClick }: { onClick: () => void }) {
  * currently holds ~20px of flow height that the PDF does not have.
  */
 function NoteAdd({ onClick }: { onClick: () => void }) {
+  const t = useT();
   return (
-    <button className="cv-addbul no-print" type="button" contentEditable={false} title="Add note" onClick={onClick}>
+    <button className="cv-addbul no-print" type="button" contentEditable={false} title={t('paper.addNote')} onClick={onClick}>
       <PlusIcon />
-      Add note
+      {t('paper.addNote')}
     </button>
   );
 }
 
-function SecAdd({ label, onClick }: { label: string; onClick: () => void }) {
+function SecAdd({ what, onClick }: { what: Key; onClick: () => void }) {
+  const t = useT();
+  const label = t(what);
   return (
     <div className="cv-secadd-wrap no-print" contentEditable={false}>
       <span className="cv-hz cv-hz-secadd">
-        <button className="cv-plus" type="button" title={`Add ${label}`} aria-label={`Add ${label}`} onClick={onClick}>
+        <button className="cv-plus" type="button" title={label} aria-label={label} onClick={onClick}>
           <PlusIcon />
         </button>
       </span>
@@ -298,6 +307,7 @@ const samePos = (a: MenuPos | null, b: MenuPos): MenuPos =>
   a && a.left === b.left && a.top === b.top && a.bottom === b.bottom && a.maxHeight === b.maxHeight ? a : b;
 
 function AddSection({ onAdd }: { onAdd: (type: Section['type']) => void }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<MenuPos | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -356,8 +366,8 @@ function AddSection({ onAdd }: { onAdd: (type: Section['type']) => void }) {
         ref={btnRef}
         type="button"
         className="cv-addsec-btn"
-        title="Add section"
-        aria-label="Add section"
+        title={t('paper.addSection')}
+        aria-label={t('paper.addSection')}
         aria-expanded={open}
         onPointerDown={(e) => {
           e.stopPropagation();
@@ -365,7 +375,7 @@ function AddSection({ onAdd }: { onAdd: (type: Section['type']) => void }) {
         }}
       >
         <PlusIcon />
-        Section
+        {t('paper.section')}
       </button>
       {open &&
         pos &&
@@ -377,18 +387,18 @@ function AddSection({ onAdd }: { onAdd: (type: Section['type']) => void }) {
             data-flip={pos.bottom != null}
             style={{ left: pos.left, top: pos.top, bottom: pos.bottom, maxHeight: pos.maxHeight, width: MENU_W }}
           >
-            {SECTION_TYPES.map((t) => (
+            {SECTION_TYPES.map((type) => (
               <button
-                key={t.type}
+                key={type}
                 type="button"
                 role="menuitem"
                 className="cv-addsec-opt"
                 onClick={() => {
-                  onAdd(t.type);
+                  onAdd(type);
                   setOpen(false);
                 }}
               >
-                {t.label}
+                {t(`paper.type.${type}`)}
               </button>
             ))}
           </div>,
@@ -417,6 +427,7 @@ function BulletList({
   splitBullet: (itemId: string, bulletId: string, before: Line, after: Line) => void;
   dropEmptyBullet: (itemId: string, bulletId: string) => void;
 }) {
+  const t = useT();
   const [dragIds, setDragIds] = useState<string[] | null>(null);
   const ordered = applyOrder(bullets, dragIds);
 
@@ -451,7 +462,7 @@ function BulletList({
                 <RichEditable
                   value={b.runs}
                   fid={`${itemId}:b:${b.id}`}
-                  placeholder="Bullet"
+                  placeholder={t('paper.ph.bullet')}
                   onCommit={(l) => editBullet(itemId, b.id, l)}
                   onSplit={(before, after) => splitBullet(itemId, b.id, before, after)}
                   onDeleteEmpty={() => dropEmptyBullet(itemId, b.id)}
@@ -463,9 +474,9 @@ function BulletList({
         ))}
       </Reorder.Group>
 
-      <button className="cv-addbul no-print" type="button" contentEditable={false} title="Add bullet" onClick={() => addBullet(itemId)}>
+      <button className="cv-addbul no-print" type="button" contentEditable={false} title={t('paper.addBullet')} onClick={() => addBullet(itemId)}>
         <PlusIcon />
-        Add bullet
+        {t('paper.addBullet')}
       </button>
     </>
   );
@@ -492,6 +503,7 @@ function SectionView({
   onCancelSectionDrag: () => void;
   layoutKey: string;
 }) {
+  const t = useT();
   const controls = useDragControls();
   const sectionDragging = useIsDragging();
 
@@ -657,8 +669,8 @@ function SectionView({
           <button
             className="cv-eye"
             type="button"
-            title={section.hidden ? 'Show in the PDF' : 'Hide from the PDF'}
-            aria-label={section.hidden ? 'Show in the PDF' : 'Hide from the PDF'}
+            title={section.hidden ? t('paper.show') : t('paper.hide')}
+            aria-label={section.hidden ? t('paper.show') : t('paper.hide')}
             aria-pressed={!!section.hidden}
             onClick={(e) => {
               popEye(e.currentTarget);
@@ -674,8 +686,8 @@ function SectionView({
           <button
             className="cv-rule-x no-print"
             type="button"
-            title="Remove this divider line"
-            aria-label="Remove this divider line"
+            title={t('paper.removeRule')}
+            aria-label={t('paper.removeRule')}
             contentEditable={false}
             onClick={() => editSection((s) => void (s.noRule = true))}
           >
@@ -685,8 +697,8 @@ function SectionView({
         <Editable
           value={section.title}
           fid={`sec:${section.id}:title`}
-          placeholder="Section title"
-          onCommit={(t) => editSection((s) => (s.title = t))}
+          placeholder={t('paper.ph.sectionTitle')}
+          onCommit={(v) => editSection((s) => (s.title = v))}
         />
       </div>
 
@@ -694,7 +706,7 @@ function SectionView({
         <div>
           <RichEditable
             value={section.text}
-            placeholder="Write a short profile…"
+            placeholder={t('paper.ph.profile')}
             onCommit={(l) => editSection((s) => s.type === 'profile' && (s.text = l))}
           />
         </div>
@@ -708,19 +720,19 @@ function SectionView({
               <Del onClick={() => removeItem(it.id)} />
               <div className="cv-etop">
                 <div>
-                  <Editable className="cv-role" value={it.role} fid={`${it.id}:main`} placeholder="Role" onCommit={(t) => editItem(it.id, (i) => (i.role = t))} />{' '}
-                  <Editable className="cv-co" value={it.org} placeholder="Organization" onCommit={(t) => editItem(it.id, (i) => (i.org = t))} />
+                  <Editable className="cv-role" value={it.role} fid={`${it.id}:main`} placeholder={t('paper.ph.role')} onCommit={(v) => editItem(it.id, (i) => (i.role = v))} />{' '}
+                  <Editable className="cv-co" value={it.org} placeholder={t('paper.ph.org')} onCommit={(v) => editItem(it.id, (i) => (i.org = v))} />
                 </div>
                 <div className="cv-date">
-                  <Editable value={it.start} placeholder="Start" onCommit={(t) => editItem(it.id, (i) => (i.start = t))} />
+                  <Editable value={it.start} placeholder={t('paper.ph.start')} onCommit={(v) => editItem(it.id, (i) => (i.start = v))} />
                   {it.start && it.end ? ' - ' : ' '}
-                  <Editable value={it.end} placeholder="End" onCommit={(t) => editItem(it.id, (i) => (i.end = t))} />
+                  <Editable value={it.end} placeholder={t('paper.ph.end')} onCommit={(v) => editItem(it.id, (i) => (i.end = v))} />
                 </div>
               </div>
               {bullets(it.id, it.bullets)}
             </>
           ))}
-          <SecAdd label="experience" onClick={addItem} />
+          <SecAdd what="paper.add.experience" onClick={addItem} />
         </>
       )}
 
@@ -732,13 +744,13 @@ function SectionView({
               <Del onClick={() => removeItem(it.id)} />
               <div className="cv-etop">
                 <div>
-                  <Editable className="cv-role" value={it.degree} fid={`${it.id}:main`} placeholder="Degree" onCommit={(t) => editItem(it.id, (i) => (i.degree = t))} />{' '}
-                  <Editable className="cv-co" value={it.school} placeholder="School" onCommit={(t) => editItem(it.id, (i) => (i.school = t))} />
+                  <Editable className="cv-role" value={it.degree} fid={`${it.id}:main`} placeholder={t('paper.ph.degree')} onCommit={(v) => editItem(it.id, (i) => (i.degree = v))} />{' '}
+                  <Editable className="cv-co" value={it.school} placeholder={t('paper.ph.school')} onCommit={(v) => editItem(it.id, (i) => (i.school = v))} />
                 </div>
                 <div className="cv-date">
-                  <Editable value={it.start} placeholder="Start" onCommit={(t) => editItem(it.id, (i) => (i.start = t))} />
+                  <Editable value={it.start} placeholder={t('paper.ph.start')} onCommit={(v) => editItem(it.id, (i) => (i.start = v))} />
                   {it.start && it.end ? ' - ' : ' '}
-                  <Editable value={it.end} placeholder="End" onCommit={(t) => editItem(it.id, (i) => (i.end = t))} />
+                  <Editable value={it.end} placeholder={t('paper.ph.end')} onCommit={(v) => editItem(it.id, (i) => (i.end = v))} />
                 </div>
               </div>
               {it.note !== undefined || addingNote === it.id ? (
@@ -757,7 +769,7 @@ function SectionView({
                   <RichEditable
                     value={it.note ?? []}
                     fid={`${it.id}:note`}
-                    placeholder="Note (optional)"
+                    placeholder={t('paper.ph.note')}
                     onCommit={(l) =>
                       editItem(it.id, (i) => {
                         if (l.length) i.note = l;
@@ -786,7 +798,7 @@ function SectionView({
               )}
             </>
           ))}
-          <SecAdd label="education" onClick={addItem} />
+          <SecAdd what="paper.add.education" onClick={addItem} />
         </>
       )}
 
@@ -798,14 +810,14 @@ function SectionView({
               <Del onClick={() => removeItem(it.id)} />
               <div className="cv-etop">
                 <div>
-                  <Editable className="cv-role" value={it.name} fid={`${it.id}:main`} placeholder="Project" onCommit={(t) => editItem(it.id, (i) => (i.name = t))} />{' '}
+                  <Editable className="cv-role" value={it.name} fid={`${it.id}:main`} placeholder={t('paper.ph.project')} onCommit={(v) => editItem(it.id, (i) => (i.name = v))} />{' '}
                   <Editable
                     className={`cv-co${willLink(it.link ?? '') ? ' cv-haslink' : ''}`}
                     value={it.link ?? ''}
-                    placeholder="link"
-                    onCommit={(t) =>
+                    placeholder={t('paper.ph.link')}
+                    onCommit={(v) =>
                       editItem(it.id, (i) => {
-                        if (t) i.link = t;
+                        if (v) i.link = v;
                         else delete i.link;
                       })
                     }
@@ -816,7 +828,7 @@ function SectionView({
               {bullets(it.id, it.bullets)}
             </>
           ))}
-          <SecAdd label="project" onClick={addItem} />
+          <SecAdd what="paper.add.project" onClick={addItem} />
         </>
       )}
 
@@ -839,15 +851,15 @@ function SectionView({
                 {(handle) => (
                   <>
                     {handle}
-                    <Editable className="cv-role" value={it.name} fid={`${it.id}:main`} placeholder="Certification" onCommit={(t) => editItem(it.id, (i) => (i.name = t))} />
+                    <Editable className="cv-role" value={it.name} fid={`${it.id}:main`} placeholder={t('paper.ph.certification')} onCommit={(v) => editItem(it.id, (i) => (i.name = v))} />
                     <span className="cv-co">
                       {' '}
                       <Editable
                         value={it.issuer ?? ''}
-                        placeholder="issuer"
-                        onCommit={(t) =>
+                        placeholder={t('paper.ph.issuer')}
+                        onCommit={(v) =>
                           editItem(it.id, (i) => {
-                            if (t) i.issuer = t;
+                            if (v) i.issuer = v;
                             else delete i.issuer;
                           })
                         }
@@ -855,10 +867,10 @@ function SectionView({
                       {it.issuer && it.date ? ', ' : ' '}
                       <Editable
                         value={it.date ?? ''}
-                        placeholder="date"
-                        onCommit={(t) =>
+                        placeholder={t('paper.ph.date')}
+                        onCommit={(v) =>
                           editItem(it.id, (i) => {
-                            if (t) i.date = t;
+                            if (v) i.date = v;
                             else delete i.date;
                           })
                         }
@@ -871,7 +883,7 @@ function SectionView({
             ))}
           </Reorder.Group>
           <div className="cv-li-add no-print">
-            <SecAdd label="certification" onClick={addItem} />
+            <SecAdd what="paper.add.certification" onClick={addItem} />
           </div>
         </>
       )}
@@ -886,10 +898,10 @@ function SectionView({
                 <Editable
                   value={it.heading ?? ''}
                   fid={`${it.id}:main`}
-                  placeholder="Heading"
-                  onCommit={(t) =>
+                  placeholder={t('paper.ph.heading')}
+                  onCommit={(v) =>
                     editItem(it.id, (i) => {
-                      if (t) i.heading = t;
+                      if (v) i.heading = v;
                       else delete i.heading;
                     })
                   }
@@ -898,7 +910,7 @@ function SectionView({
               {bullets(it.id, it.bullets)}
             </>
           ))}
-          <SecAdd label="entry" onClick={addItem} />
+          <SecAdd what="paper.add.entry" onClick={addItem} />
         </>
       )}
 
@@ -922,13 +934,13 @@ function SectionView({
                 className={`cv-skilllabel${g.label ? '' : ' cv-skilllabel-empty'}`}
                 value={g.label ?? ''}
                 fid={`skl:${g.id}`}
-                placeholder="Group"
-                onCommit={(t) =>
+                placeholder={t('paper.ph.group')}
+                onCommit={(v) =>
                   editSection((sec) => {
                     if (sec.type !== 'skills') return;
                     const grp = sec.items.find((x) => x.id === g.id);
                     if (!grp) return;
-                    if (t) grp.label = t;
+                    if (v) grp.label = v;
                     else delete grp.label;
                   })
                 }
@@ -939,19 +951,19 @@ function SectionView({
                     <Editable
                       value={s}
                       fid={`sk:${g.id}:${i}`}
-                      placeholder="skill"
-                      onCommit={(t) =>
+                      placeholder={t('paper.ph.skill')}
+                      onCommit={(v) =>
                         editSection((sec) => {
                           if (sec.type !== 'skills') return;
                           const grp = sec.items.find((x) => x.id === g.id);
-                          if (grp) grp.values[i] = t;
+                          if (grp) grp.values[i] = v;
                         })
                       }
                     />
                     <button
                       type="button"
                       className="cv-chip-x no-print"
-                      aria-label="Delete skill"
+                      aria-label={t('paper.deleteSkill')}
                       onClick={() =>
                         editSection((sec) => {
                           if (sec.type !== 'skills') return;
@@ -970,8 +982,8 @@ function SectionView({
                 <button
                   type="button"
                   className="cv-chip cv-chip-add no-print"
-                  title="Add skill"
-                  aria-label="Add skill"
+                  title={t('paper.addSkill')}
+                  aria-label={t('paper.addSkill')}
                   onClick={() => {
                     editSection((sec) => {
                       if (sec.type !== 'skills') return;
@@ -989,7 +1001,7 @@ function SectionView({
           ))}
           </div>
           <SecAdd
-            label="skill group"
+            what="paper.add.skillGroup"
             onClick={() => {
               const id = uid();
               editSection((sec) => {
@@ -1014,7 +1026,7 @@ const PaperBody = memo(function PaperBody({
   update: UpdateFn;
   paperRef: { current: HTMLDivElement | null };
 }) {
-
+  const t = useT();
   const [secDragIds, setSecDragIds] = useState<string[] | null>(null);
   const orderedSections = applyOrder(doc.sections, secDragIds);
   const sectionOrderKey = orderedSections.map((s) => s.id).join(',');
@@ -1063,10 +1075,10 @@ const PaperBody = memo(function PaperBody({
       <div className="cv-head">
 
         <h1 className="cv-h1">
-          <Editable value={doc.header.fullName} placeholder="Your name" onCommit={(t) => update((d) => (d.header.fullName = t))} />
+          <Editable value={doc.header.fullName} placeholder={t('paper.ph.name')} onCommit={(v) => update((d) => (d.header.fullName = v))} />
         </h1>
         <div className="cv-title">
-          <Editable value={doc.header.title} placeholder="Your title" onCommit={(t) => update((d) => (d.header.title = t))} />
+          <Editable value={doc.header.title} placeholder={t('paper.ph.title')} onCommit={(v) => update((d) => (d.header.title = v))} />
         </div>
         <div className="cv-contact">
           {doc.header.contacts.map((c) => (
@@ -1081,8 +1093,8 @@ const PaperBody = memo(function PaperBody({
                     <button
                       type="button"
                       className="cv-ico-x no-print"
-                      title="Remove this icon"
-                      aria-label="Remove this icon"
+                      title={t('paper.removeIcon')}
+                      aria-label={t('paper.removeIcon')}
                       onClick={() =>
                         update((d) => {
                           const ct = d.header.contacts.find((x) => x.id === c.id);
@@ -1099,11 +1111,11 @@ const PaperBody = memo(function PaperBody({
                 className={willLink(c.value) ? 'cv-haslink' : undefined}
                 value={c.value}
                 fid={`c:${c.id}`}
-                placeholder="contact"
-                onCommit={(t) =>
+                placeholder={t('paper.ph.contact')}
+                onCommit={(v) =>
                   update((d) => {
                     const ct = d.header.contacts.find((x) => x.id === c.id);
-                    if (ct) ct.value = t;
+                    if (ct) ct.value = v;
                   })
                 }
               />
@@ -1111,7 +1123,7 @@ const PaperBody = memo(function PaperBody({
               <button
                 type="button"
                 className="cv-chip-x no-print"
-                aria-label="Delete contact"
+                aria-label={t('paper.deleteContact')}
                 onClick={() => update((d) => (d.header.contacts = d.header.contacts.filter((x) => x.id !== c.id)))}
               >
                 <XIcon />
@@ -1121,8 +1133,8 @@ const PaperBody = memo(function PaperBody({
           <button
             type="button"
             className="cv-contact-add no-print"
-            title="Add contact"
-            aria-label="Add contact"
+            title={t('paper.addContact')}
+            aria-label={t('paper.addContact')}
             onClick={() => {
               const id = uid();
               update((d) => d.header.contacts.push({ id, value: '' }));
@@ -1138,8 +1150,8 @@ const PaperBody = memo(function PaperBody({
         <button
           className="cv-rule-x no-print"
           type="button"
-          title="Remove this divider line"
-          aria-label="Remove this divider line"
+          title={t('paper.removeRule')}
+          aria-label={t('paper.removeRule')}
           contentEditable={false}
           onClick={() => update((d) => void (d.header.noRule = true))}
         >
@@ -1168,6 +1180,7 @@ const PaperBody = memo(function PaperBody({
 });
 
 export function EditorPaper({ scale }: { scale: number }) {
+  const t = useT();
   const doc = useResumeStore((s) => s.doc);
   const update = useResumeStore((s) => s.update);
   const paperRef = useRef<HTMLDivElement>(null);
@@ -1460,17 +1473,13 @@ export function EditorPaper({ scale }: { scale: number }) {
         <>
 
           <div className="no-print cv-cut" style={{ top: A4_H * scale }} aria-hidden="true">
-            <span className="cv-cut-label">Cut from the PDF</span>
+            <span className="cv-cut-label">{t('paper.cut')}</span>
           </div>
           <div className="no-print cv-overflow-badge" style={{ top: A4_H * scale }}>
-            <span>
-              {fitFailed
-                ? "Still too long even at the smallest sensible size - remove some content."
-                : "Everything below this line is missing from the PDF."}
-            </span>
+            <span>{fitFailed ? t('paper.tooLong') : t('paper.missing')}</span>
             {!fitFailed && (
               <button type="button" className="cv-fit-btn" onClick={() => fitToPage()}>
-                Fit to page
+                {t('paper.fit')}
               </button>
             )}
           </div>

@@ -1,4 +1,5 @@
 import { Component, useState, type ReactNode } from 'react';
+import { useT } from '@/i18n';
 import './error.css';
 
 const EMAIL = 'gururozatmacaa@gmail.com';
@@ -15,10 +16,11 @@ function format(err: unknown): string {
 }
 
 function ErrorScreen({ text }: { text: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const mailto = `mailto:${EMAIL}?subject=${encodeURIComponent(
-    'PlainCV error',
-  )}&body=${encodeURIComponent(`Hi, I hit this error in the app:\n\n${text}`)}`;
+    t('err.mailSubject'),
+  )}&body=${encodeURIComponent(`${t('err.mailBody')}\n\n${text}`)}`;
 
   const copy = () => {
     navigator.clipboard
@@ -33,21 +35,22 @@ function ErrorScreen({ text }: { text: string }) {
         <div className="err-emoji" aria-hidden="true">
           😵
         </div>
-        <h1 className="err-h">Something broke</h1>
+        <h1 className="err-h">{t('err.title')}</h1>
         <p className="err-msg">
-          Hey, I don't know what this error means. Please screenshot this and email it to{' '}
-          <a href={mailto}>{EMAIL}</a> so my Claude can look at it and fix it.
+          {t('err.msg.before')}
+          <a href={mailto}>{EMAIL}</a>
+          {t('err.msg.after')}
         </p>
         <pre className="err-pre">{text}</pre>
         <div className="err-actions">
           <a className="err-btn primary" href={mailto}>
-            Email this error
+            {t('err.email')}
           </a>
           <button className="err-btn" type="button" onClick={copy}>
-            {copied ? 'Copied ✓' : 'Copy error'}
+            {copied ? t('err.copied') : t('err.copy')}
           </button>
           <button className="err-btn" type="button" onClick={() => location.reload()}>
-            Reload app
+            {t('err.reload')}
           </button>
         </div>
       </div>

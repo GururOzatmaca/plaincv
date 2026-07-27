@@ -1,4 +1,5 @@
 import type { Theme } from '@/schema/resume';
+import type { T } from '@/i18n';
 
 export type ShuffleAxes = Pick<Theme, 'headerLayout' | 'entryLayout' | 'headingLayout' | 'dividers'>;
 
@@ -39,11 +40,11 @@ export const VALID_LOOKS: ShuffleAxes[] = HEADER.flatMap((headerLayout) =>
   ),
 ).filter((a) => !rejectReason(a));
 
-export const describeLook = (a: ShuffleAxes): string =>
+export const describeLook = (a: ShuffleAxes, t: T): string =>
   [
-    { left: 'left header', centered: 'centred header', split: 'split header' }[a.headerLayout],
-    { 'date-right': 'dates right', 'date-stacked': 'stacked dates', 'date-rail': 'date rail' }[a.entryLayout],
-    { rule: 'ruled headings', 'left-rail': 'bar headings', boxed: 'boxed headings' }[a.headingLayout],
+    t(`look.header.${a.headerLayout}`),
+    t(`look.entry.${a.entryLayout}`),
+    t(`look.heading.${a.headingLayout}`),
   ].join(' · ');
 
 export function nextLook(current: ShuffleAxes, rand: () => number = Math.random): ShuffleAxes {

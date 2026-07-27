@@ -8,10 +8,12 @@ import { DocSwitcher } from '@/components/DocSwitcher';
 import { Coachmarks } from '@/components/Coachmarks';
 import { ImportDialog } from '@/components/ImportDialog';
 import { Shortcuts } from '@/components/Shortcuts';
+import { LangGate } from '@/components/LangGate';
 import { usePrintFilename } from '@/lib/usePrintFilename';
 import { useResumeStore } from '@/store/resumeStore';
 import { fontStack, ensureFont } from '@/lib/fonts/registry';
 import { writeAccentVars } from '@/lib/color';
+import { useT, hasStoredLang } from '@/i18n';
 
 const MUTED_INK: Record<'grey' | 'soft' | 'black', string> = {
   grey: '#474e55',
@@ -72,6 +74,7 @@ const PlusIcon = () => (
 );
 
 export function EditorPage() {
+  const t = useT();
   const stageRef = useRef<HTMLDivElement>(null);
   const [fitScale, setFitScale] = useState(0.7);
 
@@ -88,13 +91,18 @@ export function EditorPage() {
   const [keysOpen, setKeysOpen] = useState(false);
   const [printBlocked, setPrintBlocked] = useState(false);
 
+  const [langPicked, setLangPicked] = useState(hasStoredLang);
+
   const [tourAt, setTourAt] = useState<number | null>(null);
 
   // null = the panel follows the layout; the tour forces it open on one column, where it
   // starts collapsed and its controls are not in the DOM at all.
   const [coachPanel, setCoachPanel] = useState<boolean | null>(null);
 
-  const coachApi = useMemo(() => ({ setImportOpen, setShowCtl, setPanelOpen: setCoachPanel }), []);
+  const coachApi = useMemo(
+    () => ({ setImportOpen, setShowCtl, setPanelOpen: setCoachPanel, setKeysOpen }),
+    [],
+  );
 
   const clearTour = useCallback(() => setTourAt(null), []);
 
@@ -329,9 +337,9 @@ export function EditorPage() {
 
       if (el && (el.isContentEditable || el.tagName === 'TEXTAREA' || textInput)) el.blur();
       e.preventDefault();
-      const t = useResumeStore.temporal.getState();
-      if (k === 'y' || e.shiftKey) t.redo();
-      else t.undo();
+      const temporal = useResumeStore.temporal.getState();
+      if (k === 'y' || e.shiftKey) temporal.redo();
+      else temporal.undo();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -355,18 +363,18 @@ export function EditorPage() {
         </div>
 
         <div className="hdr-group hdr-zoom">
-          <button className="zm-btn" type="button" aria-label="Zoom out" disabled={atMin} onClick={() => stepZoom(-ZOOM_STEP)}>
+          <button className="zm-btn" type="button" aria-label={t('hdr.zoomOut')} disabled={atMin} onClick={() => stepZoom(-ZOOM_STEP)}>
             <MinusIcon />
           </button>
           <button
             className="zm-val"
             type="button"
-            title={zoom === 1 ? 'Fit page' : 'Back to fit page'}
+            title={zoom === 1 ? t('hdr.fitPage') : t('hdr.backToFit')}
             onClick={resetZoom}
           >
-            {zoom === 1 ? 'Fit page' : `${pct}%`}
+            {zoom === 1 ? t('hdr.fitPage') : `${pct}%`}
           </button>
-          <button className="zm-btn" type="button" aria-label="Zoom in" disabled={atMax} onClick={() => stepZoom(ZOOM_STEP)}>
+          <button className="zm-btn" type="button" aria-label={t('hdr.zoomIn')} disabled={atMax} onClick={() => stepZoom(ZOOM_STEP)}>
             <PlusIcon />
           </button>
         </div>
@@ -377,8 +385,8 @@ export function EditorPage() {
             <button
               className="hdr-icon"
               type="button"
-              title="Help and keyboard shortcuts (?)"
-              aria-label="Help and keyboard shortcuts"
+              title={t('hdr.help.title')}
+              aria-label={t('hdr.help.aria')}
               onClick={() => setKeysOpen(true)}
             >
               ?
@@ -389,7 +397,7 @@ export function EditorPage() {
             className={`hdr-ghost ${showCtl ? 'on' : ''}`}
             type="button"
             aria-pressed={showCtl}
-            title="Show or hide the add, delete and drag controls on the page"
+            title={t('hdr.viewOptions.title')}
             onClick={() =>
               setShowCtl((v) => {
                 try {
@@ -399,15 +407,15 @@ export function EditorPage() {
               })
             }
           >
-            View options
+            {t('hdr.viewOptions')}
           </button>
 
           <button className="hdr-ai" type="button" onClick={() => setImportOpen(true)}>
-            ✨ Fill with AI
+            {t('hdr.ai')}
           </button>
 
           <button className="hdr-dl" type="button" onClick={download}>
-            <span>Download CV</span>
+            <span>{t('hdr.download')}</span>
           </button>
           </div>
         </div>
@@ -417,16 +425,12 @@ export function EditorPage() {
 
       {printBlocked && (
         <div className="no-print rec-bar" role="alert">
-          <span className="rec-msg">
-            This in-app browser cannot print. Use its menu to open plaincv.net in a real browser, Chrome or
-            Safari, then press Download CV there. Your CV is stored per browser, so take the backup first
-            and load it on the other side.
-          </span>
+          <span className="rec-msg">{t('hdr.printBlocked')}</span>
           <button className="rec-btn primary" type="button" onClick={() => setImportOpen(true)}>
-            Back up
+            {t('hdr.printBlocked.backup')}
           </button>
           <button className="rec-btn" type="button" onClick={() => setPrintBlocked(false)}>
-            Dismiss
+            {t('hdr.printBlocked.dismiss')}
           </button>
         </div>
       )}
@@ -482,7 +486,10 @@ export function EditorPage() {
         onConsumed={clearTour}
         dialogsOpen={importOpen || keysOpen}
         stacked={stacked}
+        hold={!langPicked}
       />
+
+      {!langPicked && <LangGate onPick={() => setLangPicked(true)} />}
     </div>
   );
 }

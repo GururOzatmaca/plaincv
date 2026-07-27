@@ -2,14 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import {
   FONTS,
   FONT_IDS,
-  GROUP_LABEL,
   GROUP_ORDER,
   fontStack,
   ensureFont,
   resolveFont,
 } from '@/lib/fonts/registry';
+import { useT } from '@/i18n';
 
 export function FontPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const current = resolveFont(value);
@@ -55,10 +56,10 @@ export function FontPicker({ value, onChange }: { value: string; onChange: (id: 
       </button>
 
       {open && (
-        <div className="fp-menu app-scroll" role="listbox" aria-label="Font">
+        <div className="fp-menu app-scroll" role="listbox" aria-label={t('font.aria')}>
           {GROUP_ORDER.map((g) => (
             <div key={g}>
-              <p className="fp-group">{GROUP_LABEL[g]}</p>
+              <p className="fp-group">{t(`font.group.${g}`)}</p>
               {FONT_IDS.filter((id) => FONTS[id].group === g).map((id) => (
                 <button
                   key={id}
@@ -74,7 +75,9 @@ export function FontPicker({ value, onChange }: { value: string; onChange: (id: 
                   <span className="fp-name" style={{ fontFamily: fontStack(id) }}>
                     {FONTS[id].label}
                   </span>
-                  {FONTS[id].note && <span className="fp-note">{FONTS[id].note}</span>}
+                  {FONTS[id].note && (
+                    <span className="fp-note">{t('font.note.metrics', { name: FONTS[id].note })}</span>
+                  )}
                 </button>
               ))}
             </div>

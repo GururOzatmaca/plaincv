@@ -94,10 +94,18 @@ export function coachDoneKey(die) {
   return key;
 }
 
+export function langKey(die) {
+  const key = readFileSync(join(ROOT, 'src/i18n/index.ts'), 'utf8').match(/LANG_KEY = '([^']+)'/)?.[1];
+  if (!key) die('  could not find LANG_KEY in src/i18n/index.ts - has the language picker moved?');
+  return key;
+}
+
 export async function openApp({ chromium, chromePath, base, die, viewport = { width: 1600, height: 1200 }, initScripts = [] }) {
   const browser = await chromium.launch({ executablePath: chromePath });
   const ctx = await browser.newContext({ viewport });
   await ctx.addInitScript((k) => localStorage.setItem(k, '1'), coachDoneKey(die));
+  // Without a stored language the first-run picker covers the page and nothing is clickable.
+  await ctx.addInitScript((k) => localStorage.setItem(k, 'en'), langKey(die));
   for (const s of initScripts) await ctx.addInitScript(s.fn, s.arg);
 
   const page = await ctx.newPage();

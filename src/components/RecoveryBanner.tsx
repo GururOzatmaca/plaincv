@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { useResumeStore } from '@/store/resumeStore';
 import { getRecovery, readBackup, restoreBackup, type RecoveryState } from '@/store/migrations';
 import { downloadText } from '@/lib/download';
+import { useT } from '@/i18n';
 
 export function RecoveryBanner() {
+  const t = useT();
   const setDoc = useResumeStore((s) => s.setDoc);
   const [rec, setRec] = useState<RecoveryState>(getRecovery());
   const [dismissed, setDismissed] = useState(false);
@@ -36,21 +38,17 @@ export function RecoveryBanner() {
 
   return (
     <div className="no-print rec-bar" role="alert">
-      <span className="rec-msg">
-        {failed
-          ? "That backup couldn't be opened. Download it and we can look at it."
-          : "Couldn't read your saved CV, so the sample is showing. A copy was kept."}
-      </span>
+      <span className="rec-msg">{failed ? t('rec.failed') : t('rec.msg')}</span>
       {!failed && (
         <button className="rec-btn primary" type="button" onClick={restore}>
-          Restore it
+          {t('rec.restore')}
         </button>
       )}
       <button className="rec-btn" type="button" onClick={save}>
-        Download backup
+        {t('rec.download')}
       </button>
       <button className="rec-btn" type="button" onClick={() => setDismissed(true)}>
-        Dismiss
+        {t('rec.dismiss')}
       </button>
     </div>
   );

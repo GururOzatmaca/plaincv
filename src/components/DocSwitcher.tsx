@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useResumeStore, docSummaries } from '@/store/resumeStore';
+import { useT } from '@/i18n';
 
 export function DocSwitcher() {
-
+  const t = useT();
   const library = useResumeStore((s) => s.library);
   const doc = useResumeStore((s) => s.doc);
   const activeName = doc.name;
@@ -59,10 +60,10 @@ export function DocSwitcher() {
         className="doc-trigger"
         aria-haspopup="menu"
         aria-expanded={open}
-        title="Switch between your CVs"
+        title={t('doc.switch.title')}
         onClick={() => setOpen((o) => !o)}
       >
-        <span className="doc-trigger-name">{activeName || 'Untitled CV'}</span>
+        <span className="doc-trigger-name">{activeName || t('doc.untitled')}</span>
         <span className="doc-count">{docs.length}</span>
         <span className="doc-caret" aria-hidden="true">
           ▾
@@ -79,7 +80,7 @@ export function DocSwitcher() {
                     ref={renameRef}
                     className="doc-rename"
                     defaultValue={d.name}
-                    aria-label="CV name"
+                    aria-label={t('doc.nameAria')}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') commitRename(e.currentTarget.value);
                       if (e.key === 'Escape') setRenaming(false);
@@ -95,8 +96,8 @@ export function DocSwitcher() {
                       setOpen(false);
                     }}
                   >
-                    <span className="doc-name">{d.name || 'Untitled CV'}</span>
-                    <span className="doc-sub">{d.fullName || 'No name yet'}</span>
+                    <span className="doc-name">{d.name || t('doc.untitled')}</span>
+                    <span className="doc-sub">{d.fullName || t('doc.noName')}</span>
                   </button>
                 )}
                 {confirmId === d.id ? (
@@ -112,18 +113,22 @@ export function DocSwitcher() {
                       {/* Deleting the last CV does not leave you with none: deleteDoc
                           falls back to a blank one. Saying "Delete" there would promise
                           something the store does not do. */}
-                      {docs.length > 1 ? 'Delete' : 'Start over'}
+                      {docs.length > 1 ? t('doc.delete') : t('doc.startOver')}
                     </button>
                     <button type="button" className="doc-x" onClick={() => setConfirmId(null)}>
-                      Keep
+                      {t('doc.keep')}
                     </button>
                   </span>
                 ) : (
                   <button
                     type="button"
                     className="doc-x"
-                    title={docs.length > 1 ? 'Delete this CV' : 'Clear this CV and start over'}
-                    aria-label={docs.length > 1 ? `Delete ${d.name}` : `Clear ${d.name} and start over`}
+                    title={docs.length > 1 ? t('doc.delete.title') : t('doc.clear.title')}
+                    aria-label={
+                      docs.length > 1
+                        ? t('doc.delete.aria', { name: d.name })
+                        : t('doc.clear.aria', { name: d.name })
+                    }
                     onClick={() => setConfirmId(d.id)}
                   >
                     ✕
@@ -134,13 +139,13 @@ export function DocSwitcher() {
           </ul>
           <div className="doc-tools">
             <button type="button" className="doc-tool" onClick={() => addDoc('blank')}>
-              New
+              {t('doc.new')}
             </button>
             <button type="button" className="doc-tool" onClick={() => duplicateDoc()}>
-              Duplicate
+              {t('doc.duplicate')}
             </button>
             <button type="button" className="doc-tool" onClick={() => setRenaming(true)}>
-              Rename
+              {t('doc.rename')}
             </button>
           </div>
         </div>
