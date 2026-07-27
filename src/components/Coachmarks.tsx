@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { writeAccentVars } from '@/lib/color';
 import './coachmarks.css';
 
@@ -8,6 +8,8 @@ export interface CoachApi {
   setImportOpen: (v: boolean) => void;
 
   setShowCtl: (v: boolean) => void;
+
+  setPanelOpen: (v: boolean | null) => void;
 }
 
 const PRESS_LEAD_MS = 450;
@@ -17,6 +19,8 @@ const PRESS_MS = 320;
 interface Phase {
 
   sel?: string[];
+
+  one?: boolean;
 
   body?: string;
 
@@ -137,7 +141,90 @@ const axisPhase = (
   },
 });
 
-export const STEPS: Step[] = [
+/**
+ * One column: the panel sits under the page, so a control and the thing it changes are
+ * never on screen together. Each axis therefore gets a second screen that scrolls back
+ * up to the paper, otherwise the whole step demonstrates nothing.
+ */
+const paperPhase = (sel: string, body: string): Phase => ({
+  sel: [sel],
+  one: true,
+  body,
+  focus: () => scrollTo(sel),
+});
+
+const layoutStep = (stacked: boolean): Step => ({
+  id: 'layout',
+  sel: ['.design-panel .pnl-sec'],
+  title: 'A template is a starting point, not a cage',
+  body: 'Watch the page while these change.',
+  phases: stacked
+    ? [
+        {
+          sel: ['.pnl-toggle'],
+          body: 'At this width the design controls sit under the page, behind this Design button.',
+          focus: () => scrollTo('.design-panel'),
+          press: '.pnl-toggle',
+          run: (api) => api.setPanelOpen(true),
+        },
+        {
+          sel: ['.tpl-list'],
+          body: 'Seven presets. Each is a bundle of the four choices below, plus a font and spacing.',
+          focus: () => scrollTo('.tpl-list'),
+        },
+        axisPhase('headerLayout', 1, 'data-header', 'centered', 'Header: switch it to Centred.'),
+        paperPhase('.print-paper .cv-head', 'Back up on the page: the name and contacts have moved with it.'),
+        axisPhase('entryLayout', 2, 'data-entry', 'date-rail', 'Dates: switch to Left rail.'),
+        paperPhase('.print-paper .cv-entry', 'Every date now sits in a column of its own.'),
+        axisPhase('headingLayout', 2, 'data-heading', 'boxed', 'Headings: switch to Boxed.'),
+        paperPhase('.print-paper .cv-secH', 'Every section heading is a filled block now.'),
+        axisPhase('skillStyle', 2, 'data-skills', 'bullets', 'Skills: switch to Bullets.'),
+        paperPhase('.print-paper .cv-skills', 'The same list, laid out as a bulleted grid.'),
+        {
+          sel: ['.cv-palette'],
+          body: 'And the colour. Shuffle picks a whole combination you would not have tried.',
+          focus: () => scrollTo('.cv-palette'),
+          press: '.cv-palette .cv-color:nth-child(5)',
+          run: () => {
+            const el = document.querySelector<HTMLElement>('.cv-palette .cv-color:nth-child(5)');
+            previewSwatch(el);
+            previewAccent(el?.style.getPropertyValue('--color').trim() || '#1d4ed8');
+          },
+        },
+        paperPhase(
+          '.print-paper .cv-head',
+          'The accent follows it everywhere. Nothing you just saw was saved; the page goes back as it was.',
+        ),
+      ]
+    : [
+        {
+          sel: ['.tpl-list'],
+          body: 'Seven presets. Each is a bundle of the four choices below, plus a font and spacing.',
+          focus: () => scrollTo('.tpl-list'),
+        },
+        axisPhase('headerLayout', 1, 'data-header', 'centered', 'Header: watch it move to Centred, and the name and contacts move with it.'),
+        axisPhase('entryLayout', 2, 'data-entry', 'date-rail', 'Dates: switching to Left rail puts every date in a column of its own.'),
+        axisPhase('headingLayout', 2, 'data-heading', 'boxed', 'Headings: Boxed turns every section heading into a filled block.'),
+        axisPhase('skillStyle', 2, 'data-skills', 'bullets', 'Skills: Bullets lays the same list out as a bulleted grid.'),
+        {
+          sel: ['.cv-palette'],
+          body: 'And the colour. Shuffle picks a whole combination you would not have tried. Nothing you just saw was saved; the page goes back as it was.',
+          focus: () => scrollTo('.cv-palette'),
+          press: '.cv-palette .cv-color:nth-child(5)',
+          run: () => {
+            const el = document.querySelector<HTMLElement>('.cv-palette .cv-color:nth-child(5)');
+            previewSwatch(el);
+            previewAccent(el?.style.getPropertyValue('--color').trim() || '#1d4ed8');
+          },
+        },
+      ],
+  cleanup: (api) => {
+    restoreDesign();
+    api.setPanelOpen(null);
+  },
+});
+
+const buildSteps = (stacked: boolean): Step[] => [
 
   {
     id: 'view-options',
@@ -220,35 +307,7 @@ export const STEPS: Step[] = [
     title: 'Download the PDF',
     body: 'This prints the page you are looking at, so the PDF is exactly what you see, clipped to one A4. Pick "Save as PDF" in the dialog your browser opens.',
   },
-  {
-    id: 'layout',
-    sel: ['.design-panel .pnl-sec'],
-    title: 'A template is a starting point, not a cage',
-    body: 'Watch the page while these change.',
-    phases: [
-      {
-        sel: ['.tpl-list'],
-        body: 'Seven presets. Each is a bundle of the four choices below, plus a font and spacing.',
-        focus: () => scrollTo('.tpl-list'),
-      },
-      axisPhase('headerLayout', 1, 'data-header', 'centered', 'Header: watch it move to Centred, and the name and contacts move with it.'),
-      axisPhase('entryLayout', 2, 'data-entry', 'date-rail', 'Dates: switching to Left rail puts every date in a column of its own.'),
-      axisPhase('headingLayout', 2, 'data-heading', 'boxed', 'Headings: Boxed turns every section heading into a filled block.'),
-      axisPhase('skillStyle', 2, 'data-skills', 'bullets', 'Skills: Bullets lays the same list out as a bulleted grid.'),
-      {
-        sel: ['.cv-palette'],
-        body: 'And the colour. Shuffle picks a whole combination you would not have tried. Nothing you just saw was saved; the page goes back as it was.',
-        focus: () => scrollTo('.cv-palette'),
-        press: '.cv-palette .cv-color:nth-child(5)',
-        run: () => {
-          const el = document.querySelector<HTMLElement>('.cv-palette .cv-color:nth-child(5)');
-          previewSwatch(el);
-          previewAccent(el?.style.getPropertyValue('--color').trim() || '#1d4ed8');
-        },
-      },
-    ],
-    cleanup: restoreDesign,
-  },
+  layoutStep(stacked),
 ];
 
 interface Spot {
@@ -260,11 +319,15 @@ interface Spot {
 
 const phasesOf = (s: Step): Phase[] => s.phases ?? [{}];
 
-const SCREEN_COUNT = STEPS.reduce((n, s) => n + phasesOf(s).length, 0);
+const screenCount = (steps: Step[]): number => steps.reduce((n, s) => n + phasesOf(s).length, 0);
 
-export const stepIndex = (id: string): number => Math.max(0, STEPS.findIndex((s) => s.id === id));
-const screenIndex = (step: number, phase: number): number =>
-  STEPS.slice(0, step).reduce((n, s) => n + phasesOf(s).length, 0) + phase + 1;
+// Step ids and their order do not depend on the viewport, so Shortcuts can resolve one
+// without knowing which variant is live.
+const STEP_IDS = buildSteps(false).map((s) => s.id);
+
+export const stepIndex = (id: string): number => Math.max(0, STEP_IDS.indexOf(id));
+const screenIndex = (steps: Step[], step: number, phase: number): number =>
+  screenCount(steps.slice(0, step)) + phase + 1;
 
 const measureAll = (sels: string[], one = false): Spot[] => {
   const out: Spot[] = [];
@@ -331,13 +394,18 @@ export const Coachmarks = memo(function Coachmarks({
   startAt,
   onConsumed,
   dialogsOpen,
+  stacked,
 }: {
   api: CoachApi;
 
   startAt: number | null;
   onConsumed: () => void;
   dialogsOpen: boolean;
+
+  stacked: boolean;
 }) {
+  const steps = useMemo(() => buildSteps(stacked), [stacked]);
+  const SCREEN_COUNT = useMemo(() => screenCount(steps), [steps]);
   const [step, setStep] = useState<number | null>(null);
   const [phase, setPhase] = useState(0);
   const [spots, setSpots] = useState<Spot[]>([]);
@@ -384,37 +452,39 @@ export const Coachmarks = memo(function Coachmarks({
     return () => document.body.classList.remove('coach-tour', 'coach-bare');
   }, [step != null]);
 
+  const stepsRef = useRef(steps);
+  stepsRef.current = steps;
+
   useEffect(() => {
     if (step == null) return;
-    const s = STEPS[step];
-    return () => s?.cleanup?.(apiRef.current);
+    return () => stepsRef.current[step]?.cleanup?.(apiRef.current);
   }, [step]);
 
   const advance = useCallback(() => {
     if (step == null) return;
-    const list = phasesOf(STEPS[step]);
+    const list = phasesOf(steps[step]);
     if (phase < list.length - 1) {
       setPhase(phase + 1);
       return;
     }
-    if (step >= STEPS.length - 1) {
+    if (step >= steps.length - 1) {
       finish();
       return;
     }
     setStep(step + 1);
     setPhase(0);
-  }, [step, phase, finish]);
+  }, [step, phase, finish, steps]);
 
   useEffect(() => {
     if (step == null) return;
-    const s = STEPS[step];
+    const s = steps[step];
     const p = phasesOf(s)[phase];
     const sels = p?.sel ?? s.sel;
     const read = () => {
 
       if (pressing.current) return;
       setSpots((prev) => {
-        const next = measureAll(sels, s.one);
+        const next = measureAll(sels, p?.one ?? s.one);
 
         if (!next.length && p?.press) return measureAll([p.press]);
         return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
@@ -451,7 +521,7 @@ export const Coachmarks = memo(function Coachmarks({
       target?.classList.remove('coach-press');
       pressing.current = false;
     };
-  }, [step, phase]);
+  }, [step, phase, steps]);
 
   useEffect(() => {
     if (step == null) return;
@@ -460,10 +530,11 @@ export const Coachmarks = memo(function Coachmarks({
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
-        const s = STEPS[step];
-        const sels = phasesOf(s)[phase]?.sel ?? s.sel;
+        const s = steps[step];
+        const p = phasesOf(s)[phase];
+        const sels = p?.sel ?? s.sel;
         setSpots((prev) => {
-          const next = measureAll(sels, s.one);
+          const next = measureAll(sels, p?.one ?? s.one);
           return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
         });
       });
@@ -480,19 +551,19 @@ export const Coachmarks = memo(function Coachmarks({
       window.removeEventListener('scroll', sync, true);
       window.removeEventListener('keydown', onKey);
     };
-  }, [step, phase, finish]);
+  }, [step, phase, finish, steps]);
 
   useEffect(() => {
     if (step == null || spots.length) return;
-    const s = STEPS[step];
+    const s = steps[step];
     const p = phasesOf(s)[phase];
     const sels = p?.sel ?? s.sel;
 
     const t = setTimeout(() => {
-      if (!measureAll(sels, s.one).length && !(p?.press && measureAll([p.press]).length)) advance();
+      if (!measureAll(sels, p?.one ?? s.one).length && !(p?.press && measureAll([p.press]).length)) advance();
     }, PRESS_LEAD_MS + PRESS_MS + 1400);
     return () => clearTimeout(t);
-  }, [step, phase, spots.length, advance]);
+  }, [step, phase, spots.length, advance, steps]);
 
   useLayoutEffect(() => {
     const h = cardRef.current?.offsetHeight;
@@ -505,14 +576,14 @@ export const Coachmarks = memo(function Coachmarks({
   }, [step]);
 
   if (step == null) return null;
-  const s = STEPS[step];
+  const s = steps[step];
   const list = phasesOf(s);
   const p = list[phase];
 
   if (!spots.length) return null;
 
   const card = place(spots, cardH);
-  const screenNo = screenIndex(step, phase);
+  const screenNo = screenIndex(steps, step, phase);
   const last = screenNo === SCREEN_COUNT;
 
   return (

@@ -86,12 +86,31 @@ export function EditorPage() {
   const [showCtl, setShowCtl] = useState(initialShowCtl);
   const [importOpen, setImportOpen] = useState(false);
   const [keysOpen, setKeysOpen] = useState(false);
+  const [printBlocked, setPrintBlocked] = useState(false);
 
   const [tourAt, setTourAt] = useState<number | null>(null);
 
-  const coachApi = useMemo(() => ({ setImportOpen, setShowCtl }), []);
+  // null = the panel follows the layout; the tour forces it open on one column, where it
+  // starts collapsed and its controls are not in the DOM at all.
+  const [coachPanel, setCoachPanel] = useState<boolean | null>(null);
+
+  const coachApi = useMemo(() => ({ setImportOpen, setShowCtl, setPanelOpen: setCoachPanel }), []);
 
   const clearTour = useCallback(() => setTourAt(null), []);
+
+  /**
+   * In-app browsers replace window.print with a bridge to a native handler that is often
+   * not registered - the Google app on iOS throws
+   * "undefined is not an object (window.webkit.messageHandlers.print.postMessage)".
+   * Left uncaught it reaches the ErrorBoundary and takes the whole editor down.
+   */
+  const download = useCallback(() => {
+    try {
+      window.print();
+    } catch {
+      setPrintBlocked(true);
+    }
+  }, []);
   const theme = useResumeStore((s) => s.doc.theme);
   usePrintFilename();
 
@@ -387,7 +406,7 @@ export function EditorPage() {
             ✨ Fill with AI
           </button>
 
-          <button className="hdr-dl" type="button" onClick={() => window.print()}>
+          <button className="hdr-dl" type="button" onClick={download}>
             <span>Download CV</span>
           </button>
           </div>
@@ -395,6 +414,22 @@ export function EditorPage() {
       </header>
 
       <RecoveryBanner />
+
+      {printBlocked && (
+        <div className="no-print rec-bar" role="alert">
+          <span className="rec-msg">
+            This in-app browser cannot print. Use its menu to open plaincv.net in a real browser, Chrome or
+            Safari, then press Download CV there. Your CV is stored per browser, so take the backup first
+            and load it on the other side.
+          </span>
+          <button className="rec-btn primary" type="button" onClick={() => setImportOpen(true)}>
+            Back up
+          </button>
+          <button className="rec-btn" type="button" onClick={() => setPrintBlocked(false)}>
+            Dismiss
+          </button>
+        </div>
+      )}
 
       <main
         ref={stageRef}
@@ -418,7 +453,7 @@ export function EditorPage() {
           {stacked ? (
             <div className="no-print w-full" style={{ maxWidth: Math.min(520, usableW || 520) }}>
 
-              <DesignPanel narrow startOpen={!narrow} />
+              <DesignPanel narrow startOpen={coachPanel ?? !narrow} />
             </div>
           ) : (
             <div
@@ -446,6 +481,7 @@ export function EditorPage() {
         startAt={tourAt}
         onConsumed={clearTour}
         dialogsOpen={importOpen || keysOpen}
+        stacked={stacked}
       />
     </div>
   );
