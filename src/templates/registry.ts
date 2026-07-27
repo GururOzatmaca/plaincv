@@ -14,7 +14,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
     label: 'Classic',
     blurb: 'Serif · accent rules',
     defaultTheme: {
-      fontFamily: 'serif', dividers: true, basePt: 10.5, lineHeight: 1.4, marginPt: 46, density: 1, blockSpacing: 1, rowSpacing: 1,
+      fontFamily: 'serif', dividers: true, basePt: 11, lineHeight: 1.4, marginPt: 44, marginXPt: 62, density: 1, blockSpacing: 1, rowSpacing: 1,
 
       headingScale: 1.22, nameScale: 1.96, roleScale: 1.08, titleScale: 0.571,
       headerLayout: 'left', entryLayout: 'date-right', headingLayout: 'rule',
@@ -25,7 +25,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
     label: 'Harvard',
     blurb: 'Centred · no colour',
     defaultTheme: {
-      fontFamily: 'serif', dividers: true, basePt: 11, lineHeight: 1.28, marginPt: 52, density: 1, blockSpacing: 1, rowSpacing: 1,
+      fontFamily: 'serif', dividers: true, basePt: 11, lineHeight: 1.28, marginPt: 48, marginXPt: 62, density: 1, blockSpacing: 0.95, rowSpacing: 0.92,
 
       headingScale: 1.08, nameScale: 1.67, roleScale: 1.06, titleScale: 0.671,
       headerLayout: 'centered', entryLayout: 'date-right', headingLayout: 'rule',
@@ -36,7 +36,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
     label: 'Sharp',
     blurb: 'Bold · accent bars',
     defaultTheme: {
-      fontFamily: 'lato', dividers: true, basePt: 10, lineHeight: 1.3, marginPt: 42, density: 1, blockSpacing: 1, rowSpacing: 1,
+      fontFamily: 'lato', dividers: true, basePt: 10.5, lineHeight: 1.3, marginPt: 42, marginXPt: 48, density: 1, blockSpacing: 1, rowSpacing: 0.95,
       headingScale: 1.19, nameScale: 1.9, roleScale: 1.08, titleScale: 0.589,
       headerLayout: 'left', entryLayout: 'date-right', headingLayout: 'left-rail',
     },
@@ -46,7 +46,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
     label: 'Minimal',
     blurb: 'Quiet · stacked dates',
     defaultTheme: {
-      fontFamily: 'sans', dividers: false, basePt: 10.5, lineHeight: 1.45, marginPt: 52, density: 1, blockSpacing: 1, rowSpacing: 1,
+      fontFamily: 'sans', dividers: false, basePt: 11, lineHeight: 1.45, marginPt: 48, marginXPt: 52, density: 1, blockSpacing: 1.15, rowSpacing: 1.05,
 
       headingScale: 1.12, nameScale: 1.61, roleScale: 1.06, titleScale: 0.696,
       headerLayout: 'left', entryLayout: 'date-stacked', headingLayout: 'rule',
@@ -57,7 +57,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
     label: 'Rail',
     blurb: 'Dates in a left column',
     defaultTheme: {
-      fontFamily: 'serif', dividers: true, basePt: 10.5, lineHeight: 1.38, marginPt: 44, density: 1, blockSpacing: 1, rowSpacing: 1,
+      fontFamily: 'serif', dividers: true, basePt: 11, lineHeight: 1.38, marginPt: 44, marginXPt: 48, density: 1, blockSpacing: 1, rowSpacing: 1,
       headingScale: 1.15, nameScale: 1.84, roleScale: 1.06, titleScale: 0.609,
       headerLayout: 'left', entryLayout: 'date-rail', headingLayout: 'rule',
     },
@@ -67,7 +67,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
     label: 'Banner',
     blurb: 'Split header · filled headings',
     defaultTheme: {
-      fontFamily: 'sans', dividers: true, basePt: 10, lineHeight: 1.35, marginPt: 40, density: 1, blockSpacing: 1, rowSpacing: 1,
+      fontFamily: 'sans', dividers: true, basePt: 10, lineHeight: 1.35, marginPt: 40, marginXPt: 46, density: 1, blockSpacing: 1, rowSpacing: 0.95,
       headingScale: 1.26, nameScale: 2.01, roleScale: 1.08, titleScale: 0.557,
       headerLayout: 'split', entryLayout: 'date-right', headingLayout: 'boxed',
     },
@@ -79,7 +79,7 @@ export const TEMPLATES: Record<string, TemplateDef> = {
     blurb: 'Small type · fits the most',
     defaultTheme: {
 
-      fontFamily: 'sans', dividers: true, basePt: 10, lineHeight: 1.25, marginPt: 36, density: 1, blockSpacing: 1, rowSpacing: 1,
+      fontFamily: 'sans', dividers: true, basePt: 10.5, lineHeight: 1.25, marginPt: 36, marginXPt: 44, density: 1, blockSpacing: 0.82, rowSpacing: 0.85,
 
       headingScale: 1.1, nameScale: 1.61, roleScale: 1.0, titleScale: 0.696,
       headerLayout: 'split', entryLayout: 'date-stacked', headingLayout: 'rule',

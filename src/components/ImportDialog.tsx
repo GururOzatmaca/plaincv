@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useResumeStore } from '@/store/resumeStore';
 import { buildAiPrompt, exportJson, parseImport } from '@/schema/transform';
-import { getFitDeltaPx } from '@/lib/pageBudget';
+import { getFitDeltaPx, requestBandFit } from '@/lib/pageBudget';
 import { A4_H, A4_W } from '@/lib/paperSize';
 import { sampleResume } from '@/schema/sample';
 import { downloadText, slugify } from '@/lib/download';
@@ -109,6 +109,7 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
       body: 'This overwrites everything on the page. Download a copy first if you want to keep it (Ctrl+Z also undoes this).',
       label: 'Replace it',
       run: () => {
+        requestBandFit();
         setDoc(res.doc);
         setErrors([]);
         setOkNotes(res.notes);

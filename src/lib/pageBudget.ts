@@ -5,3 +5,16 @@ export const setFitDeltaPx = (v: number): void => {
 };
 
 export const getFitDeltaPx = (): number => fitDeltaPx;
+
+
+let bandFitPending = false;
+
+export const requestBandFit = (): void => {
+  bandFitPending = true;
+};
+
+export const consumeBandFit = (): boolean => {
+  const p = bandFitPending;
+  bandFitPending = false;
+  return p;
+};

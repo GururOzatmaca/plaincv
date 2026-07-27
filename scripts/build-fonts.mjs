@@ -1,17 +1,4 @@
-/**
- * Font pipeline. Produces public/fonts/*.woff2, subset to latin + latin-ext.
- *
- * Why this exists: the app shipped 16 unsubsetted .ttf files (8.3 MB) declared
- * eagerly, so every visitor downloaded every face of every family before seeing a
- * page. woff2 + subsetting takes a family from ~2.5 MB to ~100 KB, which is what
- * makes a larger font picker affordable at all.
- *
- * latin-ext is NOT optional here: Turkish (ş ğ ı İ ç ö ü) and most of central
- * Europe live in that range, and a CV with a mangled name is worse than no CV.
- *
- * Run: node scripts/build-fonts.mjs
- * Requires: pyftsubset (pip install "fonttools[woff]" brotli)
- */
+
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, existsSync, readdirSync, statSync, rmSync } from 'node:fs';
 import { writeFile, mkdtemp } from 'node:fs/promises';
@@ -21,9 +8,6 @@ import { join } from 'node:path';
 const OUT = 'public/fonts';
 const SRC_LOCAL = 'public/fonts';
 
-// Legacy UA so the Google Fonts CSS API answers with .ttf rather than its own
-// pre-subset woff2 (we do our own subsetting, one file per face, no unicode-range
-// splitting - the picker loads exactly one family at a time).
 const UA_TTF = 'Mozilla/5.0 (Windows NT 6.1; WOW64)';
 
 const UNICODES = [

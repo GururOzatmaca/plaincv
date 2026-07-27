@@ -54,11 +54,12 @@ export const TemplatePreview = memo(function TemplatePreview({
             '--paper-block': String(d.blockSpacing),
             '--paper-row': String(d.rowSpacing),
             '--paper-margin': `${d.marginPt}pt`,
+            '--paper-margin-x': `${d.marginXPt ?? d.marginPt}pt`,
             transform: `scale(${scale})`,
             fontFamily: 'var(--paper-font)',
             fontSize: 'var(--paper-size)',
             lineHeight: 'var(--paper-lh)',
-            padding: 'var(--paper-margin)',
+            padding: 'var(--paper-margin) var(--paper-margin-x)',
           } as CSSProperties
         }
       >

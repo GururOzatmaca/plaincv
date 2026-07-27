@@ -1,0 +1,110 @@
+{
+  "name": "Gurur Kisla Ozatmaca CV",
+  "header": {
+    "fullName": "Gurur Kisla Ozatmaca",
+    "title": "Full-Stack Developer",
+    "contacts": [
+      "gururozatmacaa@gmail.com",
+      "05331983853",
+      "Bornova, İzmir, Turkey",
+      "linkedin.com/in/gurur-kisla-ozatmaca-416422223",
+      "github.com/GururOzatmaca"
+    ]
+  },
+  "sections": [
+    {
+      "type": "profile",
+      "title": "Summary",
+      "text": "Full-stack developer with **2+ years** of experience building React/TypeScript frontends, FastAPI and Node.js backends, and serverless AWS infrastructure across freelance, startup, and research environments. Engineered the frontend for IRESI's RENEWchallenge project, selected for prize-phase funding under Ireland's National Challenge Fund. Implemented multi-tenant SaaS platforms, real-time IoT monitoring systems, AI-integrated data pipelines, Stripe payment flows, and event-driven architectures."
+    },
+    {
+      "type": "skills",
+      "title": "Skills",
+      "items": [
+        {
+          "label": "Languages",
+          "values": ["TypeScript", "JavaScript", "Python", "PHP"]
+        },
+        {
+          "label": "Frontend",
+          "values": ["React.js", "Tailwind CSS", "Material-UI", "Vite"]
+        },
+        {
+          "label": "Backend",
+          "values": ["Node.js", "Express.js", "FastAPI"]
+        },
+        {
+          "label": "Databases",
+          "values": ["PostgreSQL", "DynamoDB", "Meilisearch"]
+        },
+        {
+          "label": "Cloud & DevOps",
+          "values": ["AWS (Lambda, API Gateway, CDK, SQS, SES, S3, CloudWatch)", "Docker", "Docker Compose"]
+        },
+        {
+          "label": "ORM",
+          "values": ["TypeORM", "Drizzle", "SQLAlchemy", "Alembic"]
+        },
+        {
+          "label": "Tools",
+          "values": ["Git", "Stripe", "Socket.IO", "Celery", "JWT", "OpenAI API", "LangChain", "Playwright"]
+        }
+      ]
+    },
+    {
+      "type": "experience",
+      "title": "Experience",
+      "items": [
+        {
+          "role": "Full-Stack Developer",
+          "org": "Freelance",
+          "start": "June 2025",
+          "end": "Present",
+          "bullets": [
+            "Built a multi-tenant POS system for picture framing shops with WordPress REST API, jQuery frontend, and AWS serverless backend (Lambda, DynamoDB, API Gateway, SES), deployed via CDK with single-table design and DynamoDB Streams-to-SQS-to-Meilisearch search pipeline",
+            "Developed a user discovery and age estimation SaaS with FastAPI and React, orchestrating a multi-stage pipeline across AWS Rekognition, OpenAI GPT-4o, Playwright scraping, and Google Lens reverse image search with configurable accuracy levels",
+            "Built a web scraping platform with FastAPI, Playwright, and GPT-4o for automated content discovery (RSS, CSS crawling, AI), extraction, original article generation, and SEO automation across **7 API modules** and **10+ external integrations**",
+            "Developed a real-time multiplayer quiz game with React 19, Node.js/Express, Socket.IO, and PostgreSQL; supporting quiz and impostor game modes with WebSocket-driven state sync, Levenshtein answer validation, and mobile-first UI"
+          ]
+        },
+        {
+          "role": "Full-Stack Developer",
+          "org": "IRESI Research Group",
+          "start": "April 2025",
+          "end": "March 2026",
+          "bullets": [
+            "Delivered the RenewEnergy (renewenergy.io) IoT energy monitoring platform; React frontend with Plotly.js data visualizations for real-time power consumption tracking and historical energy analytics",
+            "Developed FastAPI backend endpoints and device management UI for RenewEnergy, enabling user-facing tariff comparison, location hierarchy, and multi-device monitoring",
+            "Developed the AI-EFFECT portal with React, TypeScript, and FastAPI; AI service management, solution composition with connection validation, and atomic AI4EU package import across **25 REST endpoints** with full-text search",
+            "Designed async Python backends with SQLAlchemy and PostgreSQL across both platforms, with Alembic migrations, JWT authentication, and Docker Compose deployment"
+          ]
+        },
+        {
+          "role": "Software Developer",
+          "org": "Codeise",
+          "start": "September 2023",
+          "end": "Present",
+          "bullets": [
+            "Contributed to ViziDrive (vizidrive.eu), a B2B SaaS platform, building Node.js/TypeScript microservices and React frontends with PostgreSQL and Stripe payment integration",
+            "Created **2** React-based admin dashboard and public portal with Material-UI, MobX, and event-driven microservice communication via SQS",
+            "Developed REST APIs with FastAPI and Node.js, improving response times through query optimization, database indexing, and refactoring",
+            "Implemented reusable React component libraries using Material-UI and TypeScript, standardizing UI patterns across multiple applications"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "education",
+      "title": "Education",
+      "items": [
+        {
+          "degree": "B.Sc. in Software Engineering",
+          "school": "Yasar University",
+          "start": "",
+          "end": "2025",
+          "note": "İzmir, Turkey; GPA 3.70. Awarded merit-based scholarship for 3 consecutive years"
+        }
+      ]
+    }
+  ]
+}

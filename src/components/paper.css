@@ -22,7 +22,7 @@
 .cv-rule {
   position: relative;
 
-  margin: calc(var(--paper-lead) * 0.68 * var(--paper-block)) 0 0;
+  margin: calc(var(--paper-gap) * 0.68 * var(--paper-block)) 0 0;
 }
 
 .cv-rule-x {
@@ -83,7 +83,7 @@ body.coach-tour:not(.coach-bare) .cv-rule-x,
 
   font-size: max(calc(var(--paper-size) * var(--paper-hscale)), var(--paper-size));
 
-  margin: calc(var(--paper-lead) * 0.82 * var(--paper-block)) 0 calc(var(--paper-lead) * 0.41 * var(--paper-block));
+  margin: calc(var(--paper-gap) * 0.82 * var(--paper-block)) 0 calc(var(--paper-gap) * 0.41 * var(--paper-block));
   padding-bottom: 2pt;
 }
 
@@ -154,7 +154,7 @@ body.coach-tour:not(.coach-bare) .cv-rule-x,
 }
 .cv-entry {
   position: relative;
-  margin-bottom: calc(var(--paper-lead) * 0.54 * var(--paper-block));
+  margin-bottom: calc(var(--paper-gap) * 0.54 * var(--paper-block));
 }
 .cv-li {
   position: relative;
@@ -292,8 +292,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
 
 .cv-addbul,
 .cv-addsec-btn {
-  position: relative;  /* Hit areas sized in INVERSE zoom: everything here paints through scale(), so a
-     20px control is ~14 screen px at fit zoom and ~9 on a phone. */
+  position: relative;
   --hit: clamp(16px, calc(24px / var(--zoom, 1)), 44px);
 }
 .cv-addbul::after,
@@ -339,12 +338,20 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
 }
 
 .cv-drag {
-  background: #fff;
-  box-shadow: inset 0 0 0 1px var(--line-ctl);
-}
-.cv-drag {
-  color: var(--accent-strong);
+  /* Ring in inverse zoom: it paints through scale(), so a flat 1px goes to a
+     sub-pixel smudge at fit zoom. */
+  --ring: calc(1px / var(--zoom, 1));
+  background: var(--accent-weak);
+  box-shadow: inset 0 0 0 var(--ring) color-mix(in oklab, var(--paper-accent) 24%, transparent);
+  color: color-mix(in oklab, var(--accent-strong) 72%, #fff);
   cursor: grab;
+  transition: background var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+.cv-drag:hover {
+  background: color-mix(in oklab, var(--accent-weak) 72%, var(--paper-accent));
+  box-shadow: inset 0 0 0 var(--ring) color-mix(in oklab, var(--paper-accent) 45%, transparent);
+  color: var(--accent-strong);
 }
 .cv-drag:active {
   cursor: grabbing;
@@ -451,7 +458,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
 }
 
 .cv-addbul {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 4px;
   max-height: 0;
@@ -480,13 +487,12 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
 body.coach-tour:not(.coach-bare) .cv-addbul,
 
 .cv-addbul:focus-visible {
+  display: flex;
   max-height: 60px;
 
   overflow: visible;
   opacity: 1;
-  margin-top: 2pt;
-  padding-top: 1px;
-  padding-bottom: 1px;
+  margin-top: 0.5pt;
 }
 .cv-addbul:hover {
   color: var(--accent-ink);
@@ -502,15 +508,21 @@ body.coach-tour:not(.coach-bare) .cv-addbul,
   padding: 0;
   border: none;
   border-radius: 5px;
-  background: var(--accent-strong);
-  color: #fff;
+  /* Pale tint + saturated glyph, the same weight as the delete control. --accent-ink is
+     darkened against --accent-weak until it clears AA, so this holds at any accent. */
+  background: var(--accent-weak);
+  color: var(--accent-ink);
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
 }
+.cv-plus:hover {
+  background: var(--accent-strong);
+  color: #fff;
+}
 
 .cv-secadd-wrap {
-  display: block;
+  display: none;
   max-height: 0;
   overflow: hidden;
   margin-left: -24pt;
@@ -520,7 +532,7 @@ body.coach-tour:not(.coach-bare) .cv-addbul,
 .cv-hz-secadd {
   position: relative;
   width: 60px;
-  height: 26px;
+  height: 19px;
 }
 .cv-hz-secadd > * {
   transition: opacity 0s;
@@ -531,10 +543,11 @@ body.coach-tour:not(.coach-bare) .cv-addbul,
 .show-ctl .cv-secadd-wrap,
 body.coach-tour:not(.coach-bare) .cv-secadd-wrap,
 .cv-secadd-wrap:focus-within {
+  display: block;
   max-height: 60px;
 
   overflow: visible;
-  margin-top: 2pt;
+  margin-top: 0.5pt;
 }
 .cv-section:hover:not(:has(.cv-hz-l:hover)) .cv-secadd-wrap .cv-hz-secadd > *,
 .cv-secadd-wrap:hover .cv-hz-secadd > * {
@@ -558,8 +571,8 @@ body:not(.cv-dragging) .print-stage.is-scrolling .print-paper {
 .cv-addsec {
   position: relative;
   flex: 1 1 auto;
-  min-height: 7px;
-  padding-top: 7px;
+  min-height: 0;
+  padding-top: 0;
 }
 .cv-addsec-btn {
   display: inline-flex;
@@ -594,9 +607,7 @@ body.coach-tour:not(.coach-bare) .cv-addsec-btn,
   max-height: 40px;
   overflow: visible;
   opacity: 1;
-  margin-top: 4pt;
-  padding-top: 1px;
-  padding-bottom: 1px;
+  margin-top: 2pt;
 }
 .cv-addsec-btn:hover {
   color: var(--accent-ink);
@@ -764,11 +775,16 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
   height: 15px;
   border: none;
   border-radius: 4px;
-  background: var(--accent-strong);
-  color: #fff;
+  background: var(--accent-weak);
+  color: var(--accent-ink);
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
+}
+.cv-contact-add:hover,
+.cv-chip-add:hover {
+  background: var(--accent-strong);
+  color: #fff;
 }
 .cv-contact-add {
   margin-left: -8pt;
@@ -780,7 +796,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
   display: grid;
 }
 .cv-note {
-  margin-top: calc(var(--paper-lead) * 0.14 * var(--paper-row));
+  margin-top: calc(var(--paper-gap) * 0.14 * var(--paper-row));
   color: var(--paper-muted);
 }
 .cv-etop {
@@ -803,13 +819,13 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
   white-space: nowrap;
 }
 .cv-ul {
-  margin: calc(var(--paper-lead) * 0.27 * var(--paper-row)) 0 0;
+  margin: calc(var(--paper-gap) * 0.27 * var(--paper-row)) 0 0;
   padding-left: 13pt;
 
   list-style-type: disc;
 }
 .cv-li {
-  margin-bottom: calc(var(--paper-lead) * 0.17 * var(--paper-row));
+  margin-bottom: calc(var(--paper-gap) * 0.17 * var(--paper-row));
 }
 
 @media screen {
@@ -869,7 +885,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
   align-items: baseline;
 
   gap: 0.2em;
-  margin-bottom: calc(var(--paper-lead) * 0.2 * var(--paper-row));
+  margin-bottom: calc(var(--paper-gap) * 0.2 * var(--paper-row));
 }
 .cv-skillrow:last-of-type {
   margin-bottom: 0;
@@ -918,7 +934,44 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
   z-index: 3;
   padding: 0;
   border-radius: 4px;
+  background: transparent;
+  color: var(--accent-ink);
+
+  /* zero flow height: at 15px it grew every skills row, so the editor pushed
+     content past the page edge that the PDF still fits */
+  height: 0;
+  align-self: center;
+  overflow: visible;
+}
+.cv-chip-add::after {
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+}
+.cv-chip-add::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 15px;
+  height: 15px;
+  transform: translateY(-50%);
+  border-radius: 4px;
+  background: var(--accent-weak);
+  transition: background var(--dur-1) var(--ease-out);
+}
+.cv-chip-add > * {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 15px;
+  height: 15px;
+  transform: translateY(-50%) scale(var(--glyph, 0.6));
+}
+.cv-chip-add:hover::before {
   background: var(--accent-strong);
+}
+.cv-chip-add:hover {
   color: #fff;
 }
 .cv-skillrow:hover .cv-chip-add,
@@ -971,7 +1024,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-add,
   grid-template-columns: repeat(3, minmax(0, 1fr));
   column-gap: 18pt;
 
-  row-gap: calc(var(--paper-lead) * 0.2 * var(--paper-row));
+  row-gap: calc(var(--paper-gap) * 0.2 * var(--paper-row));
 
   align-items: start;
   margin-top: 3pt;

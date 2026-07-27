@@ -7,7 +7,7 @@ export const sampleResume: Resume = {
   id: 'cv_sample',
   name: 'Backend Engineer CV',
   templateId: 'classic',
-  theme: { ...DEFAULT_THEME },
+  theme: { ...DEFAULT_THEME, lineHeight: 1.45, blockSpacing: 1.15, rowSpacing: 1.12 },
   header: {
     fullName: 'James Carter',
     title: 'Senior Backend Engineer',
@@ -52,8 +52,7 @@ export const sampleResume: Resume = {
                 { text: '.' },
               ],
             },
-            { id: 'b_e1_2', runs: [{ text: 'Designed a multi-tenant PostgreSQL schema serving 3M+ transactions per day.' }] },
-            { id: 'b_e1_3', runs: [{ text: 'Cut on-call pages 60% with SLO alerting and load-shedding on the payments API.' }] },
+            { id: 'b_e1_2', runs: [{ text: 'Cut on-call pages 60% with SLO alerting and load-shedding on the payments API.' }] },
           ],
         },
         {
@@ -64,8 +63,7 @@ export const sampleResume: Resume = {
           end: 'Aug 2022',
           bullets: [
             { id: 'b_e2_1', runs: [{ text: 'Built a Kafka event pipeline replacing nightly batch jobs, 12h data lag to 5 minutes.' }] },
-            { id: 'b_e2_2', runs: [{ text: 'Reduced cloud spend 28% through right-sizing, caching and query tuning.' }] },
-            { id: 'b_e2_3', runs: [{ text: 'Shipped a public REST API adopted by 40+ partner integrations.' }] },
+            { id: 'b_e2_2', runs: [{ text: 'Shipped a public REST API adopted by 40+ partner integrations.' }] },
           ],
         },
         {
@@ -90,7 +88,6 @@ export const sampleResume: Resume = {
         { id: 'sk1', label: 'Languages', values: ['Go', 'Python', 'TypeScript', 'SQL'] },
         { id: 'sk2', label: 'Infrastructure', values: ['AWS', 'Kubernetes', 'Terraform', 'Kafka'] },
         { id: 'sk3', label: 'Data', values: ['PostgreSQL', 'Redis', 'ClickHouse'] },
-        { id: 'sk4', label: 'Practices', values: ['CI/CD', 'Observability', 'Load testing', 'Incident response'] },
       ],
     },
     {
@@ -113,7 +110,6 @@ export const sampleResume: Resume = {
       title: 'Certifications',
       items: [
         { id: 'ct1', name: 'AWS Certified Solutions Architect (Associate)', issuer: 'Amazon Web Services', date: '2024' },
-        { id: 'ct2', name: 'Certified Kubernetes Administrator', issuer: 'The Linux Foundation', date: '2022' },
       ],
     },
   ],

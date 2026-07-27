@@ -158,11 +158,7 @@ export function EditorPage() {
     return () => ro.disconnect();
   }, [narrow]);
 
-  // Marks the stage while it scrolls; paper.css drops pointer-events on the page for
-  // the duration, so its :hover / :has() rules stop re-resolving on every frame as
-  // content slides under a stationary cursor. Stage only: the panel scrolls
-  // independently, and an element's scroll event reaches neither ancestors nor their
-  // capture listeners.
+
   useLayoutEffect(() => {
     const el = stageRef.current;
     if (!el) return;

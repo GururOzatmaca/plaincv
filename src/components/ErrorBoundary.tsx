@@ -57,10 +57,6 @@ function ErrorScreen({ text }: { text: string }) {
 
 type State = { error: string | null };
 
-// Catches React render errors (getDerivedStateFromError) AND uncaught runtime /
-// unhandled-promise errors (window listeners; these also cover event-handler
-// throws, which React boundaries do not catch). Resource 404s are not caught
-// (listener is bubble-phase), so a missing favicon won't trip this.
 export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   state: State = { error: null };
 

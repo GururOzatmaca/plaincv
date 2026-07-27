@@ -17,7 +17,7 @@
   letter-spacing: 0.08em;
   border-bottom: none;
 
-  margin: calc(var(--paper-lead) * 1.18 * var(--paper-block)) 0 calc(var(--paper-lead) * 0.33 * var(--paper-block));
+  margin: calc(var(--paper-gap) * 1.18 * var(--paper-block)) 0 calc(var(--paper-gap) * 0.33 * var(--paper-block));
   padding-bottom: 0;
 }
 

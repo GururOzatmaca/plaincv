@@ -15,7 +15,7 @@ export const DEFAULT_THEME: Theme = {
   entryLayout: 'date-right',
   headingLayout: 'rule',
   skillStyle: 'plain',
-  basePt: 10.5,
+  basePt: 11,
 
   lineHeight: 1.4,
   headingScale: 1.22,
@@ -26,7 +26,8 @@ export const DEFAULT_THEME: Theme = {
   blockSpacing: 1,
   rowSpacing: 1,
   secondaryInk: 'grey',
-  marginPt: 46,
+  marginPt: 44,
+  marginXPt: 62,
   accent: '#0891b2',
 };
 

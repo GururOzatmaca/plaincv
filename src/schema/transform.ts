@@ -6,6 +6,7 @@ import { lineToMd, mdToLine } from './marks';
 import { uid, DEFAULT_THEME } from './factory';
 import { clampAccent } from '@/lib/color';
 import { FONTS, DEFAULT_FONT_ID } from '@/lib/fonts/registry';
+import { DEFAULT_TEMPLATE_ID, migrateTemplateId, resolveTemplate } from '@/templates/registry';
 
 const TITLE: Record<Section['type'], string> = {
   profile: 'Profile',
@@ -25,8 +26,11 @@ const toBullets = (arr?: string[]): Bullet[] => (arr ?? []).map((b) => ({ id: ui
 const oneOf = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T =>
   allowed.includes(v as T) ? (v as T) : fallback;
 
-function mergeTheme(t?: ImportDto['theme']): Theme {
-  const m = { ...DEFAULT_THEME, ...(t ?? {}) };
+function mergeTheme(templateId: string, t?: ImportDto['theme']): Theme {
+  // The template's own numbers, not classic's: a themeless import that names a
+  // template used to render classic's metrics under that template's skin.
+  const base: Theme = { ...DEFAULT_THEME, ...resolveTemplate(templateId).defaultTheme };
+  const m = { ...base, ...(t ?? {}) };
 
   const legacy = t?.nameScale === undefined && t?.headingScale !== undefined;
   const headingScale = legacy ? Math.max(m.headingScale * 0.6, 1) : m.headingScale;
@@ -44,17 +48,17 @@ function mergeTheme(t?: ImportDto['theme']): Theme {
     headingScale: clamp(headingScale, 1, 1.5),
     nameScale: clamp(nameScale, 1.2, 2.6),
 
-    roleScale: clamp(t?.roleScale ?? 1, 1, 1.3),
+    roleScale: clamp(t?.roleScale ?? base.roleScale, 1, 1.3),
 
-    titleScale: clamp(t?.titleScale ?? 1.12 / nameScale, 0.35, 0.9),
+    titleScale: clamp(t?.titleScale ?? (legacy ? 1.12 / nameScale : base.titleScale), 0.35, 0.9),
     density: clamp(m.density, 0.7, 1.3),
 
     blockSpacing: clamp(t?.blockSpacing ?? m.density, 0, 1.3),
     rowSpacing: clamp(t?.rowSpacing ?? m.density, 0, 1.3),
     secondaryInk: oneOf(m.secondaryInk, ['grey', 'soft', 'black'] as const, 'grey'),
-    marginPt: clamp(m.marginPt, 24, 64),
+    marginPt: clamp(m.marginPt, 24, 72),
 
-    ...(m.marginXPt === undefined ? {} : { marginXPt: clamp(m.marginXPt, 24, 64) }),
+    ...(m.marginXPt === undefined ? {} : { marginXPt: clamp(m.marginXPt, 24, 72) }),
     accent: clampAccent(m.accent),
   };
 }
@@ -162,12 +166,14 @@ export function dtoToResume(dto: ImportDto): Resume {
     if (s.noRule && sections[i]) sections[i].noRule = true;
   });
 
+  const templateId = migrateTemplateId(dto.templateId ?? DEFAULT_TEMPLATE_ID);
+
   return {
     schemaVersion: SCHEMA_VERSION,
     id: uid(),
     name: dto.name ?? 'My CV',
-    templateId: dto.templateId ?? 'classic',
-    theme: mergeTheme(dto.theme),
+    templateId,
+    theme: mergeTheme(templateId, dto.theme),
     header: {
       fullName: dto.header?.fullName ?? '',
       title: dto.header?.title ?? '',

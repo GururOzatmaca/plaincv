@@ -40,7 +40,7 @@
   --r-lg: 10px;
 
   --paper-font: 'LibSerif', Georgia, serif;
-  --paper-size: 10.5pt;
+  --paper-size: 11pt;
   --paper-lh: 1.4;
 
   --paper-hscale: 1.22;
@@ -49,8 +49,13 @@
   --paper-tscale: 0.571;
   --paper-density: 1;
 
-  --paper-lead: calc(var(--paper-size) * var(--paper-lh));
-  --paper-margin: 46pt;
+  /* gaps track type size ONLY. This was size*lh, so the line-spacing slider dragged
+     every section gap with it and raising leading overflowed the page. */
+  --paper-gap: calc(var(--paper-size) * 1.35);
+  --paper-block: 1;
+  --paper-row: 1;
+  --paper-margin: 44pt;
+  --paper-margin-x: 62pt;
   --paper-accent: #0891b2;
 
   --paper-muted: #474e55;

@@ -10,6 +10,7 @@
     "typecheck": "tsc -b --noEmit",
     "guardrail": "node scripts/check-guardrail.mjs",
     "ats-check": "node scripts/ats-check.mjs",
+    "tune-check": "node scripts/tune-check.mjs",
     "fonts": "node scripts/build-fonts.mjs"
   },
   "dependencies": {

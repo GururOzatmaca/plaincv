@@ -1,0 +1,134 @@
+{
+  "name": "Principal Engineer CV",
+  "header": {
+    "fullName": "Adaeze Okonkwo",
+    "title": "Principal Platform Engineer",
+    "contacts": [
+      "adaeze.okonkwo@example.com",
+      "+44 7700 900321",
+      "Manchester, United Kingdom",
+      "linkedin.com/in/adaeze-okonkwo",
+      "github.com/aokonkwo"
+    ]
+  },
+  "sections": [
+    {
+      "type": "profile",
+      "title": "Profile",
+      "text": "Platform engineer with **twelve years** across payments, streaming data and developer tooling, most of it spent making other teams faster rather than shipping features directly. Owns the migration strategy for a 400-service estate, the internal deployment platform three hundred engineers use daily, and the incident practice behind a 99.99% availability target. Comfortable operating between architecture review and a 3am page."
+    },
+    {
+      "type": "experience",
+      "title": "Experience",
+      "items": [
+        {
+          "role": "Principal Platform Engineer",
+          "org": "Northwind Payments",
+          "start": "Feb 2022",
+          "end": "Present",
+          "bullets": [
+            "Led the migration of 400 services from a shared Kubernetes cluster to per-team clusters with a golden-path Terraform module, cutting median deploy time from 22 minutes to 4 and removing the noisy-neighbour class of incident entirely.",
+            "Designed the multi-region active-active topology for the card authorisation path, holding 99.99% availability through two full regional failovers.",
+            "Built the internal developer portal that now fronts every service catalogue, runbook and on-call rota, adopted by 38 of 41 teams within two quarters.",
+            "Chaired the architecture review board and rewrote the RFC process, reducing mean time from proposal to decision from 6 weeks to 9 days.",
+            "Cut cloud spend 31% through commitment planning, right-sizing and killing 74 orphaned environments."
+          ]
+        },
+        {
+          "role": "Staff Engineer, Data Platform",
+          "org": "Helio Streaming",
+          "start": "Mar 2019",
+          "end": "Jan 2022",
+          "bullets": [
+            "Replaced a nightly Spark batch with a Flink pipeline processing 2.4M events per second, dropping end-to-end data lag from 11 hours to under 90 seconds.",
+            "Introduced schema registry and contract tests across 60 producers, ending the recurring class of silent downstream breakage.",
+            "Owned the cost model for the data lake, cutting storage spend 44% with tiering and compaction without changing a single query.",
+            "Mentored six engineers to senior, three of whom now lead their own platform teams."
+          ]
+        },
+        {
+          "role": "Senior Backend Engineer",
+          "org": "Kestrel Health",
+          "start": "Jun 2016",
+          "end": "Feb 2019",
+          "bullets": [
+            "Built the FHIR-compliant integration layer connecting 19 hospital systems, passing NHS Digital assurance first time.",
+            "Introduced event sourcing for the patient record service, which made a two-year audit backlog answerable in minutes.",
+            "Took the service from 92% to 99.95% availability by fixing connection pooling, adding load shedding and rewriting the retry policy."
+          ]
+        },
+        {
+          "role": "Backend Engineer",
+          "org": "Loom Logistics",
+          "start": "Aug 2014",
+          "end": "May 2016",
+          "bullets": [
+            "Wrote the route optimisation service in Go, cutting average planned distance per vehicle 12%.",
+            "Migrated the monolith's billing module to its own service with zero downtime and no customer-visible change."
+          ]
+        },
+        {
+          "role": "Software Engineer",
+          "org": "Bright Anvil",
+          "start": "Sep 2013",
+          "end": "Jul 2014",
+          "bullets": [
+            "Built the reporting API backing the customer dashboard, still in production a decade later.",
+            "Added the first CI pipeline the company had, taking release from a manual afternoon to eleven minutes."
+          ]
+        }
+      ]
+    },
+    {
+      "type": "projects",
+      "title": "Projects",
+      "items": [
+        {
+          "name": "driftwatch",
+          "link": "github.com/aokonkwo/driftwatch",
+          "bullets": [
+            "Open-source Terraform drift detector, 3.2k stars, used in production by four companies I know of and probably more I do not."
+          ]
+        },
+        {
+          "name": "slowquery",
+          "link": "github.com/aokonkwo/slowquery",
+          "bullets": [
+            "Postgres query plan differ that flags regressions between releases; wrote it after a 3am page and never had that page again."
+          ]
+        }
+      ]
+    },
+    {
+      "type": "skills",
+      "title": "Skills",
+      "items": [
+        { "label": "Languages", "values": ["Go", "Python", "TypeScript", "Java", "SQL"] },
+        { "label": "Infrastructure", "values": ["Kubernetes", "Terraform", "AWS", "GCP", "Istio"] },
+        { "label": "Data", "values": ["Flink", "Kafka", "Postgres", "Snowflake", "dbt"] },
+        { "label": "Practices", "values": ["SLO design", "Incident command", "Capacity planning", "Cost modelling"] }
+      ]
+    },
+    {
+      "type": "education",
+      "title": "Education",
+      "items": [
+        {
+          "degree": "MEng Computer Science",
+          "school": "University of Manchester",
+          "start": "2009",
+          "end": "2013",
+          "note": "First-class honours. Thesis on consensus under partial synchrony."
+        }
+      ]
+    },
+    {
+      "type": "certifications",
+      "title": "Certifications",
+      "items": [
+        { "name": "Certified Kubernetes Administrator", "issuer": "CNCF", "date": "2021" },
+        { "name": "AWS Solutions Architect Professional", "issuer": "Amazon Web Services", "date": "2020" }
+      ]
+    }
+  ]
+}

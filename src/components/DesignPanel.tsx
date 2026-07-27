@@ -4,6 +4,7 @@ import type { Theme } from '@/schema/resume';
 import { clampAccent, writeAccentVars } from '@/lib/color';
 import { nextLook, describeLook, VALID_LOOKS } from '@/lib/shuffle';
 import { TEMPLATES, TEMPLATE_IDS, resolveTemplate } from '@/templates/registry';
+import { requestBandFit } from '@/lib/pageBudget';
 import { FontPicker } from './FontPicker';
 import { TemplatePreview } from './TemplatePreview';
 import { ColorPicker } from './ColorPicker';
@@ -123,7 +124,8 @@ export const DesignPanel = memo(function DesignPanel({ narrow = false, startOpen
   const templateId = useResumeStore((s) => s.doc.templateId);
   const update = useResumeStore((s) => s.update);
 
-  const applyTemplate = (id: string) =>
+  const applyTemplate = (id: string) => {
+    requestBandFit();
     update((d) => {
       const t = resolveTemplate(id).defaultTheme;
       d.templateId = id;
@@ -145,6 +147,7 @@ export const DesignPanel = memo(function DesignPanel({ narrow = false, startOpen
       d.theme.entryLayout = t.entryLayout;
       d.theme.headingLayout = t.headingLayout;
     });
+  };
 
   const rec = resolveTemplate(templateId).defaultTheme;
 
@@ -243,9 +246,9 @@ export const DesignPanel = memo(function DesignPanel({ narrow = false, startOpen
         <section className="pnl-sec">
           <h3 className="pnl-h">Spacing</h3>
 
-          <LiveSlider label="Margin top / bottom" min={36} max={64} step={2} value={theme.marginPt} cssVar="--paper-margin" unit="pt" format={(v) => `${v} pt`} commit={(v) => set('marginPt', v)} recommended={rec.marginPt} />
+          <LiveSlider label="Margin top / bottom" min={36} max={72} step={2} value={theme.marginPt} cssVar="--paper-margin" unit="pt" format={(v) => `${v} pt`} commit={(v) => set('marginPt', v)} recommended={rec.marginPt} />
 
-          <LiveSlider label="Margin sides" min={36} max={64} step={2} value={theme.marginXPt ?? theme.marginPt} cssVar="--paper-margin-x" unit="pt" format={(v) => `${v} pt`} commit={(v) => set('marginXPt', v)} recommended={rec.marginXPt ?? rec.marginPt} />
+          <LiveSlider label="Margin sides" min={36} max={72} step={2} value={theme.marginXPt ?? theme.marginPt} cssVar="--paper-margin-x" unit="pt" format={(v) => `${v} pt`} commit={(v) => set('marginXPt', v)} recommended={rec.marginXPt ?? rec.marginPt} />
 
           <LiveSlider label="Block spacing" min={0} max={1.3} step={0.05} value={theme.blockSpacing} cssVar="--paper-block" unit="" format={(v) => `${Math.round(v * 100)}%`} commit={(v) => set('blockSpacing', v)} recommended={rec.blockSpacing} />
           <LiveSlider label="Row spacing" min={0} max={1.3} step={0.05} value={theme.rowSpacing} cssVar="--paper-row" unit="" format={(v) => `${Math.round(v * 100)}%`} commit={(v) => set('rowSpacing', v)} recommended={rec.rowSpacing} />

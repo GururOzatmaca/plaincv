@@ -5,7 +5,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import type { Bullet, Line, Resume, Section } from '@/schema/resume';
 import { uid, newItem, newSection, newBullet } from '@/schema/factory';
 import { A4_W, A4_H } from '@/lib/paperSize';
-import { setFitDeltaPx } from '@/lib/pageBudget';
+import { setFitDeltaPx, consumeBandFit } from '@/lib/pageBudget';
 import { Editable } from './Editable';
 import { RichEditable } from './RichEditable';
 import { PrintLink, willLink } from './PrintLink';
@@ -18,6 +18,9 @@ export { A4_W, A4_H };
 
 type UpdateFn = (recipe: (doc: Resume) => void) => void;
 type RequestFocus = (fid: string, caret?: 'start' | 'end') => void;
+
+const BAND_LO = 0.86;
+const BAND_FLOOR = 0.62;
 
 const SECTION_TYPES: { type: Section['type']; label: string }[] = [
   { type: 'profile', label: 'Profile' },
@@ -1171,7 +1174,8 @@ export function EditorPaper({ scale }: { scale: number }) {
       const { ink, needed } = measure();
       // Warn only where the PDF actually loses content. Running into the bottom margin
       // is a layout problem, not a missing paragraph, and must not raise "cut".
-      const nextOverflow = ink > el.clientHeight + 1;
+      const lineBox = parseFloat(getComputedStyle(el).lineHeight) || 0;
+      const nextOverflow = ink > el.clientHeight + Math.max(2, lineBox * 0.3);
       setFitDeltaPx(needed - el.clientHeight);
       setPageFit((prev) => {
         const nextFailed = prev.fitFailedAt === null || prev.fitFailedAt === needed ? prev.fitFailedAt : null;
@@ -1182,13 +1186,36 @@ export function EditorPaper({ scale }: { scale: number }) {
     };
 
     check();
+    let live = true;
+    void document.fonts?.ready.then(() => {
+      if (live) check();
+    });
     return () => {
+      live = false;
       cancelAnimationFrame(raf);
       ro.disconnect();
     };
   }, [doc]);
 
-  const fitToPage = () => {
+  useEffect(() => {
+    if (!consumeBandFit()) return;
+    let live = true;
+    const id = requestAnimationFrame(() => {
+      void (document.fonts?.ready ?? Promise.resolve()).then(() => {
+        if (live) fitToBand();
+      });
+    });
+    return () => {
+      live = false;
+      cancelAnimationFrame(id);
+    };
+  }, [doc]);
+
+  // `bestEffort` keeps whatever the walk managed when the CV cannot be made to fit
+  // at all. The manual button does NOT: pressing Fit to page and being told it failed,
+  // with the document silently reset to floors, would be the worse surprise. The
+  // automatic path does, because half a page of cut content beats a full page of it.
+  const fitToPage = (bestEffort = false) => {
     const el = paperRef.current;
     if (!el) return;
     const root = document.documentElement.style;
@@ -1197,11 +1224,11 @@ export function EditorPaper({ scale }: { scale: number }) {
 
     const knobs = [
 
-      { key: 'rowSpacing', cssVar: '--paper-row', floor: 0.72, step: 0.04, unit: '' },
-      { key: 'blockSpacing', cssVar: '--paper-block', floor: 0.72, step: 0.04, unit: '' },
-      { key: 'lineHeight', cssVar: '--paper-lh', floor: 1.15, step: 0.02, unit: '' },
-      { key: 'marginPt', cssVar: '--paper-margin', floor: 36, step: 2, unit: 'pt' },
-      { key: 'basePt', cssVar: '--paper-size', floor: 10, step: 0.5, unit: 'pt' },
+      { key: 'rowSpacing', cssVar: '--paper-row', floor: 0.62, step: 0.04, unit: '' },
+      { key: 'blockSpacing', cssVar: '--paper-block', floor: 0.62, step: 0.04, unit: '' },
+      { key: 'lineHeight', cssVar: '--paper-lh', floor: 1.12, step: 0.02, unit: '' },
+      { key: 'marginPt', cssVar: '--paper-margin', floor: 32, step: 2, unit: 'pt' },
+      { key: 'basePt', cssVar: '--paper-size', floor: 9.5, step: 0.5, unit: 'pt' },
     ] as const;
 
     const apply = () => {
@@ -1221,7 +1248,7 @@ export function EditorPaper({ scale }: { scale: number }) {
       if (fits) break;
     }
 
-    if (!fits) {
+    if (!fits && !bestEffort) {
 
       root.setProperty('--paper-row', String(doc.theme.rowSpacing));
       root.setProperty('--paper-block', String(doc.theme.blockSpacing));
@@ -1233,7 +1260,8 @@ export function EditorPaper({ scale }: { scale: number }) {
       return;
     }
 
-    setPageFit((prev) => (prev.fitFailedAt === null ? prev : { ...prev, fitFailedAt: null }));
+    const failedAt = fits ? null : measure().needed;
+    setPageFit((prev) => (prev.fitFailedAt === failedAt ? prev : { ...prev, fitFailedAt: failedAt }));
     update((d) => {
       d.theme.rowSpacing = t.rowSpacing;
       d.theme.blockSpacing = t.blockSpacing;
@@ -1241,6 +1269,67 @@ export function EditorPaper({ scale }: { scale: number }) {
       d.theme.marginPt = t.marginPt;
       d.theme.basePt = t.basePt;
     });
+  };
+
+  const growToBand = () => {
+    const el = paperRef.current;
+    if (!el) return;
+    const root = document.documentElement.style;
+    const limit = el.clientHeight + 1;
+    const target = el.clientHeight * BAND_LO;
+    const t = { ...doc.theme };
+    const preset = resolveTemplate(doc.templateId).defaultTheme;
+
+    // Air only, and never far past the template's own look: type size and margins
+    // are what the template IS, so growing them would make every short CV a
+    // different template. Caps also respect the panel's slider maxima.
+    const knobs = [
+      { key: 'rowSpacing', cssVar: '--paper-row', cap: Math.min(preset.rowSpacing * 1.15, 1.3), step: 0.04, unit: '' },
+      { key: 'blockSpacing', cssVar: '--paper-block', cap: Math.min(preset.blockSpacing * 1.15, 1.3), step: 0.04, unit: '' },
+      { key: 'lineHeight', cssVar: '--paper-lh', cap: Math.min(preset.lineHeight * 1.15, 1.8), step: 0.02, unit: '' },
+    ] as const;
+
+    const write = (k: (typeof knobs)[number]) => root.setProperty(k.cssVar, `${t[k.key]}${k.unit}`);
+
+    let needed = measure().needed;
+    for (const k of knobs) {
+      let guard = 200;
+      while (needed < target && t[k.key] < k.cap && guard-- > 0) {
+        const prev = t[k.key];
+        t[k.key] = Math.min(k.cap, +(t[k.key] + k.step).toFixed(2));
+        write(k);
+        const next = measure().needed;
+        if (next > limit) {
+          t[k.key] = prev;
+          write(k);
+          needed = measure().needed;
+          guard = 0;
+          break;
+        }
+        needed = next;
+      }
+      if (needed >= target) break;
+    }
+
+    update((d) => {
+      d.theme.rowSpacing = t.rowSpacing;
+      d.theme.blockSpacing = t.blockSpacing;
+      d.theme.lineHeight = t.lineHeight;
+    });
+  };
+
+  // One entry point for "the document just changed wholesale" - import, template
+  // switch. Editing does NOT trigger it: retuning the page under a typing cursor
+  // is the opposite of helpful.
+  const fitToBand = () => {
+    const el = paperRef.current;
+    if (!el) return;
+    const fill = measure().needed / el.clientHeight;
+    if (fill > 1) return fitToPage(true);
+    // Below the floor the document is genuinely short; stretching it to fill A4
+    // reads as padding, so leave it honest.
+    if (fill >= BAND_LO || fill < BAND_FLOOR) return;
+    growToBand();
   };
 
   return (
@@ -1251,7 +1340,7 @@ export function EditorPaper({ scale }: { scale: number }) {
       style={{
         width: A4_W * scale,
 
-        height: Math.max(A4_H, contentH) * scale,
+        height: (overflow ? Math.max(A4_H, contentH) : A4_H) * scale,
 
         boxShadow: '0 1px 2px rgba(15,23,32,.04), 0 8px 24px rgba(15,23,32,.08)',
       }}
@@ -1299,7 +1388,7 @@ export function EditorPaper({ scale }: { scale: number }) {
                 : "Everything below this line is missing from the PDF."}
             </span>
             {!fitFailed && (
-              <button type="button" className="cv-fit-btn" onClick={fitToPage}>
+              <button type="button" className="cv-fit-btn" onClick={() => fitToPage()}>
                 Fit to page
               </button>
             )}

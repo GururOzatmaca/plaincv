@@ -23,12 +23,7 @@ const BARREL = 'templates.css';
 const GUARDED = ['cv-section', 'cv-secH', 'cv-entry', 'cv-li', 'cv-etop'];
 const BANNED = 'position|display|overflow(?:-x|-y)?|max-height';
 
-// Tracking cap on section headings. letter-spacing widens the gap between GLYPHS, and
-// past roughly 0.11em a geometry-based PDF extractor starts calling every one of those
-// gaps a word break: EDUCATION came out of three templates as "E D U C AT I O N", which
-// to an ATS is worse than having no heading at all, because the section boundary is
-// gone. Measured in Chrome + pdftotext: 0.08 / 0.09 / 0.10em clean, 0.12 / 0.14 / 0.18em
-// broken. `npm run ats-check` catches it against a real render; this catches it in 40ms.
+
 const TRACK_MAX = 0.08;
 
 const guardedRe = new RegExp(`\\.(?:${GUARDED.join('|')})(?![\\w-])`);

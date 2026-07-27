@@ -1,0 +1,59 @@
+{
+  "name": "Junior Frontend CV",
+  "header": {
+    "fullName": "Mira Kowalski",
+    "title": "Frontend Developer",
+    "contacts": [
+      "mira.kowalski@example.com",
+      "+48 601 220 118",
+      "Krakow, Poland",
+      "github.com/mkowalski"
+    ]
+  },
+  "sections": [
+    {
+      "type": "profile",
+      "title": "Profile",
+      "text": "Frontend developer with one year of commercial React experience, moving from a design background into engineering."
+    },
+    {
+      "type": "experience",
+      "title": "Experience",
+      "items": [
+        {
+          "role": "Frontend Developer",
+          "org": "Nubo Studio",
+          "start": "Sep 2024",
+          "end": "Present",
+          "bullets": [
+            "Rebuilt the marketing site in React and TypeScript, cutting first paint from 3.1s to 1.2s.",
+            "Added an accessible component library used by three product teams.",
+            "Wrote the Playwright suite covering checkout, which caught 9 regressions before release.",
+            "Paired with design to turn the Figma tokens into a single CSS variable layer."
+          ]
+        }
+      ]
+    },
+    {
+      "type": "skills",
+      "title": "Skills",
+      "items": [
+        { "label": "Languages", "values": ["TypeScript", "JavaScript", "CSS"] },
+        { "label": "Frameworks", "values": ["React", "Vite", "Playwright"] },
+        { "label": "Tools", "values": ["Git", "Figma", "Storybook"] }
+      ]
+    },
+    {
+      "type": "education",
+      "title": "Education",
+      "items": [
+        {
+          "degree": "BA Interaction Design",
+          "school": "Jagiellonian University",
+          "start": "2020",
+          "end": "2024"
+        }
+      ]
+    }
+  ]
+}
