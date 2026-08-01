@@ -71,14 +71,25 @@ export async function loadPhotoFile(file: File): Promise<PhotoResult> {
   }
 }
 
+/**
+ * The input has to be in the document before it is clicked: iOS Safari drops the click on a
+ * detached one, which is why picking a photo on a phone took several taps to take. Hidden
+ * off-screen rather than display:none, because that is also ignored on some versions.
+ */
 export function pickImageFile(onPick: (file: File) => void): void {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = TYPES.join(',');
+  input.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0';
+  const done = () => input.remove();
   input.onchange = () => {
     const f = input.files?.[0];
     if (f) onPick(f);
+    done();
   };
+  // Cancelling fires no change event on any browser; clean up when focus comes back.
+  window.addEventListener('focus', () => setTimeout(done, 500), { once: true });
+  document.body.appendChild(input);
   input.click();
 }
 

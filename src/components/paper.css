@@ -1116,6 +1116,24 @@ body.coach-tour:not(.coach-bare) .cv-chip-add,
   cursor: pointer;
   text-align: center;
 }
+/* On a phone the frame is drawn at ~38px, small enough that a miss lands on the name field
+   behind it and opens the keyboard instead. Touch gets a target of at least 46 real pixels,
+   which is why the size is divided by the paper's own scale. */
+@media (pointer: coarse) {
+  .cv-photo-empty {
+    overflow: visible;
+  }
+  .cv-photo-empty::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, calc(46px / var(--zoom, 1)));
+    height: max(100%, calc(46px / var(--zoom, 1)));
+    transform: translate(-50%, -50%);
+  }
+}
+
 .cv-photo-empty:hover,
 .cv-photo-empty:focus-visible {
   border-color: var(--accent, #0891b2);
