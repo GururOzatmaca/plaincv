@@ -269,7 +269,6 @@ const buildSteps = (stacked: boolean, t: T): Step[] => [
     sel: [
       '.cv-secH > .cv-hz-r > .cv-del',
       '.cv-entry > .cv-hz-r > .cv-del',
-      '.cv-li > .cv-hz-r > .cv-del',
       '.cv-chip > .cv-chip-x',
       '.cv-contact-item > .cv-chip-x',
     ],
@@ -299,24 +298,18 @@ const buildSteps = (stacked: boolean, t: T): Step[] => [
     ],
     cleanup: (api) => api.setImportOpen(false),
   },
-  // Both of these open the dialog themselves rather than riding on the step above, because
-  // Shortcuts can deep-link straight to a step id. No `press`: pressing the real button
-  // would wipe the CV.
+  // No `press` on either: pressing the real button would wipe the CV.
   {
     id: 'start-blank',
     sel: ['[data-coach="start-blank"]'],
     title: t('coach.blank.title'),
     body: t('coach.blank.body'),
-    phases: [{ run: (api) => api.setImportOpen(true) }],
-    cleanup: (api) => api.setImportOpen(false),
   },
   {
     id: 'start-sample',
     sel: ['[data-coach="start-sample"]'],
     title: t('coach.sample.title'),
     body: t('coach.sample.body'),
-    phases: [{ run: (api) => api.setImportOpen(true) }],
-    cleanup: (api) => api.setImportOpen(false),
   },
   {
     id: 'settings',
@@ -474,6 +467,7 @@ export const Coachmarks = memo(function Coachmarks({
   api,
   startAt,
   onConsumed,
+  onFinished,
   dialogsOpen,
   stacked,
   hold,
@@ -482,6 +476,9 @@ export const Coachmarks = memo(function Coachmarks({
 
   startAt: number | null;
   onConsumed: () => void;
+
+  /** Fires on close, skip and Escape alike; `full` tells the two lists apart. */
+  onFinished: (full: boolean) => void;
   dialogsOpen: boolean;
 
   stacked: boolean;
@@ -510,13 +507,17 @@ export const Coachmarks = memo(function Coachmarks({
   const dialogsRef = useRef(dialogsOpen);
   dialogsRef.current = dialogsOpen;
 
+  const finishedRef = useRef(onFinished);
+  finishedRef.current = onFinished;
+
   const finish = useCallback(() => {
     setStep(null);
     setPhase(0);
     try {
       localStorage.setItem(DONE_KEY, '1');
     } catch {}
-  }, []);
+    finishedRef.current(full);
+  }, [full]);
 
   useEffect(() => {
     if (hold) return;

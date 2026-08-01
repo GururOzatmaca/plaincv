@@ -1,0 +1,176 @@
+.st-bar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.st-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out);
+}
+.st-btn:hover {
+  background: var(--accent-weak);
+  border-color: transparent;
+  color: var(--accent-ink);
+}
+
+/* Below 1024px the header is a grid and its left cell has to hold the logo, the CV name,
+   this pair and undo/redo. There is no room for all of it on one line, and without the
+   wrap the CV name gets crushed under the buttons. */
+@media (max-width: 1024px) {
+  .app-header > .hdr-side:not(.hdr-side-end) {
+    flex-wrap: wrap;
+  }
+  .doc-switch {
+    min-width: 96px;
+  }
+}
+@media (max-width: 449px) {
+  .st-bar {
+    grid-area: 4 / 1 / 5 / 4;
+    justify-self: start;
+  }
+}
+
+.st-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 32, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.st-card {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  padding: 26px;
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 20px 60px rgba(15, 23, 32, 0.3);
+}
+.st-x {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--r-md);
+  background: transparent;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--faint);
+  cursor: pointer;
+}
+.st-x:hover {
+  color: var(--ink);
+}
+.st-title {
+  font-size: 19px;
+  font-weight: 700;
+}
+.st-picks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+@media (max-width: 480px) {
+  .st-picks {
+    grid-template-columns: 1fr;
+  }
+}
+.st-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
+}
+.st-pick:hover {
+  background: var(--accent-weak);
+  border-color: transparent;
+}
+.st-pick-h {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.st-pick-b {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.st-confirm {
+  width: 100%;
+  max-width: 340px;
+  padding: 18px;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 18px 40px rgba(15, 23, 32, 0.28);
+}
+.st-confirm-h {
+  font-size: 15px;
+  font-weight: 700;
+}
+.st-confirm-b {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.st-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.st-cbtn {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.st-cbtn:hover {
+  background: var(--surface-2);
+}
+.st-cbtn.danger {
+  border-color: transparent;
+  background: #b42318;
+  color: #fff;
+}
+.st-cbtn.danger:hover {
+  background: #9a1e14;
+}

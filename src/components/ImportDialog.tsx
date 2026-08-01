@@ -24,7 +24,6 @@ export function ImportDialog({
   const t = useT();
   const doc = useResumeStore((s) => s.doc);
   const setDoc = useResumeStore((s) => s.setDoc);
-  const reset = useResumeStore((s) => s.reset);
   const [text, setText] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
   const [okNotes, setOkNotes] = useState<string[] | null>(null);
@@ -127,17 +126,6 @@ export function ImportDialog({
     });
   };
 
-  const startOver = (kind: 'blank' | 'sample') =>
-    guard({
-      title: kind === 'blank' ? t('imp.confirm.blank.title') : t('imp.confirm.sample.title'),
-      body: t('imp.confirm.body'),
-      label: kind === 'blank' ? t('imp.confirm.blank.label') : t('imp.confirm.sample.label'),
-      run: () => {
-        reset(kind);
-        close();
-      },
-    });
-
   return (
     <div className="imp-overlay" onClick={close}>
       <div
@@ -216,15 +204,6 @@ export function ImportDialog({
             </button>
             <button className="imp-link" onClick={copyJson}>
               {copied === 'json' ? t('imp.copied') : t('imp.copyJson')}
-            </button>
-          </div>
-          <div className="imp-foot-row">
-            <span className="imp-foot-label">{t('imp.startOver')}</span>
-            <button className="imp-link" data-coach="start-blank" onClick={() => startOver('blank')}>
-              {t('imp.blank')}
-            </button>
-            <button className="imp-link" data-coach="start-sample" onClick={() => startOver('sample')}>
-              {t('imp.sample')}
             </button>
           </div>
         </div>

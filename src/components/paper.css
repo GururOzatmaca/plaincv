@@ -211,15 +211,12 @@ body.coach-tour:not(.coach-bare) .cv-rule-x,
   opacity: 1;
 }
 
-.cv-li > .cv-hz-r > *,
 .cv-entry > .cv-hz-r > *,
 .cv-note > .cv-hz-r > *,
 .cv-skillrow > .cv-hz-r > * {
   transition: opacity var(--dur-1) var(--ease-out) 0.3s;
 }
 
-.cv-li:hover > .cv-hz-r > *,
-.cv-li > .cv-hz-r:hover > *,
 .cv-note:hover > .cv-hz-r > *,
 .cv-note > .cv-hz-r:hover > *,
 .cv-entry:has(> .cv-etop:hover) > .cv-hz-r > *,
@@ -245,16 +242,6 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   display: grid;
 }
 
-.cv-li > .cv-hz-l {
-  left: -21px;
-  width: 18px;
-  top: -11px;
-}
-.cv-li > .cv-hz-r {
-  right: -24px;
-  width: 18px;
-  top: -12px;
-}
 
 :where(.cv-drag, .cv-del, .cv-eye, .cv-chip-x, .cv-ico-x, .cv-chip-add, .cv-contact-add, .cv-rule-x, .cv-plus) {
   position: relative;
@@ -372,11 +359,6 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   width: 11px;
   height: 11px;
 }
-.cv-li .cv-x {
-  width: 8px;
-  height: 8px;
-}
-
 .cv-chip-x .cv-x,
 .cv-ico-x .cv-x,
 .cv-del .cv-x,
@@ -399,9 +381,6 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
 .cv-skillrow > .cv-hz-r > .cv-del {
   --glyph: 0.611;
 }
-.cv-li .cv-del {
-  --glyph: 0.5;
-}
 .cv-plus {
   --glyph: 0.611;
 }
@@ -413,11 +392,6 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   height: 12px;
   display: block;
 }
-.cv-li .cv-drag svg {
-  width: 6px;
-  height: 9px;
-}
-
 .cv-plus,
 .cv-contact-add,
 .cv-chip-add {
@@ -429,8 +403,6 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
   color: #fff;
 }
 
-.cv-li .cv-drag,
-.cv-li .cv-del,
 .cv-li-add .cv-plus {
   width: 16px;
   height: 16px;
@@ -453,7 +425,6 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
 }
 
 .cv-entry:has(> .cv-hz-r > .cv-del:hover),
-.cv-li:has(> .cv-hz-r > .cv-del:hover),
 .cv-note:has(> .cv-hz-r > .cv-del:hover),
 .cv-skillrow:has(> .cv-hz-r > .cv-del:hover),
 .cv-section:has(> .cv-secH > .cv-hz-r > .cv-del:hover) {
@@ -837,6 +808,11 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
 }
 .cv-li {
   margin-bottom: calc(var(--paper-gap) * 0.17 * var(--paper-row));
+}
+/* An entry with no bullets costs the PDF nothing, so it may not cost the measurement a
+   margin either: measure() drops the whole empty list out of the flow. */
+.cv-ul:empty {
+  margin-top: 0;
 }
 
 @media screen {

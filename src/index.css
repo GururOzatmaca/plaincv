@@ -436,7 +436,9 @@ body {
   display: flex;
   align-items: center;
   gap: 7px;
-  max-width: 220px;
+  /* Its container is allowed to shrink, so a fixed max-width lets the name run over
+     whatever sits next to it in the header. */
+  max-width: min(220px, 100%);
   border: 1px solid transparent;
   border-radius: 8px;
   padding: 6px 9px;

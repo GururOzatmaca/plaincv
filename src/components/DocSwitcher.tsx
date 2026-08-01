@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useResumeStore, docSummaries } from '@/store/resumeStore';
+import { StartChoice } from './StartWith';
 import { useT } from '@/i18n';
 
 export function DocSwitcher() {
@@ -15,6 +16,7 @@ export function DocSwitcher() {
   const deleteDoc = useResumeStore((s) => s.deleteDoc);
 
   const [open, setOpen] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -138,7 +140,14 @@ export function DocSwitcher() {
             ))}
           </ul>
           <div className="doc-tools">
-            <button type="button" className="doc-tool" onClick={() => addDoc('blank')}>
+            <button
+              type="button"
+              className="doc-tool"
+              onClick={() => {
+                setOpen(false);
+                setNewOpen(true);
+              }}
+            >
               {t('doc.new')}
             </button>
             <button type="button" className="doc-tool" onClick={() => duplicateDoc()}>
@@ -150,6 +159,16 @@ export function DocSwitcher() {
           </div>
         </div>
       )}
+
+      <StartChoice
+        open={newOpen}
+        title="start.new.title"
+        onPick={(kind) => {
+          addDoc(kind);
+          setNewOpen(false);
+        }}
+        onClose={() => setNewOpen(false)}
+      />
     </div>
   );
 }

@@ -2,13 +2,14 @@ import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyn
 import { createPortal } from 'react-dom';
 import { Reorder, useDragControls, MotionConfig } from 'framer-motion';
 import { useResumeStore } from '@/store/resumeStore';
-import type { Bullet, Line, Photo, Resume, Section } from '@/schema/resume';
-import { uid, newItem, newSection, newBullet } from '@/schema/factory';
+import type { Bullet, Photo, Resume, Section } from '@/schema/resume';
+import { uid, newItem, newSection } from '@/schema/factory';
 import { clampPan, clampZoom, imageFromDrop, loadPhotoFile, newPhoto, pickImageFile, type PhotoError } from '@/lib/photo';
 import { A4_W, A4_H } from '@/lib/paperSize';
 import { setFitDeltaPx, consumeBandFit } from '@/lib/pageBudget';
 import { Editable } from './Editable';
 import { RichEditable } from './RichEditable';
+import { RichList } from './RichList';
 import { PrintLink, willLink } from './PrintLink';
 import { ContactIcon, detectContactKind } from './ContactIcon';
 import { resolveTemplate } from '@/templates/registry';
@@ -35,7 +36,7 @@ const SECTION_TYPES: Section['type'][] = [
 ];
 
 /** What a drag handle moves; picks the i18n key for its title and label. */
-type DragWhat = 'bullet' | 'entry' | 'section' | 'certification';
+type DragWhat = 'entry' | 'section' | 'certification';
 
 const ROW_SPRING = { type: 'spring', stiffness: 600, damping: 42, mass: 0.6 } as const;
 const ROW_ELASTIC = 0.08;
@@ -412,74 +413,20 @@ function AddSection({ onAdd }: { onAdd: (type: Section['type']) => void }) {
 function BulletList({
   itemId,
   bullets,
-  editBullet,
-  addBullet,
-  removeBullet,
-  reorderBullets,
-  splitBullet,
-  dropEmptyBullet,
+  editBullets,
 }: {
   itemId: string;
   bullets: Bullet[];
-  editBullet: (itemId: string, bulletId: string, line: Line) => void;
-  addBullet: (itemId: string) => void;
-  removeBullet: (itemId: string, bulletId: string) => void;
-  reorderBullets: (itemId: string, ids: string[]) => void;
-  splitBullet: (itemId: string, bulletId: string, before: Line, after: Line) => void;
-  dropEmptyBullet: (itemId: string, bulletId: string) => void;
+  editBullets: (itemId: string, next: Bullet[]) => void;
 }) {
   const t = useT();
-  const [dragIds, setDragIds] = useState<string[] | null>(null);
-  const ordered = applyOrder(bullets, dragIds);
-
-  const orderKey = ordered.map((b) => b.id).join(',');
-  const commit = () =>
-    setDragIds((ids) => {
-      if (ids) reorderBullets(itemId, ids);
-      return null;
-    });
   return (
-    <>
-      <Reorder.Group as="ul" axis="y" className="cv-ul" values={orderKey.split(',')} onReorder={setDragIds}>
-        {ordered.map((b) => (
-          <Row
-            key={b.id}
-            id={b.id}
-            as="li"
-            className="cv-li"
-            what="bullet"
-            canReorder={bullets.length > 1}
-            onCommit={commit}
-            onCancel={() => setDragIds(null)}
-            onMove={(dir) => {
-              const next = moveId(ordered.map((x) => x.id), b.id, dir);
-              if (next) reorderBullets(itemId, next);
-            }}
-            layoutKey={orderKey}
-          >
-            {(handle) => (
-              <>
-                {handle}
-                <RichEditable
-                  value={b.runs}
-                  fid={`${itemId}:b:${b.id}`}
-                  placeholder={t('paper.ph.bullet')}
-                  onCommit={(l) => editBullet(itemId, b.id, l)}
-                  onSplit={(before, after) => splitBullet(itemId, b.id, before, after)}
-                  onDeleteEmpty={() => dropEmptyBullet(itemId, b.id)}
-                />
-                <Del onClick={() => removeBullet(itemId, b.id)} />
-              </>
-            )}
-          </Row>
-        ))}
-      </Reorder.Group>
-
-      <button className="cv-addbul no-print" type="button" contentEditable={false} title={t('paper.addBullet')} onClick={() => addBullet(itemId)}>
-        <PlusIcon />
-        {t('paper.addBullet')}
-      </button>
-    </>
+    <RichList
+      bullets={bullets}
+      fid={`${itemId}:b`}
+      placeholder={t('paper.ph.bullet')}
+      onCommit={(next) => editBullets(itemId, next)}
+    />
   );
 }
 
@@ -548,11 +495,8 @@ function SectionView({
       }
     });
 
-  const editBullet = (itemId: string, bulletId: string, line: Line) =>
-    editItem(itemId, (item) => {
-      const b = (item.bullets as Bullet[]).find((x) => x.id === bulletId);
-      if (b) b.runs = line;
-    });
+  const editBullets = (itemId: string, next: Bullet[]) =>
+    editItem(itemId, (item) => void (item.bullets = next as unknown as Record<string, unknown>[]));
 
   const withItems = (apply: (a: unknown[]) => void) =>
     editSection((s) => {
@@ -569,57 +513,8 @@ function SectionView({
     requestFocus(`${String(item.id)}:main`);
   };
 
-  const addBullet = (itemId: string) => {
-    const b = newBullet();
-    editItem(itemId, (i) => void (i.bullets as Bullet[]).push(b));
-    requestFocus(`${itemId}:b:${b.id}`);
-  };
-  const removeBullet = (itemId: string, bulletId: string) =>
-    editItem(itemId, (i) => {
-      const a = i.bullets as Bullet[];
-      if (a.length <= 1) a[0] = newBullet();
-      else {
-        const idx = a.findIndex((x) => x.id === bulletId);
-        if (idx >= 0) a.splice(idx, 1);
-      }
-    });
-  const reorderBullets = (itemId: string, ids: string[]) =>
-    editItem(itemId, (i) => sortByIds(i.bullets as Bullet[], ids));
-
-  const splitBullet = (itemId: string, bulletId: string, before: Line, after: Line) => {
-    const next = newBullet();
-    next.runs = after as never;
-    editItem(itemId, (i) => {
-      const a = i.bullets as Bullet[];
-      const idx = a.findIndex((x) => x.id === bulletId);
-      if (idx < 0) return;
-      a[idx].runs = before;
-      a.splice(idx + 1, 0, next);
-    });
-    requestFocus(`${itemId}:b:${next.id}`);
-  };
-
-  const dropEmptyBullet = (itemId: string, bulletId: string) => {
-    const list = (section as { items?: Array<{ id: string; bullets?: Bullet[] }> }).items?.find(
-      (i) => i.id === itemId,
-    )?.bullets;
-    const idx = list?.findIndex((b) => b.id === bulletId) ?? -1;
-    if (!list || idx <= 0) return;
-    editItem(itemId, (i) => void (i.bullets as Bullet[]).splice(idx, 1));
-    requestFocus(`${itemId}:b:${list[idx - 1].id}`, 'end');
-  };
-
   const bullets = (itemId: string, list: Bullet[]) => (
-    <BulletList
-      itemId={itemId}
-      bullets={list}
-      editBullet={editBullet}
-      addBullet={addBullet}
-      removeBullet={removeBullet}
-      reorderBullets={reorderBullets}
-      splitBullet={splitBullet}
-      dropEmptyBullet={dropEmptyBullet}
-    />
+    <BulletList itemId={itemId} bullets={list} editBullets={editBullets} />
   );
 
   const itemsGroup = <T extends { id: string }>(items: T[], render: (it: T, handle: ReactNode) => ReactNode) => {

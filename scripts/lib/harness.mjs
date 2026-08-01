@@ -94,6 +94,12 @@ export function coachDoneKey(die) {
   return key;
 }
 
+export function videoKey(die) {
+  const key = readFileSync(join(ROOT, 'src/pages/EditorPage.tsx'), 'utf8').match(/VIDEO_KEY = '([^']+)'/)?.[1];
+  if (!key) die('  could not find VIDEO_KEY in src/pages/EditorPage.tsx - has the walkthrough video moved?');
+  return key;
+}
+
 export function langKey(die) {
   const key = readFileSync(join(ROOT, 'src/i18n/index.ts'), 'utf8').match(/LANG_KEY = '([^']+)'/)?.[1];
   if (!key) die('  could not find LANG_KEY in src/i18n/index.ts - has the language picker moved?');
@@ -106,6 +112,8 @@ export async function openApp({ chromium, chromePath, base, die, viewport = { wi
   await ctx.addInitScript((k) => localStorage.setItem(k, '1'), coachDoneKey(die));
   // Without a stored language the first-run picker covers the page and nothing is clickable.
   await ctx.addInitScript((k) => localStorage.setItem(k, 'en'), langKey(die));
+  // Same for the walkthrough video: it opens over the import dialog on the first visit.
+  await ctx.addInitScript((k) => localStorage.setItem(k, '1'), videoKey(die));
   for (const s of initScripts) await ctx.addInitScript(s.fn, s.arg);
 
   const page = await ctx.newPage();

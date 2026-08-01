@@ -5,6 +5,7 @@ import { MarkToolbar } from '@/components/MarkToolbar';
 import { RecoveryBanner } from '@/components/RecoveryBanner';
 import { UndoRedo, SaveIndicator } from '@/components/HeaderActions';
 import { DocSwitcher } from '@/components/DocSwitcher';
+import { StartButtons, StartChoice } from '@/components/StartWith';
 import { Coachmarks } from '@/components/Coachmarks';
 import { ImportDialog } from '@/components/ImportDialog';
 import { VideoDialog } from '@/components/VideoDialog';
@@ -53,6 +54,9 @@ const STAGE_PAD_BOTTOM = 22;
 const CTL_KEY = 'cv-generator/show-controls';
 
 const VIDEO_KEY = 'cv-generator/ai-video-seen';
+
+/** Asked once, right after the first tour; answering or dismissing it both count. */
+const START_KEY = 'cv-generator/start-picked';
 
 const clampTo = (z: number, min: number, max: number): number => Math.min(max, Math.max(min, +z.toFixed(3)));
 
@@ -109,6 +113,26 @@ export function EditorPage() {
   );
 
   const clearTour = useCallback(() => setTourAt(null), []);
+
+  const [startOpen, setStartOpen] = useState(false);
+  const reset = useResumeStore((s) => s.reset);
+
+  const onTourFinished = useCallback((full: boolean) => {
+    if (full) return;
+    try {
+      if (localStorage.getItem(START_KEY) === '1') return;
+    } catch {
+      return;
+    }
+    setStartOpen(true);
+  }, []);
+
+  const closeStart = useCallback(() => {
+    try {
+      localStorage.setItem(START_KEY, '1');
+    } catch {}
+    setStartOpen(false);
+  }, []);
 
   /**
    * Only the header button counts as a first visit. The tour opens the same dialog through
@@ -386,6 +410,7 @@ export function EditorPage() {
           </span>
           <span className="hdr-rule" aria-hidden="true" />
           <DocSwitcher />
+          <StartButtons />
           <span className="hdr-rule" aria-hidden="true" />
           <UndoRedo />
         </div>
@@ -517,9 +542,20 @@ export function EditorPage() {
         api={coachApi}
         startAt={tourAt}
         onConsumed={clearTour}
+        onFinished={onTourFinished}
         dialogsOpen={importOpen || keysOpen || videoOpen}
         stacked={stacked}
         hold={!langPicked}
+      />
+
+      <StartChoice
+        open={startOpen}
+        title="start.title"
+        onPick={(kind) => {
+          reset(kind);
+          closeStart();
+        }}
+        onClose={closeStart}
       />
 
       {!langPicked && <LangGate onPick={() => setLangPicked(true)} />}

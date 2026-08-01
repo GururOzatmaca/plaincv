@@ -20,7 +20,7 @@ export function MarkToolbar() {
       if (!sel || sel.isCollapsed || sel.rangeCount === 0) return setPos(null);
       const a = sel.anchorNode;
       const el = a ? (a.nodeType === 1 ? (a as Element) : a.parentElement) : null;
-      if (!el || !el.closest('.cv-rich')) return setPos(null);
+      if (!el || !el.closest('.cv-rich, .cv-richlist')) return setPos(null);
       const r = sel.getRangeAt(0).getBoundingClientRect();
       if (!r.width && !r.height) return setPos(null);
       setPos({ x: r.left + r.width / 2, y: r.top });
