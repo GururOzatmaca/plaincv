@@ -969,7 +969,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
   background: var(--accent-weak);
   transition: background var(--dur-1) var(--ease-out);
 }
-.cv-chip-add > * {
+.cv-chip-add > .cv-x {
   position: absolute;
   left: 0;
   top: 50%;
