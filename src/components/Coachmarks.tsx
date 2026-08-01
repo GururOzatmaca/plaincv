@@ -343,6 +343,51 @@ const buildSteps = (stacked: boolean, t: T): Step[] => [
   layoutStep(stacked, t),
 ];
 
+/**
+ * First run gets seven screens, not the full tour: anything a hover already teaches is cut,
+ * and the layout axes shrink to the template list. The whole list stays reachable from the
+ * ? dialog, which is what the last screen points at.
+ */
+const buildFirstRun = (stacked: boolean, t: T): Step[] => {
+  const full = buildSteps(stacked, t);
+  const pick = (id: string): Step => full.find((s) => s.id === id) as Step;
+
+  const templates: Step = {
+    id: 'templates',
+    sel: ['.tpl-list'],
+    title: t('coach.layout.title'),
+    body: t('coach.layout.templates'),
+    phases: stacked
+      ? [
+          {
+            sel: ['.pnl-toggle'],
+            body: t('coach.layout.panel'),
+            focus: () => scrollTo('.design-panel'),
+            press: '.pnl-toggle',
+            run: (api) => api.setPanelOpen(true),
+          },
+          { sel: ['.tpl-list'], body: t('coach.layout.templates'), focus: () => scrollTo('.tpl-list') },
+        ]
+      : [{ sel: ['.tpl-list'], body: t('coach.layout.templates'), focus: () => scrollTo('.tpl-list') }],
+    cleanup: (api) => api.setPanelOpen(null),
+  };
+
+  return [
+    pick('view-options'),
+    {
+      id: 'basics',
+      sel: ['.cv-addbul', '.cv-plus', '.cv-entry > .cv-hz-r > .cv-del'],
+      one: true,
+      title: t('coach.basics.title'),
+      body: t('coach.basics.body'),
+    },
+    templates,
+    { ...pick('ai'), phases: undefined, cleanup: undefined },
+    pick('export'),
+    { ...pick('settings'), body: t('coach.settings.first'), phases: undefined, cleanup: undefined },
+  ];
+};
+
 interface Spot {
   top: number;
   left: number;
@@ -442,7 +487,12 @@ export const Coachmarks = memo(function Coachmarks({
   hold: boolean;
 }) {
   const t = useT();
-  const steps = useMemo(() => buildSteps(stacked, t), [stacked, t]);
+  /** First run walks the short list; anything opened from the ? dialog walks all of it. */
+  const [full, setFull] = useState(false);
+  const steps = useMemo(
+    () => (full ? buildSteps(stacked, t) : buildFirstRun(stacked, t)),
+    [full, stacked, t],
+  );
   const SCREEN_COUNT = useMemo(() => screenCount(steps), [steps]);
   const [step, setStep] = useState<number | null>(null);
   const [phase, setPhase] = useState(0);
@@ -473,13 +523,16 @@ export const Coachmarks = memo(function Coachmarks({
       return;
     }
     const id = setTimeout(() => {
-      if (!dialogsRef.current) setStep(0);
+      if (dialogsRef.current) return;
+      setFull(false);
+      setStep(0);
     }, 900);
     return () => clearTimeout(id);
   }, [hold]);
 
   useEffect(() => {
     if (startAt == null) return;
+    setFull(true);
     setStep(startAt);
     setPhase(0);
     onConsumed();
