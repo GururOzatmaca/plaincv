@@ -289,7 +289,7 @@ export const en = {
   // help dialog
   'help.title': 'Help',
   'help.tour': 'Take the tour',
-  'help.tour.sub': 'Points at every control on your own page, in order',
+  'help.tour.sub': 'Seven short steps on your own page',
   'help.language': 'Language',
   'help.shortcuts': 'Keyboard shortcuts',
   'help.sound': 'Play a sound when an import succeeds',
@@ -378,7 +378,7 @@ export const en = {
   'coach.settings.body': 'The ? next to Fill with AI. Everything that is not part of your CV is in there.',
   'coach.settings.body2':
     'The full tour, the language switch, common questions and every keyboard shortcut.',
-  'coach.settings.first': 'The full tour, help and the language switch are behind the ?.',
+  'coach.settings.first': 'Help, the language switch and this tour are behind the ?.',
   'coach.export.title': 'Get the PDF',
   'coach.export.body': 'This prints what you see, on one A4 page. Pick "Save as PDF".',
 

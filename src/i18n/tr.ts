@@ -289,7 +289,7 @@ export const tr: Record<keyof typeof en, string> = {
   // help dialog
   'help.title': 'Yardım',
   'help.tour': 'Turu başlat',
-  'help.tour.sub': 'Kendi sayfanızdaki her kontrolü sırayla gösterir',
+  'help.tour.sub': 'Kendi sayfanızda yedi kısa adım',
   'help.language': 'Dil',
   'help.shortcuts': 'Klavye kısayolları',
   'help.sound': 'İçe aktarma başarılı olunca ses çal',
@@ -371,7 +371,7 @@ export const tr: Record<keyof typeof en, string> = {
   'coach.settings.title': 'Ayarlar ve yardım',
   'coach.settings.body': `AI ile doldur'un yanındaki ?. CV'nizin parçası olmayan her şey orada.`,
   'coach.settings.body2': 'Tam tur, dil seçimi, sık sorulan sorular ve bütün klavye kısayolları.',
-  'coach.settings.first': 'Tam tur, yardım ve dil seçimi ? düğmesinin arkasında.',
+  'coach.settings.first': 'Yardım, dil seçimi ve bu tur ? düğmesinin arkasında.',
   'coach.export.title': `PDF'i alın`,
   'coach.export.body': `Gördüğünüz sayfayı tek A4 olarak yazdırır. "PDF olarak kaydet"i seçin.`,
 

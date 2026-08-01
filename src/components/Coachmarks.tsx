@@ -404,6 +404,9 @@ const screenCount = (steps: Step[]): number => steps.reduce((n, s) => n + phases
 const STEP_IDS = buildSteps(false, ((k: string) => k) as T).map((s) => s.id);
 
 export const stepIndex = (id: string): number => Math.max(0, STEP_IDS.indexOf(id));
+
+/** Asks for the seven-screen list from its start; any other index means the full one. */
+export const SHORT_TOUR = -1;
 const screenIndex = (steps: Step[], step: number, phase: number): number =>
   screenCount(steps.slice(0, step)) + phase + 1;
 
@@ -532,8 +535,8 @@ export const Coachmarks = memo(function Coachmarks({
 
   useEffect(() => {
     if (startAt == null) return;
-    setFull(true);
-    setStep(startAt);
+    setFull(startAt !== SHORT_TOUR);
+    setStep(startAt === SHORT_TOUR ? 0 : startAt);
     setPhase(0);
     onConsumed();
   }, [startAt, onConsumed]);

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ContactIcon } from './ContactIcon';
 import { isMuted, setMuted } from '@/lib/sound';
-import { stepIndex } from './Coachmarks';
+import { SHORT_TOUR, stepIndex } from './Coachmarks';
 import { useDialog } from '@/lib/useDialog';
 import { useT, useLang, setLang, type Key, type Lang } from '@/i18n';
 import './shortcuts.css';
@@ -86,7 +86,7 @@ export function Shortcuts({
         <h2 className="sc-title" id="sc-title">
           {t('help.title')}
         </h2>
-        <button type="button" className="sc-tour" onClick={() => onShowMe(0)}>
+        <button type="button" className="sc-tour" onClick={() => onShowMe(SHORT_TOUR)}>
           {t('help.tour')}
           <span className="sc-tour-sub">{t('help.tour.sub')}</span>
         </button>
