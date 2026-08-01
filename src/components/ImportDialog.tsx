@@ -163,11 +163,15 @@ export function ImportDialog({
               </button>
             </div>
             <p className="imp-hint">{copyFailed ? t('imp.copyFailed') : t('imp.step1hint')}</p>
+            <a className="imp-open" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">
+              {t('imp.openAi')}
+            </a>
           </li>
           <li>
             <div className="imp-step-h">
               <span className="imp-num">2</span> {t('imp.step2')}
             </div>
+            <p className="imp-hint">{t('imp.step2hint')}</p>
             <textarea
               className="imp-textarea"
               placeholder={t('imp.ph')}
@@ -194,6 +198,7 @@ export function ImportDialog({
                 {t('imp.import')}
               </button>
             </div>
+            <p className="imp-hint">{t('imp.step3hint')}</p>
           </li>
         </ol>
 

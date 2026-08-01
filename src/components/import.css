@@ -112,7 +112,20 @@
 .imp-hint {
   margin-top: 6px;
   font-size: 12px;
+  line-height: 1.5;
   color: var(--faint);
+}
+.imp-open {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.imp-open:hover {
+  filter: brightness(1.15);
 }
 .imp-btn {
   appearance: none;

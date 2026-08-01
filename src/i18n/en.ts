@@ -238,18 +238,24 @@ export const en = {
 
   // AI import dialog
   'imp.imported': 'Imported',
-  'imp.title': 'Build with your AI',
-  'imp.sub': 'Let ChatGPT (or any AI) fill your CV, then paste it back.',
+  'imp.title': 'Let an AI write your CV',
+  'imp.sub':
+    'You copy a prompt from here, give it to ChatGPT together with your details, and paste its answer back. PlainCV sends nothing on its own; every step is a copy and paste you make.',
   'imp.watch': '▶ Watch the walkthrough',
   'imp.close': 'Close',
   'imp.step1': 'Copy the prompt',
   'imp.copyPrompt': 'Copy prompt',
+  'imp.openAi': 'Open ChatGPT ↗',
   'imp.copied': 'Copied ✓',
   'imp.copyFailed': 'Your browser blocked the clipboard. Click the page once, then try Copy prompt again.',
-  'imp.step1hint': 'Paste it into ChatGPT, add your details, hit enter.',
-  'imp.step2': 'Paste what it gives back',
-  'imp.ph': 'Paste the JSON here…',
-  'imp.step3': 'Load it',
+  'imp.step1hint':
+    'Open ChatGPT, paste the prompt, then in the same message tell it about yourself: your jobs, dates, what you did, your studies. Write it any way you like, in any language.',
+  'imp.step2': 'Paste the answer back',
+  'imp.step2hint':
+    'ChatGPT answers with one long block that starts with { and looks like code. That block is your CV. Select all of it, copy it, and paste it in the box below.',
+  'imp.ph': 'Paste the whole answer here…',
+  'imp.step3': 'Put it on the page',
+  'imp.step3hint': 'This replaces the CV you have now. Ctrl+Z brings it back.',
   'imp.import': 'Import',
   'imp.backup': 'Back up',
   'imp.downloadJson': 'Download .json',
