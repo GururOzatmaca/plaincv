@@ -103,6 +103,11 @@ export function EditorPage() {
 
   const [tourAt, setTourAt] = useState<number | null>(null);
 
+  const headerRef = useRef<HTMLElement>(null);
+  const [hdrH, setHdrH] = useState(0);
+  /** One column only: the header leaves on the way down and comes back on the way up. */
+  const [hdrOff, setHdrOff] = useState(false);
+
   // null = the panel follows the layout; the tour forces it open on one column, where it
   // starts collapsed and its controls are not in the DOM at all.
   const [coachPanel, setCoachPanel] = useState<boolean | null>(null);
@@ -214,11 +219,15 @@ export function EditorPage() {
     r.setProperty('--paper-photo-y', `${photo?.y ?? 0}%`);
   }, [photo]);
 
+  // What the floating header covers; it scrolls away with the content, which is what makes
+  // hiding the header gain a header's worth of page.
+  const padTop = narrow ? STAGE_PAD_TOP + hdrH : STAGE_PAD_TOP;
+
   useLayoutEffect(() => {
     const el = stageRef.current;
     if (!el) return;
     const compute = () => {
-      const h = el.clientHeight - STAGE_PAD_TOP - STAGE_PAD_BOTTOM;
+      const h = el.clientHeight - padTop - STAGE_PAD_BOTTOM;
 
       const usable = Math.min(el.clientWidth, WORKSPACE_MAX + STAGE_PAD_X * 2) - STAGE_PAD_X * 2;
       setUsableW(usable);
@@ -235,7 +244,7 @@ export function EditorPage() {
     const ro = new ResizeObserver(compute);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [narrow]);
+  }, [narrow, padTop]);
 
 
   useLayoutEffect(() => {
@@ -255,6 +264,41 @@ export function EditorPage() {
       el.classList.remove('is-scrolling');
     };
   }, []);
+
+  // The header is out of flow while it can hide, so the stage keeps one height and the
+  // paper never rescales when it leaves. Its own height still has to be measured: it wraps
+  // to three or four rows depending on the width.
+  useLayoutEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const read = () => setHdrH(el.offsetHeight);
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!narrow) {
+      setHdrOff(false);
+      return;
+    }
+    const el = stageRef.current;
+    if (!el) return;
+    let last = el.scrollTop;
+    const onScroll = () => {
+      const y = el.scrollTop;
+      const dy = y - last;
+      // A dead zone, or the header flickers on the small jitter a touch scroll ends with.
+      if (Math.abs(dy) < 6) return;
+      last = y;
+      if (y <= hdrH) setHdrOff(false);
+      else if (dy > 0) setHdrOff(true);
+      else setHdrOff(false);
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [narrow, hdrH]);
 
   const effective = fitScale * zoom;
   const pct = Math.round(effective * 100);
@@ -398,9 +442,14 @@ export function EditorPage() {
   }, []);
 
   return (
-    <div className={`app-root flex h-screen flex-col ${showCtl ? 'show-ctl' : ''}`}>
+    <div
+      className={`app-root flex h-screen flex-col ${showCtl ? 'show-ctl' : ''}${narrow ? ' hdr-float' : ''}${
+        narrow && hdrOff ? ' hdr-off' : ''
+      }`}
+      style={{ ['--hdr-h' as string]: `${hdrH}px` }}
+    >
 
-      <header className="no-print app-header">
+      <header ref={headerRef} className="no-print app-header">
         <div className="hdr-side">
           <span className="hdr-logo grid h-8 w-8 shrink-0 place-items-center rounded-lg text-sm font-semibold text-white">
             CV
@@ -492,7 +541,7 @@ export function EditorPage() {
         ref={stageRef}
         className="print-stage app-scroll min-h-0 flex-1 overflow-auto"
 
-        style={{ paddingTop: STAGE_PAD_TOP }}
+        style={{ paddingTop: padTop }}
       >
 
         <div

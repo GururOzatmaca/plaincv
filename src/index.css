@@ -223,6 +223,30 @@ body {
   border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
+/* One column: the header floats over the page instead of sitting above it, so it can leave
+   on the way down without resizing the stage and rescaling the paper. */
+.hdr-float > .app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  margin-bottom: 0;
+  transition: transform var(--dur-2) var(--ease-out);
+}
+.hdr-off > .app-header {
+  transform: translateY(-100%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hdr-float > .app-header {
+    transition: none;
+  }
+}
+/* Banners sit between the header and the page, so they need the room it no longer takes. */
+.hdr-float > .rec-bar {
+  margin-top: var(--hdr-h, 0px);
+}
+
 .hdr-side {
   display: flex;
   flex: 1 1 auto;
