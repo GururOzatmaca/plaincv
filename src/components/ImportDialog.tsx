@@ -35,14 +35,16 @@ export function ImportDialog({
 
   useEffect(() => {
     if (okNotes === null) return;
+    // The document is already on the page behind this splash, so the tick is the only
+    // thing keeping the user from it. Long enough to read as confirmation, no longer.
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const s = setTimeout(playSuccess, calm ? 0 : 300);
+    const s = setTimeout(playSuccess, calm ? 0 : 120);
     const t = setTimeout(() => {
       setOkNotes(null);
       setErrors([]);
       setText('');
       onClose();
-    }, calm ? 450 : 1600);
+    }, calm ? 300 : 700);
     return () => {
       clearTimeout(s);
       clearTimeout(t);
