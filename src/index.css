@@ -244,7 +244,11 @@ body {
 }
 /* Banners sit between the header and the page, so they need the room it no longer takes. */
 .hdr-float > .rec-bar {
-  margin-top: var(--hdr-h, 0px);
+  margin-top: calc(var(--hdr-h, 0px) + 10px);
+}
+/* Only the first one clears the header; the rest stack under it. */
+.hdr-float > .rec-bar ~ .rec-bar {
+  margin-top: 0;
 }
 
 .hdr-side {

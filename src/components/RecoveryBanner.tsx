@@ -4,7 +4,7 @@ import { getRecovery, readBackup, restoreBackup, type RecoveryState } from '@/st
 import { downloadText } from '@/lib/download';
 import { useT } from '@/i18n';
 
-export function RecoveryBanner() {
+export function RecoveryBanner({ onOpen }: { onOpen?: (open: boolean) => void }) {
   const t = useT();
   const setDoc = useResumeStore((s) => s.setDoc);
   const [rec, setRec] = useState<RecoveryState>(getRecovery());
@@ -19,7 +19,13 @@ export function RecoveryBanner() {
     return useResumeStore.persist.onFinishHydration(() => setRec(getRecovery()));
   }, []);
 
-  if (!rec || dismissed) return null;
+  const open = Boolean(rec) && !dismissed;
+  // The stage reserves room for the floating header only when no banner is there to do it.
+  useEffect(() => {
+    onOpen?.(open);
+  }, [open, onOpen]);
+
+  if (!rec || !open) return null;
 
   const restore = async () => {
     const doc = await restoreBackup(rec.backupKey);

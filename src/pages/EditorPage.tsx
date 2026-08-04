@@ -137,6 +137,7 @@ export function EditorPage() {
   const [videoClip, setVideoClip] = useState<VideoClip | null>(null);
   const [printBlocked, setPrintBlocked] = useState(false);
   const [printWarn, setPrintWarn] = useState(false);
+  const [recOpen, setRecOpen] = useState(false);
 
   const [langPicked, setLangPicked] = useState(hasStoredLang);
 
@@ -280,9 +281,12 @@ export function EditorPage() {
     r.setProperty('--paper-photo-y', `${photo?.y ?? 0}%`);
   }, [photo]);
 
+  const anyBanner = recOpen || printWarn || printBlocked;
+
   // What the floating header covers; it scrolls away with the content, which is what makes
-  // hiding the header gain a header's worth of page.
-  const padTop = narrow ? STAGE_PAD_TOP + hdrH : STAGE_PAD_TOP;
+  // hiding the header gain a header's worth of page. A banner already clears the header for
+  // itself, so reserving it here as well would leave that gap twice over.
+  const padTop = narrow && !anyBanner ? STAGE_PAD_TOP + hdrH : STAGE_PAD_TOP;
 
   useLayoutEffect(() => {
     const el = stageRef.current;
@@ -601,7 +605,7 @@ export function EditorPage() {
         </div>
       </header>
 
-      <RecoveryBanner />
+      <RecoveryBanner onOpen={setRecOpen} />
 
       {printWarn && (
         <div className="no-print rec-bar" role="alert">
