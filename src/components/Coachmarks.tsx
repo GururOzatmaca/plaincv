@@ -6,7 +6,7 @@ import './coachmarks.css';
 const DONE_KEY = 'cv-generator/coach-done';
 
 export interface CoachApi {
-  setImportOpen: (v: boolean) => void;
+  setImportMode: (v: 'ai' | 'linkedin' | null) => void;
 
   setShowCtl: (v: boolean) => void;
 
@@ -283,6 +283,22 @@ const buildSteps = (stacked: boolean, t: T): Step[] => [
     body: t('coach.addSection.body'),
   },
   {
+    id: 'linkedin',
+    sel: ['.hdr-li'],
+    title: t('coach.li.title'),
+    body: t('coach.li.body'),
+    phases: [
+      {},
+      {
+        sel: ['.imp-body'],
+        body: t('coach.li.body2'),
+        press: '.hdr-li',
+        run: (api) => api.setImportMode('linkedin'),
+      },
+    ],
+    cleanup: (api) => api.setImportMode(null),
+  },
+  {
     id: 'ai',
     sel: ['.hdr-ai'],
     title: t('coach.ai.title'),
@@ -293,10 +309,10 @@ const buildSteps = (stacked: boolean, t: T): Step[] => [
         sel: ['.imp-body', '.imp-foot'],
         body: t('coach.ai.body2'),
         press: '.hdr-ai',
-        run: (api) => api.setImportOpen(true),
+        run: (api) => api.setImportMode('ai'),
       },
     ],
-    cleanup: (api) => api.setImportOpen(false),
+    cleanup: (api) => api.setImportMode(null),
   },
   // No `press` on either: pressing the real button would wipe the CV.
   {
@@ -375,6 +391,7 @@ const buildFirstRun = (stacked: boolean, t: T): Step[] => {
       body: t('coach.basics.body'),
     },
     templates,
+    { ...pick('linkedin'), phases: undefined, cleanup: undefined },
     { ...pick('ai'), phases: undefined, cleanup: undefined },
     pick('export'),
     { ...pick('settings'), body: t('coach.settings.first'), phases: undefined, cleanup: undefined },

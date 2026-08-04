@@ -318,17 +318,20 @@ body {
     grid-area: 1 / 2;
     justify-self: end;
   }
+  /* Both sit in one full-width row rather than in column 2. Four action buttons are wide
+     enough that letting them size that column starves the first row, which then wraps the
+     CV buttons and undo away from the name they belong with. */
   .hdr-zoom {
-    grid-area: 2 / 1;
+    grid-area: 2 / 1 / 3 / 3;
     justify-self: start;
   }
   .hdr-actions {
-    grid-area: 2 / 2;
+    grid-area: 2 / 1 / 3 / 3;
     justify-self: end;
   }
 }
 
-@media (max-width: 620px) {
+@media (max-width: 700px) {
   .app-header {
     gap: 8px 10px;
     padding: 8px 12px;
@@ -339,8 +342,24 @@ body {
     justify-self: stretch;
     display: grid;
 
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    /* Two by two. With four buttons a three-column track leaves one stranded on its own row. */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
+  }
+
+  /* The two ways into a CV pair up on the top row; the pair you reach for once it exists sits
+     below, with Download on the right where it stays on every wider layout. */
+  .hdr-actions > .hdr-li {
+    order: 1;
+  }
+  .hdr-actions > .hdr-ai {
+    order: 2;
+  }
+  .hdr-actions > .hdr-ghost {
+    order: 3;
+  }
+  .hdr-actions > .hdr-dl {
+    order: 4;
   }
   .hdr-zoom {
     grid-area: 3 / 1 / 4 / 3;
@@ -378,19 +397,27 @@ body {
   .hdr-actions {
     grid-area: 2 / 1 / 3 / 4;
   }
+
+  /* At this width every row is full-bleed, so the short controls read as debris unless they
+     are centred under the buttons above them. Undo stays at the edge; it is a pair of icons. */
+  .st-bar {
+    grid-area: 3 / 1 / 4 / 4;
+    justify-self: center;
+  }
   .hdr-zoom {
-    grid-area: 3 / 1 / 4 / 3;
-    justify-self: start;
+    grid-area: 4 / 1 / 5 / 4;
+    justify-self: center;
   }
 
   .app-header > .hdr-side > .hdr-group {
-    grid-area: 3 / 3;
+    grid-area: 4 / 3;
     justify-self: end;
   }
 }
 
 .hdr-dl,
 .hdr-ai,
+.hdr-li,
 .hdr-ghost {
   display: inline-flex;
   align-items: center;
@@ -424,16 +451,79 @@ body {
   background: var(--accent-strong);
   transition: height var(--dur-2) var(--ease-out);
 }
-.hdr-dl > span {
+/* The fill rises behind the label, so both label and icon have to sit above it. */
+.hdr-dl > span,
+.hdr-dl > svg {
   position: relative;
   z-index: 1;
 }
-.hdr-ai {
+.hdr-dl {
+  gap: 7px;
+}
+.hdr-dl > svg {
+  flex: 0 0 auto;
+}
+.hdr-ai,
+.hdr-li {
+  position: relative;
   border: 1px solid var(--line-ctl);
   background: var(--surface);
   color: var(--ink);
   font-weight: 600;
   transition: background var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out);
+}
+
+/**
+ * Both entry points are quiet outline buttons next to a solid Download, so people walk past
+ * them. A ring expands out of the edge and fades, which reads at a glance where a static tint
+ * did not; the two are offset so they pulse in turn rather than together. Runs until the button
+ * has been opened once, then never again.
+ */
+.hdr-ai.glow,
+.hdr-li.glow {
+  border-color: var(--accent-strong);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  animation: hdr-glow 2.4s linear infinite;
+}
+.hdr-ai.glow {
+  animation-delay: 1.2s;
+}
+.hdr-li,
+.hdr-ai {
+  gap: 7px;
+}
+.hdr-li svg {
+  color: #0a66c2;
+  flex: 0 0 auto;
+}
+.hdr-ai svg {
+  color: var(--accent);
+  flex: 0 0 auto;
+}
+
+/**
+ * The envelope is spelled out rather than left to a timing function: an eased ring spends
+ * almost the whole cycle already faded, which is what made the first version invisible. Here
+ * the ring holds its colour while it starts moving, fades over half the cycle, and rests.
+ */
+@keyframes hdr-glow {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+  18% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  60%,
+  100% {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hdr-ai.glow,
+  .hdr-li.glow {
+    animation: none;
+  }
 }
 .hdr-ghost {
   border: none;
@@ -636,7 +726,8 @@ body {
   background: var(--surface-2);
   color: var(--ink);
 }
-.hdr-ai:hover {
+.hdr-ai:hover,
+.hdr-li:hover {
   background: var(--surface-2);
 }
 
@@ -647,6 +738,7 @@ body {
   color: var(--ink);
 }
 .hdr-ai:active,
+.hdr-li:active,
 .hdr-dl:active {
   transform: scale(0.97);
 }

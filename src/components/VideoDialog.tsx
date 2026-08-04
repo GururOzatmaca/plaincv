@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDialog } from '@/lib/useDialog';
-import { useT, useLang, type Lang } from '@/i18n';
+import { useT, useLang, type Key, type Lang } from '@/i18n';
 import './video.css';
 
-const SRC = '/media/ai-flow.mp4';
-const POSTER = '/media/ai-flow.jpg';
+/** One clip per entry point; every asset is named after it. */
+export type VideoClip = 'ai-flow' | 'li-flow';
+
+const COPY: Record<VideoClip, { title: Key; sub: Key }> = {
+  'ai-flow': { title: 'video.title', sub: 'video.sub' },
+  'li-flow': { title: 'video.li.title', sub: 'video.li.sub' },
+};
 
 // A language's own name is never translated, so these stay literal, as in Shortcuts.
 const CAPTIONS: { id: Lang; label: string }[] = [
@@ -12,7 +17,15 @@ const CAPTIONS: { id: Lang; label: string }[] = [
   { id: 'tr', label: 'Türkçe' },
 ];
 
-export function VideoDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function VideoDialog({
+  open,
+  clip,
+  onClose,
+}: {
+  open: boolean;
+  clip: VideoClip;
+  onClose: () => void;
+}) {
   const t = useT();
   const lang = useLang();
   const cardRef = useDialog(open, onClose);
@@ -35,7 +48,9 @@ export function VideoDialog({ open, onClose }: { open: boolean; onClose: () => v
       setMuted(true);
       v.play().catch(() => {});
     });
-  }, [open]);
+    // `clip` belongs here: the element is keyed by it, so a clip change swaps in a fresh video
+    // that this effect has to start over again.
+  }, [open, clip]);
 
   if (!open) return null;
 
@@ -61,17 +76,25 @@ export function VideoDialog({ open, onClose }: { open: boolean; onClose: () => v
           ×
         </button>
         <h2 className="vid-title" id="vid-title">
-          {t('video.title')}
+          {t(COPY[clip].title)}
         </h2>
-        <p className="vid-sub">{t('video.sub')}</p>
+        <p className="vid-sub">{t(COPY[clip].sub)}</p>
         <div className="vid-frame">
-          <video ref={videoRef} className="vid-el" controls playsInline preload="auto" poster={POSTER}>
-            <source src={SRC} type="video/mp4" />
+          <video
+            ref={videoRef}
+            key={clip}
+            className="vid-el"
+            controls
+            playsInline
+            preload="auto"
+            poster={`/media/${clip}.jpg`}
+          >
+            <source src={`/media/${clip}.mp4`} type="video/mp4" />
             {CAPTIONS.map((c) => (
               <track
                 key={c.id}
                 kind="captions"
-                src={`/media/ai-flow.${c.id}.vtt`}
+                src={`/media/${clip}.${c.id}.vtt`}
                 srcLang={c.id}
                 label={c.label}
                 default={c.id === lang}

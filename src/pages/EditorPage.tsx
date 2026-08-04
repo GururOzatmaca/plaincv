@@ -7,8 +7,8 @@ import { UndoRedo, SaveIndicator } from '@/components/HeaderActions';
 import { DocSwitcher } from '@/components/DocSwitcher';
 import { StartButtons, StartChoice } from '@/components/StartWith';
 import { Coachmarks } from '@/components/Coachmarks';
-import { ImportDialog } from '@/components/ImportDialog';
-import { VideoDialog } from '@/components/VideoDialog';
+import { ImportDialog, type ImportMode } from '@/components/ImportDialog';
+import { VideoDialog, type VideoClip } from '@/components/VideoDialog';
 import { Shortcuts } from '@/components/Shortcuts';
 import { LangGate } from '@/components/LangGate';
 import { usePrintFilename } from '@/lib/usePrintFilename';
@@ -53,10 +53,31 @@ const STAGE_PAD_BOTTOM = 22;
 
 const CTL_KEY = 'cv-generator/show-controls';
 
+/** One per clip: each walkthrough plays itself the first time its dialog is opened. */
 const VIDEO_KEY = 'cv-generator/ai-video-seen';
+const LI_VIDEO_KEY = 'cv-generator/li-video-seen';
 
 /** Asked once, right after the first tour; answering or dismissing it both count. */
 const START_KEY = 'cv-generator/start-picked';
+
+/** The two import buttons pulse until each has been opened once. */
+const AI_SEEN_KEY = 'cv-generator/ai-opened';
+const LI_SEEN_KEY = 'cv-generator/li-opened';
+
+/** A blocked localStorage reads as "already seen", so a locked-down browser gets no pulse. */
+const wasSeen = (key: string): boolean => {
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return true;
+  }
+};
+
+const markSeen = (key: string): void => {
+  try {
+    localStorage.setItem(key, '1');
+  } catch {}
+};
 
 const clampTo = (z: number, min: number, max: number): number => Math.min(max, Math.max(min, +z.toFixed(3)));
 
@@ -94,9 +115,11 @@ export function EditorPage() {
   const [smallDesk, setSmallDesk] = useState(false);
   const [phone, setPhone] = useState(false);
   const [showCtl, setShowCtl] = useState(initialShowCtl);
-  const [importOpen, setImportOpen] = useState(false);
+  const [importMode, setImportMode] = useState<ImportMode | null>(null);
+  const [glowAi, setGlowAi] = useState(() => !wasSeen(AI_SEEN_KEY));
+  const [glowLi, setGlowLi] = useState(() => !wasSeen(LI_SEEN_KEY));
   const [keysOpen, setKeysOpen] = useState(false);
-  const [videoOpen, setVideoOpen] = useState(false);
+  const [videoClip, setVideoClip] = useState<VideoClip | null>(null);
   const [printBlocked, setPrintBlocked] = useState(false);
 
   const [langPicked, setLangPicked] = useState(hasStoredLang);
@@ -113,7 +136,7 @@ export function EditorPage() {
   const [coachPanel, setCoachPanel] = useState<boolean | null>(null);
 
   const coachApi = useMemo(
-    () => ({ setImportOpen, setShowCtl, setPanelOpen: setCoachPanel, setKeysOpen }),
+    () => ({ setImportMode, setShowCtl, setPanelOpen: setCoachPanel, setKeysOpen }),
     [],
   );
 
@@ -145,11 +168,24 @@ export function EditorPage() {
    * trigger the walkthrough. Marked seen on open, so a reload mid-video does not replay it.
    */
   const openAi = useCallback(() => {
-    setImportOpen(true);
+    setImportMode('ai');
+    setGlowAi(false);
+    markSeen(AI_SEEN_KEY);
     try {
       if (localStorage.getItem(VIDEO_KEY) === '1') return;
       localStorage.setItem(VIDEO_KEY, '1');
-      setVideoOpen(true);
+      setVideoClip('ai-flow');
+    } catch {}
+  }, []);
+
+  const openLi = useCallback(() => {
+    setImportMode('linkedin');
+    setGlowLi(false);
+    markSeen(LI_SEEN_KEY);
+    try {
+      if (localStorage.getItem(LI_VIDEO_KEY) === '1') return;
+      localStorage.setItem(LI_VIDEO_KEY, '1');
+      setVideoClip('li-flow');
     } catch {}
   }, []);
 
@@ -512,11 +548,28 @@ export function EditorPage() {
             {t('hdr.viewOptions')}
           </button>
 
-          <button className="hdr-ai" type="button" onClick={openAi}>
+          <button className={`hdr-li${glowLi ? ' glow' : ''}`} type="button" onClick={openLi}>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">
+              <path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05a3.74 3.74 0 0 1 3.37-1.85c3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.07 2.07 0 1 1 0-4.13 2.07 2.07 0 0 1 0 4.13zM7.12 20.45H3.55V9h3.57v11.45z" />
+            </svg>
+            {t('hdr.linkedin')}
+          </button>
+
+          <button className={`hdr-ai${glowAi ? ' glow' : ''}`} type="button" onClick={openAi}>
+            {/* Concave arms; a straight-armed star of this size reads as a plus sign. */}
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+              <path d="M9.6 1.8c.75 4.6 1.9 5.75 6.5 6.5-4.6.75-5.75 1.9-6.5 6.5-.75-4.6-1.9-5.75-6.5-6.5 4.6-.75 5.75-1.9 6.5-6.5Z" />
+              <path d="M17.6 13.2c.42 2.6 1.05 3.23 3.65 3.65-2.6.42-3.23 1.05-3.65 3.65-.42-2.6-1.05-3.23-3.65-3.65 2.6-.42 3.23-1.05 3.65-3.65Z" />
+            </svg>
             {t('hdr.ai')}
           </button>
 
           <button className="hdr-dl" type="button" onClick={download}>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M6 21h12" />
+              <path d="M12 3v14" />
+              <path d="m17 12-5 5-5-5" />
+            </svg>
             <span>{t('hdr.download')}</span>
           </button>
           </div>
@@ -528,7 +581,7 @@ export function EditorPage() {
       {printBlocked && (
         <div className="no-print rec-bar" role="alert">
           <span className="rec-msg">{t('hdr.printBlocked')}</span>
-          <button className="rec-btn primary" type="button" onClick={() => setImportOpen(true)}>
+          <button className="rec-btn primary" type="button" onClick={() => setImportMode('ai')}>
             {t('hdr.printBlocked.backup')}
           </button>
           <button className="rec-btn" type="button" onClick={() => setPrintBlocked(false)}>
@@ -572,11 +625,16 @@ export function EditorPage() {
         </div>
       </main>
       <ImportDialog
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        onWatch={() => setVideoOpen(true)}
+        open={importMode !== null}
+        mode={importMode ?? 'ai'}
+        onClose={() => setImportMode(null)}
+        onWatch={() => setVideoClip(importMode === 'linkedin' ? 'li-flow' : 'ai-flow')}
       />
-      <VideoDialog open={videoOpen} onClose={() => setVideoOpen(false)} />
+      <VideoDialog
+        open={videoClip !== null}
+        clip={videoClip ?? 'ai-flow'}
+        onClose={() => setVideoClip(null)}
+      />
       <Shortcuts
         open={keysOpen}
         onOpenChange={setKeysOpen}
@@ -592,7 +650,7 @@ export function EditorPage() {
         startAt={tourAt}
         onConsumed={clearTour}
         onFinished={onTourFinished}
-        dialogsOpen={importOpen || keysOpen || videoOpen}
+        dialogsOpen={importMode !== null || keysOpen || videoClip !== null}
         stacked={stacked}
         hold={!langPicked}
       />

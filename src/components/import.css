@@ -58,13 +58,8 @@
   font-size: 19px;
   font-weight: 700;
 }
-.imp-sub {
-  margin-top: 3px;
-  font-size: 13px;
-  color: var(--muted);
-}
 .imp-watch {
-  margin-top: 10px;
+  margin-top: 8px;
   padding: 0;
   border: none;
   background: transparent;
@@ -80,11 +75,11 @@
 }
 .imp-steps {
   list-style: none;
-  margin: 18px 0 18px;
+  margin: 14px 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 13px;
 }
 .imp-step-h {
   display: flex;
@@ -92,7 +87,7 @@
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
 }
 .imp-num {
   display: grid;
@@ -110,7 +105,7 @@
   padding: 8px 16px;
 }
 .imp-hint {
-  margin-top: 6px;
+  margin-top: 5px;
   font-size: 12px;
   line-height: 1.5;
   color: var(--faint);
@@ -148,6 +143,17 @@
   transform: scale(0.96);
 }
 
+/* Both dialogs end their first step the same way: one button that hands everything to ChatGPT,
+   and a quieter way out for anyone using something else. */
+.imp-go {
+  width: 100%;
+  margin-top: 9px;
+}
+.imp-copy {
+  display: block;
+  margin: 6px auto 0;
+}
+
 .imp-btn:disabled {
   background: var(--surface-2);
   color: var(--muted);
@@ -156,6 +162,8 @@
   filter: none;
 }
 .imp-textarea {
+  /* The hint above it explains what to paste; flush against the box it read as a caption. */
+  margin-top: 10px;
   width: 100%;
   min-height: 120px;
   resize: vertical;

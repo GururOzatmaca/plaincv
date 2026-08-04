@@ -439,7 +439,34 @@ function budgetLines(b: LengthBudget): string[] {
   return lines;
 }
 
-export function buildAiPrompt(budget?: LengthBudget): string {
+/**
+ * What LinkedIn's own PDF gets wrong, measured against real exports. Each line exists because
+ * the export loses or distorts something a CV needs, and the model is the only thing that can
+ * put it back.
+ */
+const LINKEDIN_RULES = [
+  'This is my LinkedIn profile, exported by LinkedIn as a PDF. It has known gaps:',
+  '- Its skills list is only my top three. Read my job descriptions and add every other',
+  '  skill, tool, language or method NAMED THERE. Never add one I did not write.',
+  '- The line under my name is a LinkedIn search headline, not a job title. Cut it down to',
+  '  a short title for the CV.',
+  // Naming a language here would fight the Turkish rule above, which the model reads first and
+  // this block would then override.
+  '- Its section headings come from LinkedIn and may be in any language. Ignore them and',
+  '  title the CV sections as the rules above ask.',
+  '- A role showing no end date is my current one; write "Present".',
+  '- Ignore the "Page 1 of 2" footers and the (Mobile) / (LinkedIn) / (Personal) labels.',
+  '- Drop the per-role locations and the "(1 yr 3 mos)" durations; neither belongs on a CV.',
+];
+
+export interface PromptSource {
+  /** A verified LinkedIn export: inlined, and the rules above are attached to it. */
+  linkedin?: string;
+  /** Any other document the user handed over. Inlined with nothing claimed about it. */
+  details?: string;
+}
+
+export function buildAiPrompt(budget?: LengthBudget, source?: PromptSource): string {
   const example = JSON.stringify(PROMPT_EXAMPLE, null, 2);
   return [
     'You are helping me build an ATS-friendly resume. Read MY details at the bottom',
@@ -486,13 +513,35 @@ export function buildAiPrompt(budget?: LengthBudget): string {
     '  to paste the JSON into the app now and that you will redo it once I answer.',
     '- Never put questions inside the JSON and never send questions instead of it.',
     '',
+    // Only a file that proved it came from LinkedIn gets these; asserting them over somebody's
+    // ordinary CV would send the model hunting for skills that are already listed and cut a real
+    // job title down as though it were a search headline.
+    ...(source?.linkedin ? ['', ...LINKEDIN_RULES] : []),
+    '',
     'EXAMPLE SHAPE (replace all content with mine; this shows every supported field):',
     example,
     '',
-    'MY DETAILS (paste your CV, LinkedIn text, or rough notes here):',
-    '<paste here>',
+    ...(source?.linkedin
+      ? ['MY LINKEDIN PROFILE:', source.linkedin]
+      : source?.details
+        ? ['MY DETAILS:', source.details]
+        : ['MY DETAILS (paste your CV, LinkedIn text, or rough notes here):', '<paste here>']),
   ].join('\n');
 }
+
+/**
+ * ChatGPT takes `?q=` and drops it into the composer without sending, so one click can hand it
+ * the prompt and the profile together. Measured against the live site: 24,000 characters of
+ * query arrive intact. That is a verified-safe length, not the ceiling, so the caller falls
+ * back to the clipboard above it rather than shipping half a profile.
+ */
+export const PROMPT_URL_MAX = 24_000;
+
+export const chatGptUrl = (prompt: string): string =>
+  `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`;
+
+export const fitsInUrl = (prompt: string): boolean =>
+  encodeURIComponent(prompt).length <= PROMPT_URL_MAX;
 
 const MAX_IMPORT_BYTES = 1_000_000;
 
