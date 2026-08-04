@@ -22,6 +22,8 @@ export const tr: Record<keyof typeof en, string> = {
   'hdr.printBlocked': `Bu uygulama içi tarayıcı yazdıramıyor. Menüsünden plaincv.net adresini gerçek bir tarayıcıda, Chrome ya da Safari'de açın ve CV indir'e orada basın. CV'niz tarayıcı başına saklanır; önce yedeği alın, sonra diğer tarafta yükleyin.`,
   'hdr.printBlocked.backup': 'Yedekle',
   'hdr.printBlocked.dismiss': 'Kapat',
+  'hdr.printMobile': `Telefon, PDF'in üstüne kendi adresini, tarihini ve sayfa numarasını basar ve sayfayı sığdırmak için küçültür. Bilgisayarda bunlar olmaz. Temiz bir CV için plaincv.net'i bilgisayarda Chrome ya da Safari'de açın ve CV indir'e orada basın.`,
+  'hdr.printMobile.go': 'Yine de indir',
 
   // CV switcher
   'doc.switch.title': `CV'leriniz arasında geçiş yapın`,

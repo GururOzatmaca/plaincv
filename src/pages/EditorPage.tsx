@@ -64,6 +64,9 @@ const START_KEY = 'cv-generator/start-picked';
 const AI_SEEN_KEY = 'cv-generator/ai-opened';
 const LI_SEEN_KEY = 'cv-generator/li-opened';
 
+/** Warned once per browser that a phone stamps the PDF; after that Download prints straight away. */
+const MOBILE_PRINT_KEY = 'cv-generator/mobile-print-warned';
+
 /** A blocked localStorage reads as "already seen", so a locked-down browser gets no pulse. */
 const wasSeen = (key: string): boolean => {
   try {
@@ -77,6 +80,18 @@ const markSeen = (key: string): void => {
   try {
     localStorage.setItem(key, '1');
   } catch {}
+};
+
+/**
+ * The platform, not the window width: a narrow desktop window prints clean, while a phone
+ * hands the page to AirPrint or the Android print service, which stamp their own header and
+ * footer and shrink the paper to fit their margins whatever `@page` says.
+ */
+const isMobilePrint = (): boolean => {
+  const ua = navigator.userAgent;
+  if (/Android|iPhone|iPad|iPod/.test(ua)) return true;
+  // iPadOS 13+ reports itself as a Mac; the touch points give it away.
+  return /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
 };
 
 const clampTo = (z: number, min: number, max: number): number => Math.min(max, Math.max(min, +z.toFixed(3)));
@@ -121,6 +136,7 @@ export function EditorPage() {
   const [keysOpen, setKeysOpen] = useState(false);
   const [videoClip, setVideoClip] = useState<VideoClip | null>(null);
   const [printBlocked, setPrintBlocked] = useState(false);
+  const [printWarn, setPrintWarn] = useState(false);
 
   const [langPicked, setLangPicked] = useState(hasStoredLang);
 
@@ -195,13 +211,22 @@ export function EditorPage() {
    * "undefined is not an object (window.webkit.messageHandlers.print.postMessage)".
    * Left uncaught it reaches the ErrorBoundary and takes the whole editor down.
    */
-  const download = useCallback(() => {
+  const print = useCallback(() => {
+    setPrintWarn(false);
     try {
       window.print();
     } catch {
       setPrintBlocked(true);
     }
   }, []);
+
+  const download = useCallback(() => {
+    if (isMobilePrint() && !wasSeen(MOBILE_PRINT_KEY)) {
+      setPrintWarn(true);
+      return;
+    }
+    print();
+  }, [print]);
   const theme = useResumeStore((s) => s.doc.theme);
   const photo = useResumeStore((s) => s.doc.header.photo);
   usePrintFilename();
@@ -577,6 +602,25 @@ export function EditorPage() {
       </header>
 
       <RecoveryBanner />
+
+      {printWarn && (
+        <div className="no-print rec-bar" role="alert">
+          <span className="rec-msg">{t('hdr.printMobile')}</span>
+          <button
+            className="rec-btn primary"
+            type="button"
+            onClick={() => {
+              markSeen(MOBILE_PRINT_KEY);
+              print();
+            }}
+          >
+            {t('hdr.printMobile.go')}
+          </button>
+          <button className="rec-btn" type="button" onClick={() => setPrintWarn(false)}>
+            {t('hdr.printBlocked.dismiss')}
+          </button>
+        </div>
+      )}
 
       {printBlocked && (
         <div className="no-print rec-bar" role="alert">

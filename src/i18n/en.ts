@@ -21,6 +21,9 @@ export const en = {
     'This in-app browser cannot print. Use its menu to open plaincv.net in a real browser, Chrome or Safari, then press Download CV there. Your CV is stored per browser, so take the backup first and load it on the other side.',
   'hdr.printBlocked.backup': 'Back up',
   'hdr.printBlocked.dismiss': 'Dismiss',
+  'hdr.printMobile':
+    'A phone prints its own address, date and page number onto the PDF, and shrinks the page to fit. A computer does not. For a clean CV, open plaincv.net in Chrome or Safari on a computer and press Download CV there.',
+  'hdr.printMobile.go': 'Download anyway',
 
   // CV switcher
   'doc.switch.title': 'Switch between your CVs',
