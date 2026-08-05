@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { Line } from '@/schema/resume';
-import { domToRuns, normalizeLine as normalize, runsToHtml, setMark } from '@/lib/richtext';
+import { caretInto, domToRuns, normalizeLine as normalize, runsToHtml, setMark } from '@/lib/richtext';
 
 export function RichEditable({
   value,
@@ -26,6 +26,15 @@ export function RichEditable({
     if (JSON.stringify(domToRuns(el)) !== JSON.stringify(value)) el.innerHTML = runsToHtml(value);
   }, [value]);
 
+  /** Same as Editable: an empty profile or education note cannot hold a caret on its own. */
+  const grabCaret = (e: { currentTarget: HTMLElement; preventDefault: () => void }) => {
+    const el = e.currentTarget;
+    if (el.textContent) return;
+    e.preventDefault();
+    el.focus({ preventScroll: true });
+    caretInto(el);
+  };
+
   const commit = () => {
     const el = ref.current;
     if (!el) return;
@@ -50,7 +59,12 @@ export function RichEditable({
       data-ph={placeholder}
       data-fid={fid}
 
-      onFocus={(e) => e.currentTarget.removeAttribute('data-dirty')}
+      onPointerDown={grabCaret}
+      onMouseDown={grabCaret}
+      onFocus={(e) => {
+        e.currentTarget.removeAttribute('data-dirty');
+        if (!e.currentTarget.textContent) caretInto(e.currentTarget);
+      }}
       onInput={(e) => e.currentTarget.setAttribute('data-dirty', '1')}
       onBlur={(e) => {
         e.currentTarget.removeAttribute('data-dirty');

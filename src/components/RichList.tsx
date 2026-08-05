@@ -116,6 +116,13 @@ export function RichList({
 }) {
   const ref = useRef<HTMLUListElement>(null);
 
+  const grabList = (e: { currentTarget: HTMLElement; preventDefault: () => void }) => {
+    const el = e.currentTarget;
+    if (el.firstElementChild) return;
+    e.preventDefault();
+    el.focus({ preventScroll: true });
+  };
+
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el || el === document.activeElement) return;
@@ -144,6 +151,11 @@ export function RichList({
       spellCheck
       data-ph={placeholder}
       data-fid={fid}
+      // An empty list is only its placeholder, and the browser will not put a caret in
+      // generated content, so the click has to be taken over before its default resolves to
+      // a position outside the list. seedLine then gives the caret a real <li> to sit in.
+      onPointerDown={grabList}
+      onMouseDown={grabList}
       onFocus={(e) => {
         e.currentTarget.removeAttribute('data-dirty');
         seedLine(e.currentTarget);

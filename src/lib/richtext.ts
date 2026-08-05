@@ -55,6 +55,28 @@ export function normalizeLine(line: Line): Line {
   return mergeRuns(collapsed);
 }
 
+/**
+ * Puts the caret inside a field the browser will not put it in by itself.
+ *
+ * An empty field is nothing but its `::before` placeholder, and generated content cannot
+ * hold a caret, so a click inside that box resolves to the nearest REAL text position -
+ * which is in the field's neighbour or in the parent, outside the editing host. Focus still
+ * lands on the field, so it looks focused and typing goes nowhere; the second click works
+ * because by then the field is the editing host already. RichList has always sidestepped
+ * this by seeding a real <li> on focus.
+ *
+ * Every field that starts empty is affected - organisation, issuer, project link, both
+ * dates - which is why they are the ones that ask for a second click.
+ */
+export const caretInto = (el: HTMLElement): void => {
+  const r = document.createRange();
+  r.selectNodeContents(el);
+  r.collapse(true);
+  const sel = window.getSelection();
+  sel?.removeAllRanges();
+  sel?.addRange(r);
+};
+
 export const setMark = (cmd: 'bold' | 'italic'): void => {
   document.execCommand('styleWithCSS', false, 'false');
   document.execCommand(cmd);
