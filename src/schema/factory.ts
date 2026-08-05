@@ -37,19 +37,29 @@ export const DEFAULT_THEME: Theme = {
 
 export const newBullet = () => ({ id: uid(), runs: [] as [] });
 
+/**
+ * A new entry starts with NO bullets, not one empty one. An empty bullet is a real <li>: it
+ * draws its marker and takes a line, on the page and in the PDF, and there is nothing in it
+ * to select or backspace over, so it reads as a bullet that cannot be deleted. It only ever
+ * went away if you happened to click into the list and back out, which is what commits the
+ * list and drops empty lines.
+ *
+ * An empty list is the state RichList is built around: no <li> leaves the <ul> `:empty`, so
+ * it shows its placeholder on screen and measure() drops it exactly the way print does.
+ */
 export function newItem(type: Section['type']): Record<string, unknown> {
   const id = uid();
   switch (type) {
     case 'experience':
-      return { id, role: '', org: '', start: '', end: '', bullets: [newBullet()] };
+      return { id, role: '', org: '', start: '', end: '', bullets: [] };
     case 'education':
       return { id, degree: '', school: '', start: '', end: '' };
     case 'projects':
-      return { id, name: '', bullets: [newBullet()] };
+      return { id, name: '', bullets: [] };
     case 'certifications':
       return { id, name: '' };
     case 'custom':
-      return { id, bullets: [newBullet()] };
+      return { id, bullets: [] };
     default:
       return { id };
   }

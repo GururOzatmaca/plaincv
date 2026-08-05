@@ -114,7 +114,15 @@ const SectionDto = z.discriminatedUnion('type', [
     title: z.string().optional(),
     noRule: z.boolean().optional(),
     items: z
-      .array(z.object({ name: z.string().optional(), link: z.string().optional(), bullets }))
+      .array(
+        z.object({
+          name: z.string().optional(),
+          link: z.string().optional(),
+          start: z.string().optional(),
+          end: z.string().optional(),
+          bullets,
+        }),
+      )
       .optional(),
   }),
   z.object({

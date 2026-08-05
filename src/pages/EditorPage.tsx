@@ -357,6 +357,10 @@ export function EditorPage() {
       // A dead zone, or the header flickers on the small jitter a touch scroll ends with.
       if (Math.abs(dy) < 6) return;
       last = y;
+      // Tapping a field makes the browser scroll it clear of the keyboard. Letting that
+      // scroll move the header as well shifts the page under a finger that is still
+      // aiming, which is what makes editing on a phone feel like it is fighting back.
+      if ((document.activeElement as HTMLElement | null)?.isContentEditable) return;
       if (y <= hdrH) setHdrOff(false);
       else if (dy > 0) setHdrOff(true);
       else setHdrOff(false);
@@ -508,7 +512,7 @@ export function EditorPage() {
 
   return (
     <div
-      className={`app-root flex h-screen flex-col ${showCtl ? 'show-ctl' : ''}${narrow ? ' hdr-float' : ''}${
+      className={`app-root flex h-screen flex-col ${showCtl ? 'show-ctl' : ''}${narrow ? ' one-col hdr-float' : ''}${
         narrow && hdrOff ? ' hdr-off' : ''
       }`}
       style={{ ['--hdr-h' as string]: `${hdrH}px` }}

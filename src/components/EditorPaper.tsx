@@ -178,6 +178,89 @@ const sortByIds = <T extends { id: string }>(arr: T[], ids: string[]): void => {
   arr.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
 };
 
+/**
+ * A field is only as tall as its own type, and the paper is drawn scaled: an empty
+ * Organization is 55x11 real pixels on a fitted desktop page and 33x7 on a phone. Miss that
+ * band by six pixels and the click lands on the plain div behind it, which does nothing -
+ * that is what "it takes two clicks" is, and why Organization, issuer and the dates are the
+ * ones people report. A click inside a row that hit no field is handed to the nearest field
+ * in that row instead. Clicks that land on the text itself never reach here, so caret
+ * placement inside a filled field is untouched.
+ */
+const ROUTE_ROW = '.cv-entry, .cv-secH, .cv-head, .cv-skillrow';
+
+/** Anything with its own click behaviour; routing one of these would steal it. */
+const ROUTE_SKIP = 'button, a, input, textarea, select, .cv-photo';
+
+/** How far outside a field, in multiples of its own height, still counts as aimed at it. */
+const ROUTE_REACH = 2;
+
+/** A click that travelled this far is a drag or a text selection, not a miss. */
+const ROUTE_SLOP = 6;
+
+/** Vertical misses are the common ones, so distance across the row costs less than distance up it. */
+const ROUTE_DY_COST = 4;
+
+const gapTo = (lo: number, hi: number, v: number): number => Math.max(0, lo - v, v - hi);
+
+function putCaret(el: HTMLElement, x: number): void {
+  const r = el.getBoundingClientRect();
+  const doc = document as Document & {
+    caretRangeFromPoint?: (x: number, y: number) => Range | null;
+    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+  };
+
+  // Aim at the field's own middle: the click that got here was outside it, and a y outside
+  // the box resolves to whatever line happens to be there instead.
+  const cx = Math.min(Math.max(x, r.left + 1), r.right - 1);
+  const cy = r.top + r.height / 2;
+
+  let range: Range | null = null;
+  if (doc.caretRangeFromPoint) range = doc.caretRangeFromPoint(cx, cy);
+  else if (doc.caretPositionFromPoint) {
+    const p = doc.caretPositionFromPoint(cx, cy);
+    if (p) {
+      range = document.createRange();
+      range.setStart(p.offsetNode, p.offset);
+    }
+  }
+  if (!range || !el.contains(range.startContainer)) {
+    range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(x < r.left);
+  }
+  range.collapse(true);
+  const sel = window.getSelection();
+  sel?.removeAllRanges();
+  sel?.addRange(range);
+}
+
+function routeToNearestField(target: HTMLElement, x: number, y: number): void {
+  const row = target.closest(ROUTE_ROW);
+  if (!row) return;
+
+  let best: HTMLElement | null = null;
+  let bestScore = Infinity;
+  // The bullet list spans the whole column, so a click meant for it already hit it; letting
+  // it win here would drag a miss near the role line down into the bullets.
+  for (const f of row.querySelectorAll<HTMLElement>('.cv-edit:not(.cv-richlist)')) {
+    const r = f.getBoundingClientRect();
+    if (!r.width || !r.height) continue;
+    const dy = gapTo(r.top, r.bottom, y);
+    if (dy > r.height * ROUTE_REACH) continue;
+    const score = dy * ROUTE_DY_COST + gapTo(r.left, r.right, x);
+    if (score < bestScore) {
+      bestScore = score;
+      best = f;
+    }
+  }
+  if (!best) return;
+  // The field is within two of its own heights of the click, so it is already on screen;
+  // letting focus() scroll to it as well would only jog the page under the pointer.
+  best.focus({ preventScroll: true });
+  putCaret(best, x);
+}
+
 const applyOrder = <T extends { id: string }>(arr: T[], ids: string[] | null): T[] =>
   ids ? (ids.map((id) => arr.find((a) => a.id === id)).filter(Boolean) as T[]) : arr;
 
@@ -720,6 +803,29 @@ function SectionView({
                   />
                   <PrintLink className="cv-co" value={it.link ?? ''} />
                 </div>
+                <div className="cv-date">
+                  <Editable
+                    value={it.start ?? ''}
+                    placeholder={t('paper.ph.start')}
+                    onCommit={(v) =>
+                      editItem(it.id, (i) => {
+                        if (v) i.start = v;
+                        else delete i.start;
+                      })
+                    }
+                  />
+                  {it.start && it.end ? ' - ' : ' '}
+                  <Editable
+                    value={it.end ?? ''}
+                    placeholder={t('paper.ph.end')}
+                    onCommit={(v) =>
+                      editItem(it.id, (i) => {
+                        if (v) i.end = v;
+                        else delete i.end;
+                      })
+                    }
+                  />
+                </div>
               </div>
               {bullets(it.id, it.bullets)}
             </>
@@ -1245,6 +1351,38 @@ export function EditorPaper({ scale }: { scale: number }) {
   const { contentH, overflow, fitFailedAt } = pageFit;
   const fitFailed = fitFailedAt !== null;
 
+  const downAt = useRef<{ x: number; y: number } | null>(null);
+
+  /**
+   * One column has no hover, so nothing reveals a section's own delete, reorder, eye and add
+   * buttons; sticky hover lights one at random and leaves it lit. The section last touched
+   * is marked instead, and .one-col in the stylesheet shows that section's controls only.
+   *
+   * Written straight to the DOM rather than held in state: this fires on every tap, and a
+   * state change here would re-render the whole page each time. Driven by pointerdown, not
+   * :focus-within, because a button does not take focus on tap in every mobile browser, and
+   * a control that disappears under the finger pressing it never gets its click.
+   */
+  const markCtlHost = (target: HTMLElement) => {
+    const paper = paperRef.current;
+    if (!paper) return;
+    const host = target.closest('.cv-section, .cv-head');
+    for (const el of paper.querySelectorAll('[data-ctl]')) {
+      if (el !== host) el.removeAttribute('data-ctl');
+    }
+    if (host instanceof HTMLElement) host.dataset.ctl = '1';
+  };
+
+  const onPaperClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const from = downAt.current;
+    downAt.current = null;
+    if (from && Math.hypot(e.clientX - from.x, e.clientY - from.y) > ROUTE_SLOP) return;
+    if (document.body.classList.contains('cv-dragging')) return;
+    const target = e.target as HTMLElement;
+    if (target.isContentEditable || target.closest(ROUTE_SKIP)) return;
+    routeToNearestField(target, e.clientX, e.clientY);
+  };
+
   const scaleRef = useRef(scale);
   scaleRef.current = scale;
   const transformPagePoint = useCallback(
@@ -1505,6 +1643,12 @@ export function EditorPaper({ scale }: { scale: number }) {
         onDragOver={(e) => e.preventDefault()}
 
         onDrop={(e) => e.preventDefault()}
+
+        onPointerDown={(e) => {
+          downAt.current = { x: e.clientX, y: e.clientY };
+          markCtlHost(e.target as HTMLElement);
+        }}
+        onClick={onPaperClick}
         style={{
           width: `${A4_W}px`,
           height: `${A4_H}px`,

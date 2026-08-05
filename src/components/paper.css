@@ -46,6 +46,10 @@
 .cv-rule:hover .cv-rule-x,
 .cv-secH:hover > .cv-rule-x,
 .show-ctl .cv-rule-x,
+.one-col [data-ctl] .cv-rule-x,
+/* The header's divider sits outside .cv-head, so marking the header cannot reach it the way
+   it reaches a section's own divider. */
+.one-col .cv-head[data-ctl] ~ .cv-rule .cv-rule-x,
 body.coach-tour:not(.coach-bare) .cv-rule-x,
 .cv-rule-x:focus-visible {
   opacity: 1;
@@ -92,6 +96,11 @@ body.coach-tour:not(.coach-bare) .cv-rule-x,
   border-radius: 3px;
   cursor: text;
   transition: box-shadow var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
+
+  /* The browser scrolls a focused field clear of the on-screen keyboard by itself, and on
+     one column it parks it under the floating header. Only the margin is reserved here; the
+     scroll is the browser's. */
+  scroll-margin: calc(var(--hdr-h, 0px) + 24px) 0 24px;
 }
 .cv-edit:hover {
   box-shadow: 0 0 0 2px var(--accent-weak);
@@ -232,13 +241,20 @@ body.coach-tour:not(.coach-bare) .cv-rule-x,
 .show-ctl .cv-hz > *,
 body.coach-tour:not(.coach-bare) .cv-hz > *,
 .show-ctl .cv-chip-x,
-body.coach-tour:not(.coach-bare) .cv-chip-x {
+body.coach-tour:not(.coach-bare) .cv-chip-x,
+/* One column reveals the controls of the section last touched, and only that one; see
+   markCtlHost. Without this a phone has no way to reach delete, reorder or the eye. */
+.one-col [data-ctl] .cv-hz > *,
+.one-col [data-ctl] .cv-chip-x,
+.one-col [data-ctl] .cv-ico-x {
   opacity: 1;
 }
 .show-ctl .cv-contact-add,
 body.coach-tour:not(.coach-bare) .cv-contact-add,
 .show-ctl .cv-chip-add,
-body.coach-tour:not(.coach-bare) .cv-chip-add {
+body.coach-tour:not(.coach-bare) .cv-chip-add,
+.one-col [data-ctl] .cv-contact-add,
+.one-col [data-ctl] .cv-chip-add {
   display: grid;
 }
 
@@ -332,6 +348,15 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
 
 .cv-drag {
   --ring: calc(1px / var(--zoom, 1));
+
+  /* A touch that lands on the handle is a drag, never a scroll. Without this the browser
+     claims the gesture for panning and cancels the pointer before framer-motion sees a
+     move, so the handle is visible on a phone and does nothing. preventDefault() on
+     pointerdown cannot do this job: panning is decided by touch-action alone. */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+
   background: var(--accent-weak);
   box-shadow: inset 0 0 0 var(--ring) color-mix(in oklab, var(--paper-accent) 24%, transparent);
   color: color-mix(in oklab, var(--accent-strong) 72%, #fff);
@@ -460,6 +485,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-add {
 .cv-entry:hover:not(:has(.cv-hz-l:hover)) .cv-addbul,
 .cv-addbul:hover,
 .show-ctl .cv-addbul,
+.one-col [data-ctl] .cv-addbul,
 body.coach-tour:not(.coach-bare) .cv-addbul,
 
 .cv-addbul:focus-visible {
@@ -515,6 +541,7 @@ body.coach-tour:not(.coach-bare) .cv-addbul,
 .cv-section:hover:not(:has(.cv-hz-l:hover)) .cv-secadd-wrap,
 .cv-secadd-wrap:hover,
 .show-ctl .cv-secadd-wrap,
+.one-col [data-ctl] .cv-secadd-wrap,
 body.coach-tour:not(.coach-bare) .cv-secadd-wrap,
 .cv-secadd-wrap:focus-within {
   display: block;
@@ -524,7 +551,8 @@ body.coach-tour:not(.coach-bare) .cv-secadd-wrap,
   margin-top: 0.5pt;
 }
 .cv-section:hover:not(:has(.cv-hz-l:hover)) .cv-secadd-wrap .cv-hz-secadd > *,
-.cv-secadd-wrap:hover .cv-hz-secadd > * {
+.cv-secadd-wrap:hover .cv-hz-secadd > *,
+.one-col [data-ctl] .cv-secadd-wrap .cv-hz-secadd > * {
   opacity: 1;
 }
 
@@ -581,6 +609,9 @@ body:not(.cv-dragging) .print-stage.is-scrolling .print-paper {
 .cv-addsec:hover .cv-addsec-btn,
 .cv-addsec-open .cv-addsec-btn,
 .show-ctl .cv-addsec-btn,
+/* Add section belongs to no section, so nothing can reveal it by touch. It stays out on one
+   column rather than depending on which blank part of the page was last tapped. */
+.one-col .cv-addsec-btn,
 body.coach-tour:not(.coach-bare) .cv-addsec-btn,
 .cv-addsec-btn:focus-visible {
   max-height: 40px;
@@ -814,6 +845,15 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
 .cv-ul:empty {
   margin-top: 0;
 }
+@media print {
+  /* ...and the PDF has to agree. Blanking the placeholder is not enough here: the list is a
+     block, so its empty ::before still holds a line box and an untouched entry printed a
+     blank bulleted line. measure() drops this list entirely, so print must too, or the page
+     budget is short by a line per bullet-less entry. */
+  .cv-ul:empty {
+    display: none;
+  }
+}
 
 @media screen {
   .cv-section {
@@ -961,6 +1001,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
 }
 .cv-skillrow:hover .cv-chip-add,
 .show-ctl .cv-chip-add,
+.one-col [data-ctl] .cv-chip-add,
 body.coach-tour:not(.coach-bare) .cv-chip-add,
 
 .cv-chips:focus-within .cv-chip-add,
@@ -1173,6 +1214,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-add,
 .cv-photo:hover .cv-photo-x,
 .cv-photo:focus-within .cv-photo-x,
 .show-ctl .cv-photo-x,
+.one-col [data-ctl] .cv-photo-x,
 body.coach-tour:not(.coach-bare) .cv-photo-x,
 .cv-photo-x:focus-visible {
   opacity: 1;

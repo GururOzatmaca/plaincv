@@ -65,6 +65,11 @@ export const ProjectItemSchema = z.object({
   id: z.string(),
   name: z.string(),
   link: z.string().optional(),
+
+  // Optional, unlike experience and education: a project often has no dates worth printing,
+  // and an absent one costs the page nothing rather than an empty date column.
+  start: z.string().optional(),
+  end: z.string().optional(),
   bullets: z.array(BulletSchema),
 });
 

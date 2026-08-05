@@ -142,6 +142,8 @@ export function dtoToResume(dto: ImportDto): Resume {
             id: uid(),
             name: it.name ?? '',
             ...(it.link ? { link: it.link } : {}),
+            ...(it.start ? { start: it.start } : {}),
+            ...(it.end ? { end: it.end } : {}),
             bullets: toBullets(it.bullets),
           })),
         };
@@ -243,6 +245,8 @@ export function resumeToDto(doc: Resume): ImportDto {
           items: s.items.map((it) => ({
             name: it.name,
             ...(it.link ? { link: it.link } : {}),
+            ...(it.start ? { start: it.start } : {}),
+            ...(it.end ? { end: it.end } : {}),
             bullets: it.bullets.map((b) => lineToMd(b.runs)),
           })),
         };
@@ -353,6 +357,8 @@ const PROMPT_EXAMPLE: ImportDto = {
         {
           name: 'OpenMetrics',
           link: 'github.com/alexmorgan/openmetrics',
+          start: '2020',
+          end: 'Present',
           bullets: ['Open-source metrics library with 3k+ GitHub stars.', 'Adopted by 50+ companies for production monitoring.'],
         },
       ],
@@ -713,6 +719,8 @@ export function normalizeAliases(input: unknown): { value: unknown; notes: strin
             fill(it, 'name', ['projectName'], notes, lbl);
             if (it.name === undefined) fill(it, 'name', ['title'], notes, lbl);
             fill(it, 'link', ['url', 'website'], notes, lbl);
+            fill(it, 'start', START_ALIAS, notes, lbl);
+            fill(it, 'end', END_ALIAS, notes, lbl);
             fill(it, 'bullets', BULLETS_ALIAS, notes, lbl);
             break;
           case 'certifications':
