@@ -114,6 +114,26 @@ body.coach-tour:not(.coach-bare) .cv-rule-x,
   content: attr(data-ph);
   color: var(--paper-muted);
 }
+
+/**
+ * An empty field is nothing but generated content, so its own box is zero wide. Tapping into
+ * an editable makes WebKit scroll and zoom to fit that box, and fitting a degenerate rect on
+ * a transform-scaled paper throws the view to the paper's top-left, zoomed out - until the
+ * first keystroke gives it real text and it corrects itself. A skill never did this because
+ * a chip carries padding, so even empty it has a box to aim at. This gives every other empty
+ * field the same thing.
+ *
+ * Divided by the zoom for the same reason --hit is: the paper is drawn scaled, so a constant
+ * number of real pixels under the finger has to be asked for in paper pixels.
+ */
+@media (pointer: coarse) {
+  .cv-edit:empty {
+    display: inline-block;
+    min-width: calc(28px / var(--zoom, 1));
+    min-height: calc(16px / var(--zoom, 1));
+    padding: 0 calc(3px / var(--zoom, 1));
+  }
+}
 @media print {
   .cv-edit:hover,
   .cv-edit:focus {
