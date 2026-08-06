@@ -130,7 +130,26 @@ const HARVEST = () => {
       label: t(row.querySelector('.cv-skilllabel')),
       values: all('.cv-chip:not(.cv-chip-add)', row).map(t).filter(Boolean),
     })),
-    markerTypes: [...new Set(all('.cv-ul').map((u) => getComputedStyle(u).listStyleType))],
+    markers: [
+      ...new Set(
+        all('.cv-ul > li').map((li) => {
+          const b = getComputedStyle(li, '::before');
+          const alpha = (v) => {
+            const m = v.match(/-?[\d.]+/g);
+            return m && m.length >= 3 ? (m.length > 3 ? +m[3] : 1) : 0;
+          };
+          const painted =
+            (parseFloat(b.width) || 0) > 0 &&
+            (parseFloat(b.height) || 0) > 0 &&
+            (alpha(b.backgroundColor) > 0 || (parseFloat(b.borderTopWidth) || 0) > 0);
+          return JSON.stringify({
+            list: getComputedStyle(li).listStyleType,
+            content: b.content,
+            painted,
+          });
+        }),
+      ),
+    ].map((s) => JSON.parse(s)),
     entries: all('.cv-entry')
       .map((e) => {
         const top = e.querySelector('.cv-etop');
@@ -246,14 +265,23 @@ function assertAll(exp, lines, rawLines, fonts, pages) {
     else if (hits > 1) out.push(F('content-complete', `contact "${c}" extracted ${hits} times`, []));
   }
 
-  const PAINTED = ['disc', 'circle', 'square'];
-  for (const m of exp.markerTypes) {
-    if (!PAINTED.includes(m)) {
+  // A bullet has to be a shape, never a character: a glyph marker lands in the extracted
+  // text and every parser then reads it as part of the sentence. paper.css draws the bullet
+  // as an absolutely positioned ::before box; the UA disc is also accepted, but Chrome
+  // synthesises that one from font metrics nothing can see, so the exporter cannot place it.
+  const UA_SHAPES = ['disc', 'circle', 'square'];
+  for (const m of exp.markers) {
+    const quoted = /^["']/.test(m.content.trim());
+    if (quoted && m.content.trim().length > 2) {
       out.push(
-        F('bullet-marker', `.cv-ul computes list-style-type: ${m}`, [
-          m === 'none'
-            ? 'the bullets have no marker at all. Tailwind preflight resets `ul { list-style: none }`, so paper.css has to declare one.'
-            : `only ${PAINTED.join(' / ')} are allowed; anything else is drawn as text and lands in the extracted output.`,
+        F('bullet-marker', `the bullet is the character ${m.content}`, [
+          'a glyph bullet is extracted as text and becomes part of the sentence an ATS reads. Draw it as a box.',
+        ]),
+      );
+    } else if (!m.painted && !UA_SHAPES.includes(m.list)) {
+      out.push(
+        F('bullet-marker', `list items have no bullet (list-style-type: ${m.list}, ::before paints nothing)`, [
+          'Tailwind preflight resets `ul { list-style: none }`, so paper.css has to draw the bullet itself.',
         ]),
       );
     }

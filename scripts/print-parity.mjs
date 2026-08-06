@@ -1,5 +1,5 @@
 import { execFile as execFileCb } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -20,6 +20,7 @@ import {
   startServer,
   templateCount,
 } from './lib/harness.mjs';
+import { PIXEL_BUDGET, makeRaster, pdfWords } from './lib/raster.mjs';
 
 const execFile = promisify(execFileCb);
 
@@ -67,10 +68,6 @@ const PDF_COVERAGE_MIN = 0.98;
  * print.css that measure() does not reproduce.
  */
 const MEASURE_EPS = 1;
-const PIXEL_DOWNSAMPLE = 6;
-const PIXEL_TOL = 40;
-const PIXEL_FLAT_SD = 8;
-const PIXEL_BUDGET = 0.0015;
 
 const A4_PT_W = 595.276;
 const A4_PT_H = 841.89;
@@ -365,21 +362,6 @@ function groupFindings(findings, a, b) {
   return [...groups.values()].sort((x, y) => y.members.length - x.members.length);
 }
 
-const ENT = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'" };
-const unent = (s) => s.replace(/&(amp|lt|gt|quot|apos);/g, (m) => ENT[m]);
-
-async function pdfWords(file) {
-  const { stdout } = await execFile(PDFTOTEXT, ['-q', '-bbox', file, '-'], { maxBuffer: 16 << 20 });
-  const pages = [...stdout.matchAll(/<page width="([\d.]+)" height="([\d.]+)">([\s\S]*?)<\/page>/g)];
-  const out = [];
-  for (const [, , , body] of pages) {
-    for (const m of body.matchAll(/<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([\s\S]*?)<\/word>/g)) {
-      out.push({ x: +m[1], y: +m[2], x2: +m[3], y2: +m[4], text: unent(m[5]) });
-    }
-  }
-  return { words: out, pages: pages.map((p) => ({ w: +p[1], h: +p[2] })) };
-}
-
 async function pdfPages(file) {
   const { stdout } = await execFile(PDFINFO, [file]);
   return {
@@ -496,123 +478,7 @@ function checkPdfGeometry(fp, pdf) {
   return { problems, coverage, pairs: pairs.length, fits };
 }
 
-function downsample(png, f) {
-  const w = Math.floor(png.width / f);
-  const h = Math.floor(png.height / f);
-  const out = new Float32Array(w * h * 3);
-  const sd = new Float32Array(w * h);
-  const n = f * f;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      let r = 0;
-      let g = 0;
-      let b = 0;
-      let l = 0;
-      let ll = 0;
-      for (let dy = 0; dy < f; dy++) {
-        const row = (y * f + dy) * png.width;
-        for (let dx = 0; dx < f; dx++) {
-          const i = (row + x * f + dx) * 4;
-          const a = png.data[i + 3] / 255;
-          const inv = 255 * (1 - a);
-          const cr = png.data[i] * a + inv;
-          const cg = png.data[i + 1] * a + inv;
-          const cb = png.data[i + 2] * a + inv;
-          r += cr;
-          g += cg;
-          b += cb;
-          const lum = 0.299 * cr + 0.587 * cg + 0.114 * cb;
-          l += lum;
-          ll += lum * lum;
-        }
-      }
-      const o = (y * w + x) * 3;
-      out[o] = r / n;
-      out[o + 1] = g / n;
-      out[o + 2] = b / n;
-      sd[y * w + x] = Math.sqrt(Math.max(0, ll / n - (l / n) ** 2));
-    }
-  }
-  return { w, h, d: out, sd };
-}
-
-async function rasterise(pdfFile) {
-  const prefix = pdfFile.replace(/\.pdf$/, '');
-  await execFile(PDFTOPPM, ['-r', '96', '-png', '-f', '1', '-l', '1', '-singlefile', pdfFile, prefix]);
-  const file = `${prefix}.png`;
-  return existsSync(file) ? PNG.sync.read(readFileSync(file)) : null;
-}
-
-async function pixelDiff(rawA, rawB, diffFile) {
-  if (!rawA || !rawB) return { error: 'pdftoppm produced no raster' };
-  if (Math.abs(rawA.width - rawB.width) > 2 || Math.abs(rawA.height - rawB.height) > 2) {
-    return { error: `first image is ${rawA.width}x${rawA.height} but the second is ${rawB.width}x${rawB.height}` };
-  }
-
-  const A = downsample(rawA, PIXEL_DOWNSAMPLE);
-  const B = downsample(rawB, PIXEL_DOWNSAMPLE);
-  const w = Math.min(A.w, B.w);
-  const h = Math.min(A.h, B.h);
-
-  const f = PIXEL_DOWNSAMPLE;
-  let changed = 0;
-  let x0 = w;
-  let y0 = h;
-  let x1 = -1;
-  let y1 = -1;
-  let worst = 0;
-  const hits = new Uint8Array(w * h);
-  let compared = 0;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      if (Math.max(A.sd[y * A.w + x], B.sd[y * B.w + x]) > PIXEL_FLAT_SD) continue;
-      compared++;
-      const ia = (y * A.w + x) * 3;
-      const ib = (y * B.w + x) * 3;
-      const d = Math.max(
-        Math.abs(A.d[ia] - B.d[ib]),
-        Math.abs(A.d[ia + 1] - B.d[ib + 1]),
-        Math.abs(A.d[ia + 2] - B.d[ib + 2]),
-      );
-      if (d > worst) worst = d;
-      if (d > PIXEL_TOL) {
-        hits[y * w + x] = 1;
-        changed++;
-        if (x < x0) x0 = x;
-        if (y < y0) y0 = y;
-        if (x > x1) x1 = x;
-        if (y > y1) y1 = y;
-      }
-    }
-  }
-  const ratio = compared ? changed / compared : 0;
-
-  if (ratio > PIXEL_BUDGET) {
-    const diff = new PNG({ width: rawA.width, height: rawA.height });
-    for (let y = 0; y < rawA.height; y++) {
-      for (let x = 0; x < rawA.width; x++) {
-        const i = (y * rawA.width + x) * 4;
-        const cx = Math.floor(x / f);
-        const cy = Math.floor(y / f);
-        const hit = cx < w && cy < h && hits[cy * w + cx];
-        diff.data[i] = hit ? 255 : Math.round(rawA.data[i] * 0.3 + 178);
-        diff.data[i + 1] = hit ? 0 : Math.round(rawA.data[i + 1] * 0.3 + 178);
-        diff.data[i + 2] = hit ? 0 : Math.round(rawA.data[i + 2] * 0.3 + 178);
-        diff.data[i + 3] = 255;
-      }
-    }
-    writeFileSync(diffFile, PNG.sync.write(diff));
-  }
-
-  return {
-    ratio,
-    changed,
-    total: compared,
-    flatShare: compared / (w * h),
-    worst: Math.round(worst),
-    region: x1 >= 0 ? { x: x0 * f, y: y0 * f, w: (x1 - x0 + 1) * f, h: (y1 - y0 + 1) * f } : null,
-  };
-}
+const { rasterise, pixelDiff } = makeRaster({ PNG, pdftoppm: PDFTOPPM });
 
 const started = Date.now();
 const dir = outDir ?? mkdtempSync(join(tmpdir(), 'print-parity-'));
@@ -654,6 +520,11 @@ try {
   }
 
   const fpUnder = async (media) => {
+    // Resizing the viewport slides the paper under a stationary cursor, and whatever it
+    // lands on lights up: a delete button turns its row pink, a control fades in. That is
+    // hover state, not a layout that depends on the window, so park the mouse off the paper
+    // first. Without this the invariance check reports colours it caused itself.
+    await page.mouse.move(2, 2);
     if (media === 'print') await settleForPrint(page);
     else await settleForScreen(page);
     const fp = await page.evaluate(FINGERPRINT, WAIVER_SELS);
@@ -738,7 +609,7 @@ try {
           if (info.size && (Math.abs(info.size[0] - A4_PT_W) > 1 || Math.abs(info.size[1] - A4_PT_H) > 1)) {
             problems.push(`page size ${info.size[0]} x ${info.size[1]}pt, expected ${A4_PT_W} x ${A4_PT_H}`);
           }
-          const pdf = await pdfWords(pdfFile);
+          const pdf = await pdfWords(pdfFile, PDFTOTEXT);
           const geo = checkPdfGeometry(printFp, pdf);
           problems.push(...geo.problems);
           cell.coverage = geo.coverage;
@@ -822,12 +693,34 @@ try {
         if (before === after) {
           notes.push(`${stem}: clicking View options did not change .app-root.show-ctl - selector moved?`);
         } else {
-          const toggled = await fpUnder('screen');
+          /**
+           * Deliberately compared under print media, not screen.
+           *
+           * The add controls reserve their space in the flow: revealing "+ bullet" opens the
+           * gap the bullet will land in, and the same for a section and a contact. That
+           * moves the on-screen paper while you hover or while View options is on, and that
+           * is the intended behaviour - the gap is the affordance. Asserting the screen
+           * paper holds still would be asserting the opposite.
+           *
+           * What may not move is the document. Under print media every .no-print control is
+           * display:none in both states, so what is left is the page the PDF is cut from,
+           * plus data-ink, the number the cut line and Fit to page are computed from. Either
+           * of those changing with an editor toggle is a real defect; the gap is not.
+           */
+          const inkOf = () =>
+            page.evaluate((sel) => {
+              const v = document.querySelector(sel)?.dataset.ink;
+              return v == null ? null : Number(v);
+            }, PAPER_SEL);
+
+          const toggled = await fpUnder('print');
+          await page.emulateMedia({ media: 'screen' });
+          const toggledInk = await inkOf();
           const label = `View options ${before ? 'on -> off' : 'off -> on'}`;
-          const g = groupFindings(diffFingerprints(screenFp, toggled, label), screenFp, toggled);
+          const g = groupFindings(diffFingerprints(printFp, toggled, label), printFp, toggled);
           if (g.length) {
             problems.push(
-              'geometry depends on View options: ' +
+              'the printed page depends on View options: ' +
                 g
                   .slice(0, 3)
                   .map(
@@ -836,6 +729,13 @@ try {
                       `${x.cause ? ` after ${x.cause.path.split('>').pop()}` : ''}`,
                   )
                   .join('; '),
+            );
+          }
+          if (appInk != null && toggledInk != null && Math.abs(appInk - toggledInk) > MEASURE_EPS) {
+            problems.push(
+              `the editor measures ${appInk}px of content with View options ${before ? 'on' : 'off'} and ` +
+                `${toggledInk}px with it ${before ? 'off' : 'on'}. That number decides the "missing from the ` +
+                `PDF" warning and how hard Fit to page compresses, so a control is leaking into it.`,
             );
           }
         }
