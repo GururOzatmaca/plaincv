@@ -865,6 +865,7 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
    visible: the column is right-aligned, so the empty half would land on top of the half you
    are typing into. */
 .cv-entry:hover .cv-date .cv-edit:empty,
+.cv-entry:focus-within .cv-date .cv-edit:empty,
 .show-ctl .cv-date .cv-edit:empty,
 .one-col [data-ctl] .cv-date .cv-edit:empty,
 .cv-date:focus-within .cv-edit:empty {
