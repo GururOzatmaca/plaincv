@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { EditorPaper, A4_W, A4_H } from '@/components/EditorPaper';
 import { DesignPanel } from '@/components/DesignPanel';
 import { MarkToolbar } from '@/components/MarkToolbar';
@@ -12,6 +12,8 @@ import { VideoDialog, type VideoClip } from '@/components/VideoDialog';
 import { Shortcuts } from '@/components/Shortcuts';
 import { LangGate } from '@/components/LangGate';
 import { usePrintFilename } from '@/lib/usePrintFilename';
+import { PAPER_SELECTOR } from '@/export/paper';
+import { cvFileName } from '@/lib/download';
 import { useResumeStore } from '@/store/resumeStore';
 import { fontStack, ensureFont } from '@/lib/fonts/registry';
 import { writeAccentVars } from '@/lib/color';
@@ -64,9 +66,6 @@ const START_KEY = 'cv-generator/start-picked';
 const AI_SEEN_KEY = 'cv-generator/ai-opened';
 const LI_SEEN_KEY = 'cv-generator/li-opened';
 
-/** Warned once per browser that a phone stamps the PDF; after that Download prints straight away. */
-const MOBILE_PRINT_KEY = 'cv-generator/mobile-print-warned';
-
 /** A blocked localStorage reads as "already seen", so a locked-down browser gets no pulse. */
 const wasSeen = (key: string): boolean => {
   try {
@@ -83,11 +82,11 @@ const markSeen = (key: string): void => {
 };
 
 /**
- * The platform, not the window width: a narrow desktop window prints clean, while a phone
- * hands the page to AirPrint or the Android print service, which stamp their own header and
- * footer and shrink the paper to fit their margins whatever `@page` says.
+ * The platform, not the window width. A phone has nowhere obvious to put a downloaded file
+ * and some in-app browsers drop it silently, so it gets the buttons instead: Save, or hand
+ * the PDF to the OS share sheet. A narrow desktop window still just downloads.
  */
-const isMobilePrint = (): boolean => {
+const isHandheld = (): boolean => {
   const ua = navigator.userAgent;
   if (/Android|iPhone|iPad|iPod/.test(ua)) return true;
   // iPadOS 13+ reports itself as a Mac; the touch points give it away.
@@ -136,7 +135,10 @@ export function EditorPage() {
   const [keysOpen, setKeysOpen] = useState(false);
   const [videoClip, setVideoClip] = useState<VideoClip | null>(null);
   const [printBlocked, setPrintBlocked] = useState(false);
-  const [printWarn, setPrintWarn] = useState(false);
+  const [exportFailed, setExportFailed] = useState(false);
+  const [building, setBuilding] = useState(false);
+  /** Held for the phone flow: share() needs its own tap, not the one that built the file. */
+  const [pdf, setPdf] = useState<{ bytes: Uint8Array; name: string; shareable: boolean } | null>(null);
   const [recOpen, setRecOpen] = useState(false);
 
   const [langPicked, setLangPicked] = useState(hasStoredLang);
@@ -207,13 +209,12 @@ export function EditorPage() {
   }, []);
 
   /**
-   * In-app browsers replace window.print with a bridge to a native handler that is often
-   * not registered - the Google app on iOS throws
+   * The fallback only. In-app browsers replace window.print with a bridge to a native
+   * handler that is often not registered - the Google app on iOS throws
    * "undefined is not an object (window.webkit.messageHandlers.print.postMessage)".
    * Left uncaught it reaches the ErrorBoundary and takes the whole editor down.
    */
   const print = useCallback(() => {
-    setPrintWarn(false);
     try {
       window.print();
     } catch {
@@ -221,16 +222,59 @@ export function EditorPage() {
     }
   }, []);
 
-  const download = useCallback(() => {
-    if (isMobilePrint() && !wasSeen(MOBILE_PRINT_KEY)) {
-      setPrintWarn(true);
-      return;
+  const fullName = useResumeStore((s) => s.doc.header.fullName);
+
+  /**
+   * The app builds the PDF itself rather than handing the page to a print dialog. A phone
+   * print service ignores `@page`, stamps its own address and page number on, and shrinks
+   * the paper to fit; an in-app browser has no print at all. scripts/pdf-parity.mjs holds
+   * this output to what Chrome's own printer produced, so nothing was given up for it.
+   */
+  const download = useCallback(async () => {
+    if (building) return;
+    setPdf(null);
+    setBuilding(true);
+    try {
+      const paper = document.querySelector<HTMLElement>(PAPER_SELECTOR);
+      if (!paper) throw new Error('no paper to export');
+      const { exportPdf } = await import('@/export');
+      const stem = cvFileName(fullName);
+      const bytes = await exportPdf(paper, { title: stem });
+      const name = `${stem}.pdf`;
+
+      const { canShare, saveBytes } = await import('@/export/save');
+      if (isHandheld()) {
+        setPdf({ bytes, name, shareable: canShare(bytes, name) });
+        return;
+      }
+      if (saveBytes(bytes, name) !== 'saved') setPdf({ bytes, name, shareable: canShare(bytes, name) });
+    } catch (e) {
+      // Better a stamped PDF than none: hand it back to whatever the browser has. The trace
+      // is the only evidence that survives; without it a report reads "it opened the print
+      // dialog" and says nothing about why.
+      console.error('PDF export failed, falling back to print', e);
+      setExportFailed(true);
+      print();
+    } finally {
+      setBuilding(false);
     }
-    print();
-  }, [print]);
+  }, [building, fullName, print]);
+
   const theme = useResumeStore((s) => s.doc.theme);
   const photo = useResumeStore((s) => s.doc.header.photo);
   usePrintFilename();
+
+  // The documented shortcut is "Download as PDF", so it has to reach the exporter and not
+  // the print dialog the app just stopped relying on.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'p') return;
+      e.preventDefault();
+      void download();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [download]);
 
   useLayoutEffect(() => {
     const queries = [
@@ -281,7 +325,7 @@ export function EditorPage() {
     r.setProperty('--paper-photo-y', `${photo?.y ?? 0}%`);
   }, [photo]);
 
-  const anyBanner = recOpen || printWarn || printBlocked;
+  const anyBanner = recOpen || !!pdf || exportFailed || printBlocked;
 
   // What the floating header covers; it scrolls away with the content, which is what makes
   // hiding the header gain a header's worth of page. A banner already clears the header for
@@ -597,13 +641,13 @@ export function EditorPage() {
             {t('hdr.ai')}
           </button>
 
-          <button className="hdr-dl" type="button" onClick={download}>
+          <button className="hdr-dl" type="button" onClick={() => void download()} disabled={building}>
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M6 21h12" />
               <path d="M12 3v14" />
               <path d="m17 12-5 5-5-5" />
             </svg>
-            <span>{t('hdr.download')}</span>
+            <span>{building ? t('hdr.download.busy') : t('hdr.download')}</span>
           </button>
           </div>
         </div>
@@ -611,20 +655,39 @@ export function EditorPage() {
 
       <RecoveryBanner onOpen={setRecOpen} />
 
-      {printWarn && (
-        <div className="no-print rec-bar" role="alert">
-          <span className="rec-msg">{t('hdr.printMobile')}</span>
+      {pdf && (
+        <div className="no-print rec-bar ok" role="status">
+          <span className="rec-msg">{t('hdr.pdfReady')}</span>
           <button
             className="rec-btn primary"
             type="button"
             onClick={() => {
-              markSeen(MOBILE_PRINT_KEY);
-              print();
+              void import('@/export/save').then((m) => m.saveBytes(pdf.bytes, pdf.name));
             }}
           >
-            {t('hdr.printMobile.go')}
+            {t('hdr.pdfSave')}
           </button>
-          <button className="rec-btn" type="button" onClick={() => setPrintWarn(false)}>
+          {pdf.shareable && (
+            <button
+              className="rec-btn"
+              type="button"
+              onClick={() => {
+                void import('@/export/save').then((m) => m.shareBytes(pdf.bytes, pdf.name));
+              }}
+            >
+              {t('hdr.pdfShare')}
+            </button>
+          )}
+          <button className="rec-btn" type="button" onClick={() => setPdf(null)}>
+            {t('hdr.printBlocked.dismiss')}
+          </button>
+        </div>
+      )}
+
+      {exportFailed && (
+        <div className="no-print rec-bar" role="alert">
+          <span className="rec-msg">{t('hdr.pdfFailed')}</span>
+          <button className="rec-btn" type="button" onClick={() => setExportFailed(false)}>
             {t('hdr.printBlocked.dismiss')}
           </button>
         </div>

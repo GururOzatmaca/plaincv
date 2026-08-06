@@ -10,7 +10,7 @@
   border-bottom: 1pt solid var(--paper-accent);
 }
 
-[data-template='classic'] .cv-li::marker {
+[data-template='classic'] .cv-li::before {
   color: var(--accent-ink);
 }
 [data-template='classic'] .cv-chip:not(.cv-chip-add) {

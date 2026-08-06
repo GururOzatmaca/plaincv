@@ -21,10 +21,11 @@
   padding-bottom: 0;
 }
 
-[data-template='minimal'] .cv-ul {
-  list-style-type: circle;
+[data-template='minimal'] .cv-ul > li::before {
+  background: transparent;
+  border: 0.5pt solid currentcolor;
 }
-[data-template='minimal'] .cv-li::marker {
+[data-template='minimal'] .cv-li::before {
   color: var(--paper-muted);
 }
 [data-template='minimal'] .cv-chip:not(.cv-chip-add) {

@@ -18,11 +18,11 @@
   letter-spacing: 0.08em;
 }
 
-[data-template='sharp'] .cv-ul {
-  list-style-type: square;
+[data-template='sharp'] .cv-ul > li::before {
+  border-radius: 0;
 }
 
-[data-template='sharp'] .cv-li::marker {
+[data-template='sharp'] .cv-li::before {
   color: var(--accent-ink);
 }
 [data-template='sharp'] .cv-chip:not(.cv-chip-add) {

@@ -559,6 +559,12 @@ body.coach-tour:not(.coach-bare) .cv-secadd-wrap,
 .print-paper {
   display: flex;
   flex-direction: column;
+  /* A PDF shows a run of glyphs and advances each one by its own width; there is nowhere to
+     put the per-pair adjustment a kern table asks for. Kerning on screen and not in the
+     export would drift a word by up to 1pt across a line, so the paper does without it and
+     the two agree exactly. Ligatures are unaffected - a ligature is one glyph with one
+     width. */
+  font-kerning: none;
 }
 .print-paper > *:not(.cv-addsec) {
   flex: 0 0 auto;
@@ -831,11 +837,63 @@ body.coach-tour:not(.coach-bare) .cv-chip-x,
   font-size: calc(var(--paper-size) * 0.9);
   white-space: nowrap;
 }
+
+/*
+ * An empty date field paints nothing in the PDF, so it takes no room there. On screen it
+ * paints its placeholder and takes a whole line box, and that difference is the preview
+ * lying about the page: two dateless entries put everything below them 28px low, and half a
+ * range left empty shoved the date that IS there 27px sideways, because the column is
+ * right-aligned.
+ *
+ * So an empty one leaves the flow. The box itself stays - date-rail reserves its width by
+ * flex-basis and print keeps that reservation - it just has nothing in it, which is exactly
+ * what print has. The placeholders are still reachable: they hang under the date while the
+ * entry is hovered or focused, or with View options on, and out of the flow they cannot
+ * shove the page around as they appear.
+ */
+.cv-date {
+  position: relative;
+}
+.cv-date .cv-edit:empty {
+  position: absolute;
+  top: 0;
+  right: 0;
+  visibility: hidden;
+}
+/* Reach the entry and the empty half comes back into the flow, where it opens its own room
+   the way every other control does. It may not stay out of the flow and merely become
+   visible: the column is right-aligned, so the empty half would land on top of the half you
+   are typing into. */
+.cv-entry:hover .cv-date .cv-edit:empty,
+.show-ctl .cv-date .cv-edit:empty,
+.one-col [data-ctl] .cv-date .cv-edit:empty,
+.cv-date:focus-within .cv-edit:empty {
+  position: static;
+  visibility: visible;
+}
 .cv-ul {
   margin: calc(var(--paper-gap) * 0.27 * var(--paper-row)) 0 0;
   padding-left: 13pt;
 
-  list-style-type: disc;
+  /* Not list-style-type: Chrome does not draw disc/circle/square from the font, it
+     synthesises them from font metrics with a formula no stylesheet can see and no other
+     engine shares. The PDF exporter has to place the bullet itself, so the bullet is a box
+     the CSS defines. Absolute, so the flow is exactly what a marker left behind. */
+  list-style: none;
+}
+.cv-li,
+.cv-ul > li {
+  position: relative;
+}
+.cv-ul > li::before {
+  content: '';
+  position: absolute;
+  left: -9pt;
+  top: calc((1em * var(--paper-lh) - 0.3em) / 2);
+  width: 0.3em;
+  height: 0.3em;
+  border-radius: 50%;
+  background: currentcolor;
 }
 .cv-li {
   margin-bottom: calc(var(--paper-gap) * 0.17 * var(--paper-row));

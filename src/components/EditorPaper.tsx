@@ -7,6 +7,7 @@ import { uid, newItem, newSection } from '@/schema/factory';
 import { clampPan, clampZoom, imageFromDrop, loadPhotoFile, newPhoto, pickImageFile, type PhotoError } from '@/lib/photo';
 import { A4_W, A4_H } from '@/lib/paperSize';
 import { setFitDeltaPx, consumeBandFit } from '@/lib/pageBudget';
+import { applyPrintAppearance } from '@/lib/printAppearance';
 import { Editable } from './Editable';
 import { RichEditable } from './RichEditable';
 import { RichList } from './RichList';
@@ -1395,14 +1396,10 @@ export function EditorPaper({ scale }: { scale: number }) {
    * hard Fit to page compresses the document - so it has to be the height the PDF is
    * laid out with, not the height the editor happens to draw.
    *
-   * Three rules make print differ from screen, and every one of them has to be undone
-   * here or the answer is a height neither medium has:
-   *   .no-print / .cv-hidden   print.css and paper.css hide them
-   *   .cv-edit:empty           paper.css blanks the placeholder, so an empty field that
-   *                            occupies a line on screen occupies nothing in the PDF
-   *   .cv-haslink              print.css swaps the editable twin for the .cv-printlink
-   *                            anchor, which is display:none on screen
-   * Missing the last two is what let a CV that prints on one page claim its tail was
+   * The three rules that make print differ from screen all have to be undone here or the
+   * answer is a height neither medium has; applyPrintAppearance() owns that list, because
+   * the PDF exporter needs the same one and a second copy would drift.
+   * Missing two of them is what let a CV that prints on one page claim its tail was
    * missing, and made Fit to page squeeze a document that already fitted.
    *
    * `scripts/print-parity.mjs --check measure` asserts this equals the real print-media
@@ -1412,34 +1409,17 @@ export function EditorPaper({ scale }: { scale: number }) {
     const el = paperRef.current;
     if (!el) return { ink: A4_H, needed: A4_H };
 
-    const hidden: HTMLElement[] = [];
-    const hide = (n: HTMLElement) => {
-      hidden.push(n);
-      n.style.display = 'none';
-    };
-    el.querySelectorAll<HTMLElement>('.no-print, .cv-hidden').forEach(hide);
-    // An empty field paints its placeholder on screen only. Collapsing the text is not
-    // enough: the element still holds a line box, so it has to leave the flow.
-    el.querySelectorAll<HTMLElement>('.cv-edit').forEach((n) => {
-      if (!n.textContent) hide(n);
-    });
-    // The two halves of the autolink swap: the editable twin goes, the anchor comes back.
-    el.querySelectorAll<HTMLElement>('.cv-edit.cv-haslink').forEach(hide);
-    const links: HTMLElement[] = [];
-    el.querySelectorAll<HTMLElement>('.cv-printlink').forEach((n) => {
-      links.push(n);
-      n.style.display = 'inline';
-    });
-
-    const kids = Array.from(el.children).filter((k): k is HTMLElement => k instanceof HTMLElement && k.style.display !== 'none');
-    const padBottom = parseFloat(getComputedStyle(el).paddingBottom) || 0;
-    const ink = kids.length
-      ? Math.round(Math.max(...kids.map((k) => k.offsetTop + k.offsetHeight)))
-      : Math.round(el.scrollHeight - padBottom);
-
-    hidden.forEach((n) => (n.style.display = ''));
-    links.forEach((n) => (n.style.display = ''));
-    return { ink, needed: Math.round(ink + padBottom) };
+    const restore = applyPrintAppearance(el);
+    try {
+      const kids = Array.from(el.children).filter((k): k is HTMLElement => k instanceof HTMLElement && k.style.display !== 'none');
+      const padBottom = parseFloat(getComputedStyle(el).paddingBottom) || 0;
+      const ink = kids.length
+        ? Math.round(Math.max(...kids.map((k) => k.offsetTop + k.offsetHeight)))
+        : Math.round(el.scrollHeight - padBottom);
+      return { ink, needed: Math.round(ink + padBottom) };
+    } finally {
+      restore();
+    }
   };
 
   useLayoutEffect(() => {

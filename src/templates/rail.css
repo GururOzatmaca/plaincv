@@ -21,7 +21,7 @@
   font-weight: 600;
 }
 
-[data-template='rail'] .cv-li::marker {
+[data-template='rail'] .cv-li::before {
   color: #6b7580;
 }
 

@@ -18,11 +18,12 @@
   border-bottom: 0.5pt solid #cfd5db;
 }
 
-[data-template='dense'] .cv-ul {
-  list-style-type: circle;
+[data-template='dense'] .cv-ul > li::before {
+  background: transparent;
+  border: 0.5pt solid currentcolor;
 }
 
-[data-template='dense'] .cv-li::marker {
+[data-template='dense'] .cv-li::before {
   color: #667079;
 }
 

@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
 import { useResumeStore } from '@/store/resumeStore';
-import { slugify } from './download';
+import { cvFileName } from './download';
 
 export function usePrintFilename(): void {
   const fullName = useResumeStore((s) => s.doc.header.fullName);
   useEffect(() => {
     const appTitle = 'PlainCV';
     const before = () => {
-      document.title = fullName.trim() ? `${slugify(fullName)}-cv` : 'my-cv';
+      document.title = cvFileName(fullName);
     };
     const after = () => {
       document.title = appTitle;

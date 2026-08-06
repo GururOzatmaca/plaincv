@@ -62,7 +62,7 @@ const STYLES: { suffix: string; weight: number; style: string }[] = [
 
 // public/ is copied verbatim, so these filenames carry no content hash while the CDN
 // serves them `immutable` for a year. Bump on any re-run of `npm run fonts`.
-const FONT_REV = 1;
+export const FONT_REV = 1;
 
 const loaded = new Set<string>();
 let sheet: HTMLStyleElement | null = null;

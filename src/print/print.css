@@ -3,8 +3,12 @@
   margin: 0;
 }
 
+/* The paint is outside @media print because the PDF exporter reveals this anchor under
+   screen media and reads its computed style. */
 .cv-printlink {
   display: none;
+  color: inherit;
+  text-decoration: none;
 }
 
 @media print {
@@ -27,8 +31,6 @@
   }
   .cv-printlink {
     display: inline;
-    color: inherit;
-    text-decoration: none;
   }
   .cv-edit.cv-haslink {
     display: none !important;

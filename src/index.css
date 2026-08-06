@@ -871,6 +871,25 @@ body {
   color: #fff;
 }
 
+/* The same bar delivering a finished file rather than reporting a problem. */
+.rec-bar.ok {
+  border-color: #0e7490;
+  background: #ecfeff;
+  color: #134e4a;
+}
+.rec-bar.ok .rec-btn {
+  border-color: #0e7490;
+  color: #0e5a70;
+}
+.rec-bar.ok .rec-btn:hover {
+  background: #f0fdff;
+}
+.rec-bar.ok .rec-btn.primary {
+  background: #0e7490;
+  border-color: #0e7490;
+  color: #fff;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
